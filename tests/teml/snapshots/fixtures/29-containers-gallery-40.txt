@@ -1,0 +1,17 @@
+CONTAINER GALLERY
+════════════════════════════════════════
+
+┌─ Outer ──────────────────────────────┐
+│ ▎ ℹ info                            │
+│ ▎ Info inside card.                  │
+│                                      │
+│ ▎ ✓ success                          │
+│ ▎ All checks passed.                 │
+└──────────────────────────────────────┘
+
+▎ ⚠ warning
+▎ Standalone warning after card.
+
+Unknown container degrades:
+
+content preserved

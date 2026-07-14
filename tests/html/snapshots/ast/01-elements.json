@@ -1,0 +1,299 @@
+{
+  "blocks": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Heading One",
+        },
+      ],
+      "level": 1,
+      "type": "heading",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Heading Two",
+        },
+      ],
+      "level": 2,
+      "type": "heading",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Deep Heading",
+        },
+      ],
+      "level": 4,
+      "type": "heading",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Paragraph with ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "bold",
+            },
+          ],
+          "type": "bold",
+        },
+        {
+          "type": "text",
+          "value": ", ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "italic",
+            },
+          ],
+          "type": "italic",
+        },
+        {
+          "type": "text",
+          "value": ", ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "underline",
+            },
+          ],
+          "type": "underline",
+        },
+        {
+          "type": "text",
+          "value": ", and ",
+        },
+        {
+          "type": "code",
+          "value": "inline code",
+        },
+        {
+          "type": "text",
+          "value": ".",
+        },
+      ],
+      "type": "paragraph",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Link to ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "documentation",
+            },
+          ],
+          "href": "https://example.com/docs",
+          "type": "link",
+        },
+        {
+          "type": "text",
+          "value": ".",
+        },
+      ],
+      "type": "paragraph",
+    },
+    {
+      "items": [
+        {
+          "blocks": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Alpha",
+                },
+              ],
+              "type": "paragraph",
+            },
+          ],
+        },
+        {
+          "blocks": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Beta",
+                },
+              ],
+              "type": "paragraph",
+            },
+          ],
+        },
+      ],
+      "ordered": false,
+      "start": 1,
+      "type": "list",
+    },
+    {
+      "items": [
+        {
+          "blocks": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Gamma",
+                },
+              ],
+              "type": "paragraph",
+            },
+          ],
+        },
+        {
+          "blocks": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Delta",
+                },
+              ],
+              "type": "paragraph",
+            },
+          ],
+        },
+      ],
+      "ordered": true,
+      "start": 3,
+      "type": "list",
+    },
+    {
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "A quoted thought.",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "type": "quote",
+    },
+    {
+      "type": "thematicBreak",
+    },
+    {
+      "language": "typescript",
+      "type": "codeBlock",
+      "value": "const answer = 42;",
+    },
+    {
+      "items": [
+        {
+          "definitions": [
+            [
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "db-primary",
+                  },
+                ],
+                "type": "paragraph",
+              },
+            ],
+          ],
+          "term": [
+            {
+              "type": "text",
+              "value": "Host",
+            },
+          ],
+        },
+        {
+          "definitions": [
+            [
+              {
+                "children": [
+                  {
+                    "type": "text",
+                    "value": "5432",
+                  },
+                ],
+                "type": "paragraph",
+              },
+            ],
+          ],
+          "term": [
+            {
+              "type": "text",
+              "value": "Port",
+            },
+          ],
+        },
+      ],
+      "type": "definitionList",
+    },
+    {
+      "attrs": {
+        "alt": "Latency chart",
+        "src": "https://example.com/chart.png",
+      },
+      "name": "image",
+      "type": "leaf",
+    },
+    {
+      "align": [],
+      "rows": [
+        {
+          "cells": [
+            [
+              {
+                "type": "text",
+                "value": "Key",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "Value",
+              },
+            ],
+          ],
+          "header": true,
+        },
+        {
+          "cells": [
+            [
+              {
+                "type": "text",
+                "value": "Env",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "staging",
+              },
+            ],
+          ],
+          "header": false,
+        },
+      ],
+      "type": "table",
+    },
+  ],
+  "meta": {
+    "title": "Elements Fixture",
+  },
+}

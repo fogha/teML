@@ -1,0 +1,15 @@
+Deep nesting:
+
+• level 0
+  • level 1
+    • level 2
+      • level 3
+        • level 4
+
+Ordered wide markers:
+
+8. eighth
+9. ninth
+   1. sub one
+   2. sub two with longer text that wraps at narrow widths
+10. tenth item continues

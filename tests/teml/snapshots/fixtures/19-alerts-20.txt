@@ -1,0 +1,22 @@
+▎ ℹ info
+▎ Info alert with a
+▎ short message.
+
+▎ ✓ success
+▎ Success alert
+▎ after deployment.
+
+▎ ⚠ warning
+▎ Warning: replica
+▎ slow to become
+▎ healthy.
+
+▎ ✗ error
+▎ Error: health
+▎ check failed in
+▎ eu-west-1.
+
+▎ › note
+▎ Note container for
+▎ supplementary
+▎ details.

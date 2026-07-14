@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+<head><title>Hostile\x1b[2J</title></head>
+<body>
+  <h1>Security \x1b[31mProbe</h1>
+  <p onclick="alert(1)" onmouseover="steal()">Handler attrs \x1b]0;pwned\x07 ignored.</p>
+  <a href="javascript:alert(1)">javascript link</a>
+  <a href="data:text/html,&lt;script&gt;alert(1)&lt;/script&gt;">data link</a>
+  <img src="x" alt="esc \x1b[4m alt" onclick="bad()">
+  <script>process.exit(1)</script>
+  <p>Safe text remains.</p>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head><title>Messy Page</title></head>
+<body>
+  <!-- navigation should not appear in output -->
+  <nav><a href="/">Home</a></nav>
+  <div><div><section><article>
+    <p>  Deeply   nested   <span style="font-weight:bold">wrappers</span>  collapse  </p>
+  </article></section></div></div>
+  <style>.hidden{display:none}</style>
+  <script>document.body.innerHTML = "pwned";</script>
+  <noscript>Enable JavaScript</noscript>
+  <template><p>never rendered</p></template>
+  <p hidden>Hidden paragraph</p>
+  <p aria-hidden="true">Aria hidden paragraph</p>
+  <p style="display: none">Display none paragraph</p>
+  <p>Visible content survives cleanup.</p>
+  <footer>Footer noise</footer>
+</body>
+</html>

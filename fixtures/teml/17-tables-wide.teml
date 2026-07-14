@@ -1,0 +1,7 @@
+| Service | Status | Latency | Region | Notes |
+|---------|--------|---------|--------|-------|
+| payments-api | OK | 42ms | eu-west-1 | primary |
+| auth-gateway | OK | 18ms | eu-west-1 | |
+| search-index | Degraded | 310ms | us-east-1 | reindexing |
+
+Inline pipe example: `a | b`

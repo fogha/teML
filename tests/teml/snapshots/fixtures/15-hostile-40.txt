@@ -1,0 +1,15 @@
+HOSTILE INPUT (SANITIZED)
+════════════════════════════════════════
+
+Paragraph with control chars removed at
+parse time.
+
+Link attempt: bad
+
+▎ ⚠ warning
+▎ Nested content with code and ✗ alert
+▎ glyph
+
+                                   bash
+ echo safe
+

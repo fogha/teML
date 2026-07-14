@@ -1,0 +1,15 @@
+┌─ Card with table ────────────────────┐
+│ ┌────────┬───────────┐               │
+│ │ Key    │ Val       │               │
+│ ├────────┼───────────┤               │
+│ │ uptime │ 99.9%     │               │
+│ │ region │ eu-west-1 │               │
+│ └────────┴───────────┘               │
+│                                      │
+│ ▎ ⚠ warning                         │
+│ ▎ Warning inside card body.          │
+└──────────────────────────────────────┘
+
+▎ ℹ info
+▎ Info block with ::kv{Env="prod"
+▎ Tier="gold"}

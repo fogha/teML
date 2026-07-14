@@ -1,0 +1,26 @@
+DEPLOY REPORT
+========================================================================================================================
+
+Deployment finished in 4m 12s with status Passed. See deploy.log or the dashboard for live metrics.
+
++- Summary ------------------------------------------------------------------------------------------------------------+
+| * 12 containers updated                                                                                              |
+| * 0 failed health checks                                                                                             |
+|   1. nested detail item                                                                                              |
+| * 3 warnings in eu-west-1                                                                                            |
++----------------------------------------------------------------------------------------------------------------------+
+
+| [WARN]
+| One replica took longer than expected to become healthy.
+
+                                                                                                                   bash
+ teml view report.teml --theme dark
+
+
+Cluster   prod-eu-1
+Duration  4m12s
+Operator  ci-bot
+
+
+
+> Deploys are boring now. That is the point.

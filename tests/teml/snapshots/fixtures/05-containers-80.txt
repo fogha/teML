@@ -1,0 +1,9 @@
+┌─ Outer card ─────────────────────────────────────────────────────────────────┐
+│ ▎ ⚠ warning                                                                 │
+│ ▎ Nested warning inside a four-colon card.                                   │
+│                                                                              │
+│ Body paragraph after the warning.                                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+▎ ℹ info
+▎ Simple info container.

@@ -1,0 +1,33 @@
+GETTING STARTED
+════════════════════════════════════════════════════════════════════════════════
+
+Bootstrap is a powerful, feature-packed frontend toolkit. Build anything—from
+prototype to production—in minutes.
+
+Quick start
+────────────────────────────────────────────────────────────────────────────────
+
+Get started by including Bootstrap's production-ready CSS and JS via CDN without
+any build steps. Jump to CSS (#css) or JavaScript (#js) for more details.
+
+┌─ CDN links ──────────────────────────────────────────────────────────────────┐
+│ Copy-paste the stylesheet <link> into your <head> before all other           │
+│ stylesheets.                                                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+▎ ℹ info
+▎ Prefer to install locally? Download the source or install with npm.
+
+Contents
+────────────────────────────────────────────────────────────────────────────────
+
+1. Download
+2. Contents
+3. Important globals
+
+┌────────────────┬─────────┬────────────────────┐
+│ Package        │ Version │ Description        │
+├────────────────┼─────────┼────────────────────┤
+│ bootstrap      │ 5.3.x   │ CSS and JS bundle  │
+│ @popperjs/core │ 2.x     │ Positioning engine │
+└────────────────┴─────────┴────────────────────┘

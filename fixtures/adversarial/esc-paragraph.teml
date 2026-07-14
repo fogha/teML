@@ -1,0 +1,24 @@
+# ESC in paragraph
+# Hostile
+
+para with \x1b[31m red text
+
+# ESC in code fence
+
+```
+code \x1b[31m red
+```
+
+# ESC in card title
+
+:::card{title="bad\x1b[9999H title"}
+body
+:::
+
+# javascript link
+
+[click](javascript:alert(1))
+
+# bidi in link text
+
+[bidi\u202Etext](https://example.com)

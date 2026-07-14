@@ -1,0 +1,34 @@
+---
+title: Deploy Report
+theme: dark
+---
+
+# Deploy Report
+
+Deployment finished in **4m 12s** with status :success[Passed]. Full details in the `deploy.log` file or the [dashboard](https://ops.example.com).
+
+:::card{title="Summary"}
+- 12 containers updated
+- 0 failed health checks
+- 3 warnings in `eu-west-1`
+:::
+
+:::warning
+One replica took longer than expected to become healthy.
+:::
+
+::kv{Cluster="prod-eu-1" Duration="4m12s" Operator="ci-bot" Commit="a1b2c3d"}
+
+## Services
+
+| Service | Status | Latency |
+|---|---|---|
+| payments | OK | 42ms |
+| auth | OK | 18ms |
+| search | Degraded | 310ms |
+
+```bash
+teml view report.teml --theme dark
+```
+
+> Deploys are boring now. That is the point.

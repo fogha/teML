@@ -1,0 +1,31 @@
+DOCUMENTATION ELEMENTS (M6.5)
+════════════════════════════════════════════════════════════════════════════════
+
+▎ ⚠ warning: Disk pressure
+▎ Replica volume at 92% capacity.
+
+Tasks
+────────────────────────────────────────────────────────────────────────────────
+
+☑ Ship release
+☐ Write runbook
+☐ Schedule drill
+
+Definitions
+────────────────────────────────────────────────────────────────────────────────
+
+Host
+db-primary.internal
+Port
+5432
+
+Footnotes
+────────────────────────────────────────────────────────────────────────────────
+
+Production traffic increased 12% week over week [1].
+
+────────────────────────────────────────────────────────────────────────────────
+Footnotes
+
+1. [traffic]
+Source: weekly metrics dashboard, week 24.

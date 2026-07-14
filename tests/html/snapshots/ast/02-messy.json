@@ -1,0 +1,25 @@
+{
+  "blocks": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Deeply nested wrappers collapse",
+        },
+      ],
+      "type": "paragraph",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Visible content survives cleanup.",
+        },
+      ],
+      "type": "paragraph",
+    },
+  ],
+  "meta": {
+    "title": "Messy Page",
+  },
+}

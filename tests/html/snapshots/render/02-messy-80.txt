@@ -1,0 +1,3 @@
+Deeply nested wrappers collapse
+
+Visible content survives cleanup.

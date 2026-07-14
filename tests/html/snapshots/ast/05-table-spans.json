@@ -1,0 +1,82 @@
+{
+  "blocks": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Span Flattening",
+        },
+      ],
+      "level": 1,
+      "type": "heading",
+    },
+    {
+      "align": [],
+      "rows": [
+        {
+          "cells": [
+            [
+              {
+                "type": "text",
+                "value": "Service",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "Gateway",
+              },
+            ],
+            [],
+          ],
+          "header": true,
+        },
+        {
+          "cells": [
+            [
+              {
+                "type": "text",
+                "value": "Service",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "Healthy",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "42ms",
+              },
+            ],
+          ],
+          "header": false,
+        },
+        {
+          "cells": [
+            [
+              {
+                "type": "text",
+                "value": "Auth",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "Operational",
+              },
+            ],
+            [],
+          ],
+          "header": false,
+        },
+      ],
+      "type": "table",
+    },
+  ],
+  "meta": {
+    "title": "Table Spans",
+  },
+}

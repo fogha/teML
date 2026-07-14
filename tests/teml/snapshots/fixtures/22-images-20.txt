@@ -1,0 +1,11 @@
+Standalone image:
+
+[Image: Alt text fo…
+
+[Image: No alt]
+
+Paragraph mentioning
+
+[Image: inline icon]
+
+in flow.

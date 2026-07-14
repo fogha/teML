@@ -1,0 +1,85 @@
+---
+title: Production Operations Dashboard
+theme: dark
+---
+
+# Production Operations
+
+Live overview for **Friday, 10 July 2026**. Overall status is :success[Operational], with :warning[2 items requiring attention].
+
+::kv{Environment="production" Region="eu-west-1" Release="v3.18.0" Commit="8f3c2ad" Updated="17:58 UTC"}
+
+::::card{title="Release Summary"}
+The current release completed in **6m 42s** and passed all required deployment gates.
+
+| Stage | Result | Duration | Owner |
+|---|:---:|---:|---|
+| Build | Passed | 2m 08s | Platform |
+| Security scan | Passed | 1m 14s | Security |
+| Canary | Passed | 2m 30s | Runtime |
+| Global rollout | Passed | 50s | SRE |
+
+:::success
+All 24 application instances are running the expected release.
+:::
+::::
+
+## Service Health
+
+| Service | Health | Instances | P95 | Error rate |
+|---|:---:|---:|---:|---:|
+| API gateway | Healthy | 6/6 | 84ms | 0.03% |
+| Authentication | Healthy | 4/4 | 42ms | 0.01% |
+| Payments | Degraded | 5/5 | 318ms | 0.72% |
+| Search | Healthy | 6/6 | 126ms | 0.08% |
+| Notifications | Healthy | 3/3 | 91ms | 0.02% |
+
+::::card{title="Active Incident"}
+### Elevated payment latency
+
+Requests remain successful, but payment confirmation is slower than normal in `eu-west-1`.
+
+:::warning
+The provider latency threshold has been exceeded for 12 minutes. Automatic failover has not triggered because the error rate remains below 1%.
+:::
+
+::kv{Incident="INC-2048" Severity="SEV-2" Commander="A. Rivera" Started="17:41 UTC" NextUpdate="18:10 UTC"}
+::::
+
+## Response Plan
+
+1. Confirm provider health and regional network status
+  - Compare latency across all availability zones
+  - Review the last 30 minutes of provider errors
+2. Prepare traffic failover
+  - Verify secondary provider capacity
+  - Notify the support team
+3. Resolve or escalate by the next update window
+
+:::info
+Follow progress on the [incident dashboard](https://status.example.com/incidents/INC-2048) or contact :kbd[#operations].
+:::
+
+## Recent Events
+
+| Time | Event | Detail |
+|---:|---|---|
+| 17:58 | Health check | All instances responding |
+| 17:51 | Alert updated | Payment latency increased to 318ms |
+| 17:46 | Investigation | Provider degradation confirmed |
+| 17:41 | Incident opened | On-call engineer acknowledged |
+| 17:32 | Deployment | Release v3.18.0 completed |
+
+### Useful Commands
+
+```bash
+teml view operations-dashboard.teml --theme dark --width 88
+curl -fsS https://status.example.com/api/health
+kubectl get pods -n production
+```
+
+> Keep customer impact, current evidence, and the next decision point visible in every update.
+
+---
+
+:muted[Generated from the production operations runbook.]

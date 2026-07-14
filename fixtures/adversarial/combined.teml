@@ -1,0 +1,13 @@
+# Combined hostile inputs
+
+\x1b[2J wipe
+
+```js
+alert("\x1b]0;owned\x07")
+```
+
+:::warning
+\x1b[41m injected
+:::
+
+[bad](javascript:noop)

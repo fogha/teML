@@ -1,0 +1,6 @@
+BRANDED HEADING
+════════════════════════════════════════════════════════════════════════════════
+
+Custom role from frontmatter
+
+Paragraph with bold, italic, underline, and code.

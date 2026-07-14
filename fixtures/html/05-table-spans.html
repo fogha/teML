@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head><title>Table Spans</title></head>
+<body>
+  <h1>Span Flattening</h1>
+  <table>
+    <tbody>
+      <tr>
+        <th rowspan="2">Service</th>
+        <td colspan="2">Gateway</td>
+      </tr>
+      <tr>
+        <td>Healthy</td>
+        <td>42ms</td>
+      </tr>
+      <tr>
+        <td>Auth</td>
+        <td colspan="2">Operational</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

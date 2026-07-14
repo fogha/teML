@@ -1,0 +1,14 @@
+---
+title: Roles fixture
+theme: dark
+roles:
+  brand:
+    fg: brightCyan
+    bold: true
+---
+
+# Branded heading
+
+:brand[Custom role from frontmatter]
+
+Paragraph with **bold**, *italic*, __underline__, and `code`.

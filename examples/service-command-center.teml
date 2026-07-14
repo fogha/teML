@@ -1,0 +1,81 @@
+---
+title: Service Command Center
+theme: dark
+---
+
+# Service Command Center
+
+Platform overview for **Sunday, 12 July 2026**. Fleet status is :success[Healthy]; :highlight[canary lane] is active. ~~Legacy routing~~ is :muted[deprecated].
+
+::kv{Cluster="prod-eu-1" Region="eu-west-1" Release="v4.2.1" OnCall="M. Chen" Updated="17:04 UTC"}
+
+::::grid{columns="4" gap="2"}
+::metric{label="Requests/s" value="18.4k" role="success" change="+6%"}
+::metric{label="Error rate" value="0.04%" role="success" change="-0.01%"}
+::metric{label="P95 latency" value="112ms" role="warning" change="+18ms"}
+::metric{label="Saturation" value="61%" role="info"}
+::::
+
+::progress{label="CPU pool" value="58" max="100" role="success"}
+::progress{label="Memory pool" value="74" max="100" role="warning"}
+::progress{label="Disk on db-03" value="92" max="100" role="error"}
+
+::::grid{columns="2" gap="2"}
+:::card{title="Ingress"}
+Edge traffic is stable. TLS handshakes remain under budget. :success[All six ingress nodes pass synthetic checks.]
+:::
+
+:::card{title="Data plane"}
+Replication lag is within SLO on every shard. :warning[Shard `s-07` compaction is slower than baseline.]
+:::
+::::
+
+## Service health
+
+| Service | Health | Replicas | P95 | Errors |
+|---|:---:|---:|---:|---:|
+| API gateway | Healthy | 8/8 | 84ms | 0.02% |
+| Auth | Healthy | 4/4 | 39ms | 0.00% |
+| Billing | Degraded | 6/6 | 241ms | 0.31% |
+| Search | Healthy | 5/5 | 118ms | 0.05% |
+| Notify | Healthy | 3/3 | 67ms | 0.01% |
+
+## Runbook tasks
+
+- [x] Confirm canary metrics
+- [x] Page on-call for billing drift
+- [ ] Fail over billing read path
+- [ ] Post incident summary
+
+:::details{summary="Billing mitigation steps" open="true"}
+1. Drain `billing-canary` from the mesh
+2. Compare shadow traffic against primary
+3. Promote canary if error budget holds for 15 minutes
+
+Press :kbd[Ctrl+Shift+B] to open the billing playbook.
+:::
+
+:::figure{caption="Weekly error budget burn"}
+ASCII sparkline (narrow terminals):
+
+`  .:*#*#*:..  `
+
+Budget consumed: 38% with 4.2 days remaining.
+:::
+
+## Event timeline
+
+::event{time="17:04" title="Health sweep" detail="All probes green across eu-west-1" role="success"}
+::event{time="16:51" title="Billing latency" detail="P95 crossed 200ms on primary pool" role="warning"}
+::event{time="16:44" title="Canary promoted" detail="v4.2.1 serving 12% of ingress traffic" role="info"}
+::event{time="16:30" title="Deploy finished" detail="Rollout completed in 7m 12s" role="success"}
+
+Follow the [status page](https://status.example.com/services/billing) for customer-facing updates :fn{id="status"}.
+
+:::footnote{id="status"}
+Public status feed; internal-only fields are stripped before publish.
+:::
+
+---
+
+:muted[Rendered with TeML — safe at width 20 through 120.]

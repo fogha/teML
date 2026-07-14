@@ -1,0 +1,32 @@
+LONG URL TORTURE
+════════════════════════════════════════
+
+Visit full deployment logs
+(https://example.com/organizations/acme/
+projects/platform/deployments/2024-07-12
+T08-30-00Z/logs?filter=severity%3Derror&
+region=eu-west-1&cursor=abcdef1234567890
+) for details.
+
+Inline link deployment dashboard
+(https://example.com/organizations/acme/
+projects/platform/deployments/2024-07-12
+T08-30-00Z/dashboard?tab=events&sort=des
+c) in prose.
+
+┌───────┬─────────────────────────┐
+│ Label │ URL                     │
+├───────┼─────────────────────────┤
+│ docs  │ API auth token endpoint │
+│       │ (https://example.com/do │
+│       │ cs/api/v2/reference/end │
+│       │ points/authentication/o │
+│       │ auth2/token)            │
+│ home  │ example.com             │
+│       │ (https://example.com)   │
+└───────┴─────────────────────────┘
+
+▎ ℹ info
+▎ Also in container: health status
+▎ (https://example.com/status/eu-west-1/
+▎ payments-api/health?verbose=true)

@@ -1,0 +1,7 @@
+Standalone image:
+
+![Alt text for diagram](https://example.com/diagram.png)
+
+![No alt](https://example.com/raw.png)
+
+Paragraph mentioning ![inline icon](https://example.com/icon.png) in flow.

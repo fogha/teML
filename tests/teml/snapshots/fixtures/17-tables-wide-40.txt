@@ -1,0 +1,13 @@
+┌──────────┬─────┬───────┬────────┬────┐
+│ Service  │ St… │ Laten │ Region │ N… │
+│          │     │ cy    │        │    │
+├──────────┼─────┼───────┼────────┼────┤
+│ payments │ OK  │ 42ms  │ eu-wes │ p… │
+│ -api     │     │       │ t-1    │    │
+│ auth-gat │ OK  │ 18ms  │ eu-wes │    │
+│ eway     │     │       │ t-1    │    │
+│ search-i │ De… │ 310ms │ us-eas │ r… │
+│ ndex     │     │       │ t-1    │    │
+└──────────┴─────┴───────┴────────┴────┘
+
+Inline pipe example: a | b

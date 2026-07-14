@@ -1,0 +1,22 @@
+SERVICE OVERVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+Status is ✓ healthy with minor alerts.
+
+┌─ Payments API ───────────────────────────────────────────────────────────────┐
+│ Latency 42ms across 12 pods.                                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+▎ ⚠ warning
+▎ Replica restart in eu-west-1.
+
+▎ ✗ error
+▎ Database connection pool saturated.
+
+▎ ✓ success
+▎ All health checks passing.
+
+▎ ℹ info
+▎ Maintenance window scheduled Sunday.
+
+Last updated 2 minutes ago.

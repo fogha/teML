@@ -1,0 +1,23 @@
+# Container gallery
+
+::::card{title="Outer"}
+
+:::info
+Info inside card.
+:::
+
+:::success
+All checks passed.
+:::
+
+::::
+
+:::warning
+Standalone warning after card.
+:::
+
+Unknown container degrades:
+
+:::mystery
+content preserved
+:::

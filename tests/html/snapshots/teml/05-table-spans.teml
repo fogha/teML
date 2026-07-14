@@ -1,0 +1,10 @@
+---
+title: Table Spans
+---
+
+# Span Flattening
+
+| Service | Gateway |  |
+| --- | --- | --- |
+| Service | Healthy | 42ms |
+| Auth | Operational |  |

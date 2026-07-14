@@ -1,0 +1,10 @@
+Cluster   prod-eu-1
+Duration  4m12s
+Operator  ci-bot
+Commit    a1b2c3d
+
+Short      x
+LongValue  this val…
+
+日本語      東京
+English  Tokyo

@@ -1,0 +1,31 @@
+REAL-WORLD EXCERPT
+════════════════════════════════════════
+
+Deployment finished in 4m 12s with
+status ✓ Passed.
+
+┌─ Summary ────────────────────────────┐
+│ • 12 containers updated              │
+│ • 0 failed health checks             │
+│ • 3 warnings in eu-west-1            │
+│                                      │
+│ ┌──────────────┬─────────┬─────────┐ │
+│ │ Service      │ Status  │ Latency │ │
+│ ├──────────────┼─────────┼─────────┤ │
+│ │ payments-api │ OK      │ 42ms    │ │
+│ │ auth-gateway │ OK      │ 18ms    │ │
+│ │ search-index │ Degrade │ 310ms   │ │
+│ │              │ d       │         │ │
+│ └──────────────┴─────────┴─────────┘ │
+│                                      │
+│ Cluster   prod-eu-1                  │
+│ Operator  ci-bot                     │
+└──────────────────────────────────────┘
+
+▎ ⚠ warning
+▎ One replica took longer than expected
+▎ to become healthy.
+
+See runbook
+(https://example.com/runbook) for
+details.

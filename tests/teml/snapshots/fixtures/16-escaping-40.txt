@@ -1,0 +1,15 @@
+ESCAPING
+════════════════════════════════════════
+
+Literal colon directive: :success[not a
+span]
+
+Pipe in table cell: a | b
+
+┌──────┬───────┐
+│ Col  │ Data  │
+├──────┼───────┤
+│ pipe │ a | b │
+└──────┴───────┘
+
+Backslash before bracket: [not a link]

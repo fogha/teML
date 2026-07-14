@@ -1,0 +1,3 @@
+```js
+alert("\x1b]0;owned\x07")
+```

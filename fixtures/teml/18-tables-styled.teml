@@ -1,0 +1,12 @@
+| Feature | Result |
+|---------|--------|
+| **bold** | :success[pass] |
+| _italic_ | :warning[check] |
+| `code` | [link](https://example.com) |
+
+Aligned:
+
+| Left | Center | Right |
+|:-----|:------:|------:|
+| short | middle | 1 |
+| longer text here | mid | 999 |

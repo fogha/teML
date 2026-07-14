@@ -1,0 +1,5 @@
+Status spans: :success[ok] :warning[careful] :error[fail] :info[note] :muted[quiet] :kbd[Ctrl+C]
+
+Custom role: :status[deploy]{role=info}
+
+Escaped literal: \:notaspan[ignored]

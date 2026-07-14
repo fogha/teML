@@ -1,0 +1,9 @@
+> A blockquote with **emphasis**
+> and a second line.
+
+---
+
+```typescript
+const answer = 42;
+console.log(answer);
+```

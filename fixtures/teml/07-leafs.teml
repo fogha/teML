@@ -1,0 +1,5 @@
+::kv{Cluster="prod" Region="eu-west-1" Pods="12"}
+
+::image{src="https://example.com/logo.png" alt="Logo"}
+
+::break

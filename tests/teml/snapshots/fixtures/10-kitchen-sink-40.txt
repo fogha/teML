@@ -1,0 +1,37 @@
+KITCHEN SINK
+════════════════════════════════════════
+
+TeML fixture 10 exercises headings,
+inlines, lists, quotes, rules, code,
+tables, containers, leafs, and spans.
+
+✓ All systems nominal
+
+Lists and quotes
+────────────────────────────────────────
+
+• item one
+• item two
+  1. nested ordered
+  2. second
+
+▎ Quoted wisdom with code and hint.
+
+────────────────────────────────────────
+
+┌─ Card block ─────────────────────────┐
+│ ┌────────┬───────┐                   │
+│ │ Name   │ Value │                   │
+│ ├────────┼───────┤                   │
+│ │ uptime │ 99.9% │                   │
+│ └────────┴───────┘                   │
+│                                      │
+│ Env    staging                       │
+│ Build  42                            │
+└──────────────────────────────────────┘
+
+
+
+                                   bash
+ teml render fixtures/teml/10-kitchen-…
+

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Production Operations Dashboard</title>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Production Operations</h1>
+      <p>
+        Live overview for <strong>Friday, 10 July 2026</strong>.
+        Overall status is <span class="text-success">Operational</span>,
+        with <span class="text-warning">2 items requiring attention</span>.
+      </p>
+    </header>
+
+    <table>
+      <tbody>
+        <tr><th>Environment</th><td>production</td><th>Region</th><td>eu-west-1</td></tr>
+        <tr><th>Release</th><td>v3.18.0</td><th>Commit</th><td>8f3c2ad</td></tr>
+        <tr><th>Updated</th><td>17:58 UTC</td><th>On call</th><td>A. Rivera</td></tr>
+      </tbody>
+    </table>
+
+    <section class="card">
+      <h2>Release Summary</h2>
+      <p>
+        The current release completed in <strong>6m 42s</strong> and passed
+        all required deployment gates.
+      </p>
+
+      <table>
+        <thead>
+          <tr><th>Stage</th><th>Result</th><th>Duration</th><th>Owner</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Build</td><td>Passed</td><td>2m 08s</td><td>Platform</td></tr>
+          <tr><td>Security scan</td><td>Passed</td><td>1m 14s</td><td>Security</td></tr>
+          <tr><td>Canary</td><td>Passed</td><td>2m 30s</td><td>Runtime</td></tr>
+          <tr><td>Global rollout</td><td>Passed</td><td>50s</td><td>SRE</td></tr>
+        </tbody>
+      </table>
+
+      <div class="alert alert-success">
+        All 24 application instances are running the expected release.
+      </div>
+    </section>
+
+    <section>
+      <h2>Service Health</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Health</th>
+            <th>Instances</th>
+            <th>P95</th>
+            <th>Error rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>API gateway</td><td>Healthy</td><td>6/6</td><td>84ms</td><td>0.03%</td></tr>
+          <tr><td>Authentication</td><td>Healthy</td><td>4/4</td><td>42ms</td><td>0.01%</td></tr>
+          <tr><td>Payments</td><td>Degraded</td><td>5/5</td><td>318ms</td><td>0.72%</td></tr>
+          <tr><td>Search</td><td>Healthy</td><td>6/6</td><td>126ms</td><td>0.08%</td></tr>
+          <tr><td>Notifications</td><td>Healthy</td><td>3/3</td><td>91ms</td><td>0.02%</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <aside class="card">
+      <h2>Active Incident</h2>
+      <h3>Elevated payment latency</h3>
+      <p>
+        Requests remain successful, but payment confirmation is slower than
+        normal in <code>eu-west-1</code>.
+      </p>
+
+      <div class="alert alert-warning">
+        The provider latency threshold has been exceeded for 12 minutes.
+        Automatic failover has not triggered because the error rate remains below 1%.
+      </div>
+
+      <table>
+        <tbody>
+          <tr><th>Incident</th><td>INC-2048</td></tr>
+          <tr><th>Severity</th><td>SEV-2</td></tr>
+          <tr><th>Commander</th><td>A. Rivera</td></tr>
+          <tr><th>Started</th><td>17:41 UTC</td></tr>
+          <tr><th>Next update</th><td>18:10 UTC</td></tr>
+        </tbody>
+      </table>
+    </aside>
+
+    <section>
+      <h2>Response Plan</h2>
+      <ol>
+        <li>
+          Confirm provider health and regional network status
+          <ul>
+            <li>Compare latency across all availability zones</li>
+            <li>Review the last 30 minutes of provider errors</li>
+          </ul>
+        </li>
+        <li>
+          Prepare traffic failover
+          <ul>
+            <li>Verify secondary provider capacity</li>
+            <li>Notify the support team</li>
+          </ul>
+        </li>
+        <li>Resolve or escalate by the next update window</li>
+      </ol>
+
+      <div class="alert alert-info">
+        Follow progress on the
+        <a href="https://status.example.com/incidents/INC-2048">incident dashboard</a>
+        or contact <span class="badge">#operations</span>.
+      </div>
+    </section>
+
+    <section>
+      <h2>Recent Events</h2>
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Event</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>17:58</td><td>Health check</td><td>All instances responding</td></tr>
+          <tr><td>17:51</td><td>Alert updated</td><td>Payment latency increased to 318ms</td></tr>
+          <tr><td>17:46</td><td>Investigation</td><td>Provider degradation confirmed</td></tr>
+          <tr><td>17:41</td><td>Incident opened</td><td>On-call engineer acknowledged</td></tr>
+          <tr><td>17:32</td><td>Deployment</td><td>Release v3.18.0 completed</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3>Useful Commands</h3>
+      <pre><code class="language-bash">teml view operations-dashboard.html --width 88
+curl -fsS https://status.example.com/api/health
+kubectl get pods -n production</code></pre>
+    </section>
+
+    <blockquote>
+      <p>
+        Keep customer impact, current evidence, and the next decision point
+        visible in every update.
+      </p>
+    </blockquote>
+
+    <hr>
+    <p class="text-muted">Generated from the production operations runbook.</p>
+  </main>
+</body>
+</html>

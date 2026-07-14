@@ -1,0 +1,167 @@
+{
+  "blocks": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Service Overview",
+        },
+      ],
+      "level": 1,
+      "type": "heading",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Status is ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "healthy",
+            },
+          ],
+          "role": "success",
+          "type": "span",
+        },
+        {
+          "type": "text",
+          "value": " with ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "minor alerts",
+            },
+          ],
+          "role": "warning",
+          "type": "span",
+        },
+        {
+          "type": "text",
+          "value": ".",
+        },
+      ],
+      "type": "paragraph",
+    },
+    {
+      "attrs": {
+        "title": "Payments API",
+      },
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "Latency ",
+            },
+            {
+              "type": "code",
+              "value": "42ms",
+            },
+            {
+              "type": "text",
+              "value": " across ",
+            },
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "12 pods",
+                },
+              ],
+              "role": "info",
+              "type": "span",
+            },
+            {
+              "type": "text",
+              "value": ".",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "name": "card",
+      "type": "container",
+    },
+    {
+      "attrs": {},
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "Replica restart in eu-west-1.",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "name": "warning",
+      "type": "container",
+    },
+    {
+      "attrs": {},
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "Database connection pool saturated.",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "name": "error",
+      "type": "container",
+    },
+    {
+      "attrs": {},
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "All health checks passing.",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "name": "success",
+      "type": "container",
+    },
+    {
+      "attrs": {},
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "Maintenance window scheduled Sunday.",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "name": "info",
+      "type": "container",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Last updated 2 minutes ago.",
+        },
+      ],
+      "type": "paragraph",
+    },
+  ],
+  "meta": {
+    "title": "Bootstrap Dashboard",
+  },
+}

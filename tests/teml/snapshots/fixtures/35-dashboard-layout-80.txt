@@ -1,0 +1,41 @@
+DASHBOARD LAYOUT (FIXTURE 35)
+════════════════════════════════════════════════════════════════════════════════
+
+RPS                  Errors               P95                 Nodes
+1.2k +3%             0.1%                 95ms                12/12
+
+CPU 40%
+████████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+Disk 88%
+██████████████████████████████████████████████████████████████████████░░░░░░░░░░
+
+▎ ⚠ warning: Alert                      ▎ ✓ success
+▎ Replica lag elevated.                  ▎ Checks passing.
+
+┌─────┬─────┐
+│ Svc │ OK  │
+├─────┼─────┤
+│ api │ yes │
+│ db  │ yes │
+└─────┴─────┘
+
+☑ done
+☐ todo
+
+▼ More
+Nested detail body.
+
+Trend line placeholder.
+Figure: Chart
+
+09:00 ● Start
+        boot
+
+mark strike safe (https://example.com) [1]
+
+────────────────────────────────────────────────────────────────────────────────
+Footnotes
+
+1. [n]
+Note text.

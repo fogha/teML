@@ -1,0 +1,17 @@
+                                 python
+ def fibonacci(n: int) -> int:
+     if n <= 1:
+         return n
+     return fibonacci(n - 1) + fibonac…
+
+
+                                   bash
+ teml render fixtures/teml/28-code-blo…
+
+
+Plain fence without language:
+
+
+ no language label here
+ second line
+

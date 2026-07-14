@@ -1,0 +1,94 @@
+SERVICE COMMAND CENTER
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+Platform overview for Sunday, 12 July 2026. Fleet status is ✓ Healthy; canary lane is active. Legacy
+routing is deprecated.
+
+┌─────────┬───────────┬─────────┬───────────┐
+│ Cluster │ prod-eu-1 │ Region  │ eu-west-1 │
+├─────────┼───────────┼─────────┼───────────┤
+│ Release │ v4.2.1    │ On call │ M. Chen   │
+│ Updated │ 17:04 UTC │         │           │
+└─────────┴───────────┴─────────┴───────────┘
+
+Requests/s                Error rate                P95 latency              Saturation
+18.4k +6%                 0.04% -0.01%              112ms +18ms              61%
+
+CPU pool 58%
+██████████████████████████████████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+Memory pool 74%
+██████████████████████████████████████████████████████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░
+
+Disk on db-03 92%
+████████████████████████████████████████████████████████████████████████████████████████████░░░░░░░░
+
+┌─ Ingress ─────────────────────────────────────┐  ┌─ Data plane ──────────────────────────────────┐
+│ Edge traffic is stable. TLS handshakes remain │  │ Replication lag is within SLO on every shard. │
+│ under budget.                                 │  │                                               │
+│                                               │  │ ▎ ⚠ warning                                  │
+│ ▎ ✓ success                                   │  │ ▎ Shard s-07 compaction is slower than        │
+│ ▎ All six ingress nodes pass synthetic        │  │ ▎ baseline.                                   │
+│ ▎ checks.                                     │  └───────────────────────────────────────────────┘
+└───────────────────────────────────────────────┘
+
+Service health
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+┌─────────────┬──────────┬──────────┬───────┬────────┐
+│ Service     │ Health   │ Replicas │ P95   │ Errors │
+├─────────────┼──────────┼──────────┼───────┼────────┤
+│ API gateway │ Healthy  │ 8/8      │ 84ms  │ 0.02%  │
+│ Auth        │ Healthy  │ 4/4      │ 39ms  │ 0.00%  │
+│ Billing     │ Degraded │ 6/6      │ 241ms │ 0.31%  │
+│ Search      │ Healthy  │ 5/5      │ 118ms │ 0.05%  │
+│ Notify      │ Healthy  │ 3/3      │ 67ms  │ 0.01%  │
+└─────────────┴──────────┴──────────┴───────┴────────┘
+
+Runbook tasks
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+☑ Confirm canary metrics
+☑ Page on-call for billing drift
+☐ Fail over billing read path
+☐ Post incident summary
+
+▼ Billing mitigation steps
+  1. Drain billing-canary from the mesh
+  2. Compare shadow traffic against primary
+  3. Promote canary if error budget holds for 15 minutes
+
+Press [Ctrl]+[Shift]+[B] to open the billing playbook.
+
+ASCII sparkline (narrow terminals):
+
+
+   .:*#*#*:..
+
+
+Budget consumed: 38% with 4.2 days remaining.
+Figure: Weekly error budget burn
+
+Event timeline
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+17:04 ● Health sweep
+        All probes green across eu-west-1
+
+16:51 ● Billing latency
+        P95 crossed 200ms on primary pool
+
+16:44 ● Canary promoted
+        v4.2.1 serving 12% of ingress traffic
+
+16:30 ● Deploy finished
+        Rollout completed in 7m 12s
+
+Follow the status page (https://status.example.com/services/billing) for customer-facing updates.
+[status] (#status)
+
+Public status feed; internal-only fields are stripped before publish.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+Rendered with TeML — safe at width 20 through 120.

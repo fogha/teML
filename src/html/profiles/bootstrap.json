@@ -1,0 +1,35 @@
+{
+  "name": "bootstrap",
+  "version": 1,
+  "description": "Bootstrap 4/5 class heuristics for HTML → TeML conversion (Milestone 5)",
+  "containers": [
+    {
+      "match": { "class": "card" },
+      "directive": "card",
+      "titleFrom": "h1,h2,h3,h4,.card-title"
+    },
+    {
+      "match": { "class": "alert-warning" },
+      "directive": "warning"
+    },
+    {
+      "match": { "class": "alert-danger" },
+      "directive": "error"
+    },
+    {
+      "match": { "class": "alert-success" },
+      "directive": "success"
+    },
+    {
+      "match": { "class": "alert-info" },
+      "directive": "info"
+    }
+  ],
+  "spans": [
+    { "match": { "class": "text-success" }, "role": "success" },
+    { "match": { "class": "text-danger" }, "role": "error" },
+    { "match": { "class": "text-warning" }, "role": "warning" },
+    { "match": { "class": "text-muted" }, "role": "muted" },
+    { "match": { "class": "badge" }, "role": "info" }
+  ]
+}

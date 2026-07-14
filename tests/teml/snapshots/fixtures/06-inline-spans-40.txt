@@ -1,0 +1,6 @@
+Status spans: ✓ ok careful ✗ fail note
+quiet [Ctrl+C]
+
+Custom role: deploy
+
+Escaped literal: :notaspan[ignored]

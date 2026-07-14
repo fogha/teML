@@ -1,0 +1,13 @@
+# Hostile input (sanitized)
+
+Paragraph with control chars removed at parse time.
+
+Link attempt: [bad](javascript:alert(1))
+
+:::warning
+Nested **content** with `code` and :error[alert glyph]
+:::
+
+```bash
+echo safe
+```

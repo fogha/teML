@@ -1,0 +1,37 @@
+REAL-WORLD EXCERPT
+════════════════════
+
+Deployment finished
+in 4m 12s with
+status ✓ Passed.
+
+┌─ Summary ────────┐
+│ • 12 containers  │
+│   updated        │
+│ • 0 failed       │
+│   health checks  │
+│ • 3 warnings in  │
+│   eu-west-1      │
+│                  │
+│ ┌────┬────┬────┐ │
+│ │ S… │ S… │ L… │ │
+│ ├────┼────┼────┤ │
+│ │ p… │ OK │ 4… │ │
+│ │ a… │ OK │ 1… │ │
+│ │ s… │ D… │ 3… │ │
+│ └────┴────┴────┘ │
+│                  │
+│ Cluster   prod-… │
+│ Operator  ci-bot │
+└──────────────────┘
+
+▎ ⚠ warning
+▎ One replica took
+▎ longer than
+▎ expected to become
+▎ healthy.
+
+See runbook
+(https://example.com
+/runbook) for
+details.

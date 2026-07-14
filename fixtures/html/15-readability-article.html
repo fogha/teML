@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head><title>Article Page</title></head>
+<body>
+  <nav><a href="/">Home</a> · <a href="/blog">Blog</a></nav>
+  <aside>Sidebar promos should be dropped by Readability.</aside>
+  <article>
+    <h1>Incident Postmortem</h1>
+    <p>On Friday the team observed elevated latency across payment confirmation flows.</p>
+    <p>Root cause was traced to a saturated connection pool in the primary region.</p>
+    <h2>Timeline</h2>
+    <ol>
+      <li>17:41 — alert fired</li>
+      <li>17:58 — mitigation deployed</li>
+    </ol>
+  </article>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Documentation elements (M6.5)
+
+:::warning{title="Disk pressure"}
+Replica volume at 92% capacity.
+:::
+
+## Tasks
+
+- [x] Ship release
+- [ ] Write runbook
+- [ ] Schedule drill
+
+## Definitions
+
+:::definition{term="Host"}
+db-primary.internal
+:::
+
+:::definition{term="Port"}
+5432
+:::
+
+## Footnotes
+
+Production traffic increased 12% week over week :fn{id="traffic"}.
+
+:::footnote{id="traffic"}
+Source: weekly metrics dashboard, week 24.
+:::

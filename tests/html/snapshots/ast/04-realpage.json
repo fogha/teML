@@ -1,0 +1,254 @@
+{
+  "blocks": [
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Getting started",
+        },
+      ],
+      "level": 1,
+      "type": "heading",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Bootstrap is a powerful, feature-packed frontend toolkit. Build anything—from prototype to production—in minutes.",
+        },
+      ],
+      "type": "paragraph",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Quick start",
+        },
+      ],
+      "level": 2,
+      "type": "heading",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Get started by including Bootstrap's production-ready CSS and JS via CDN without any build steps. Jump to ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "CSS",
+            },
+          ],
+          "href": "#css",
+          "type": "link",
+        },
+        {
+          "type": "text",
+          "value": " or ",
+        },
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "JavaScript",
+            },
+          ],
+          "href": "#js",
+          "type": "link",
+        },
+        {
+          "type": "text",
+          "value": " for more details.",
+        },
+      ],
+      "type": "paragraph",
+    },
+    {
+      "attrs": {
+        "title": "CDN links",
+      },
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "Copy-paste the stylesheet ",
+            },
+            {
+              "type": "code",
+              "value": "<link>",
+            },
+            {
+              "type": "text",
+              "value": " into your ",
+            },
+            {
+              "type": "code",
+              "value": "<head>",
+            },
+            {
+              "type": "text",
+              "value": " before all other stylesheets.",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "name": "card",
+      "type": "container",
+    },
+    {
+      "attrs": {},
+      "children": [
+        {
+          "children": [
+            {
+              "type": "text",
+              "value": "Prefer to install locally? Download the source or install with npm.",
+            },
+          ],
+          "type": "paragraph",
+        },
+      ],
+      "name": "info",
+      "type": "container",
+    },
+    {
+      "children": [
+        {
+          "type": "text",
+          "value": "Contents",
+        },
+      ],
+      "level": 2,
+      "type": "heading",
+    },
+    {
+      "items": [
+        {
+          "blocks": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Download",
+                },
+              ],
+              "type": "paragraph",
+            },
+          ],
+        },
+        {
+          "blocks": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Contents",
+                },
+              ],
+              "type": "paragraph",
+            },
+          ],
+        },
+        {
+          "blocks": [
+            {
+              "children": [
+                {
+                  "type": "text",
+                  "value": "Important globals",
+                },
+              ],
+              "type": "paragraph",
+            },
+          ],
+        },
+      ],
+      "ordered": true,
+      "start": 1,
+      "type": "list",
+    },
+    {
+      "align": [],
+      "rows": [
+        {
+          "cells": [
+            [
+              {
+                "type": "text",
+                "value": "Package",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "Version",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "Description",
+              },
+            ],
+          ],
+          "header": true,
+        },
+        {
+          "cells": [
+            [
+              {
+                "type": "text",
+                "value": "bootstrap",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "5.3.x",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "CSS and JS bundle",
+              },
+            ],
+          ],
+          "header": false,
+        },
+        {
+          "cells": [
+            [
+              {
+                "type": "text",
+                "value": "@popperjs/core",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "2.x",
+              },
+            ],
+            [
+              {
+                "type": "text",
+                "value": "Positioning engine",
+              },
+            ],
+          ],
+          "header": false,
+        },
+      ],
+      "type": "table",
+    },
+  ],
+  "meta": {
+    "title": "Getting started · Bootstrap",
+  },
+}

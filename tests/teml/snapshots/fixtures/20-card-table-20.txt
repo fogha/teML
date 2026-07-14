@@ -1,0 +1,18 @@
+┌─ Card with table ┐
+│ ┌──────┬───────┐ │
+│ │ Key  │ Val   │ │
+│ ├──────┼───────┤ │
+│ │ upt… │ 99.9% │ │
+│ │ reg… │ eu-we │ │
+│ │      │ st-1  │ │
+│ └──────┴───────┘ │
+│                  │
+│ ▎ ⚠ warning     │
+│ ▎ Warning inside │
+│ ▎ card body.     │
+└──────────────────┘
+
+▎ ℹ info
+▎ Info block with
+▎ ::kv{Env="prod"
+▎ Tier="gold"}

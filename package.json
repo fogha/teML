@@ -1,0 +1,57 @@
+{
+  "name": "teml",
+  "version": "1.0.0",
+  "description": "Terminal Markup Language — semantic documents for terminals",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "teml": "./dist/cli/main.js"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "test": "vitest run && vitest run --config vitest.perf.config.ts",
+    "test:watch": "vitest",
+    "test:perf": "vitest run --config vitest.perf.config.ts",
+    "pack:verify": "node scripts/pack-verify.mjs",
+    "dev": "tsx src/cli/main.ts",
+    "dev:demo": "tsx examples/hardcoded.ts",
+    "demo": "node dist/cli/main.js examples/demo.teml",
+    "demo:html": "node dist/cli/main.js view examples/demo.html",
+    "demo:command-center": "node dist/cli/main.js view examples/service-command-center.teml --theme dark --width 100"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "commander": "^14.0.0",
+    "linkedom": "^0.18.12",
+    "mdast-util-to-string": "^4.0.0",
+    "parse5": "^8.0.0",
+    "remark-directive": "^4.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "string-width": "^7.2.0",
+    "unified": "^11.0.5",
+    "yaml": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0"
+  }
+}

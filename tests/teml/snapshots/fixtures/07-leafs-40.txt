@@ -1,0 +1,7 @@
+Cluster  prod
+Region   eu-west-1
+Pods     12
+
+[Image: Logo]
+
+

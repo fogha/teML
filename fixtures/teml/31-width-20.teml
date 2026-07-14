@@ -1,0 +1,31 @@
+---
+title: Width 20 torture
+---
+
+# Sink @20
+
+:success[ok] :warning[warn]
+
+- a
+- b
+  - nested
+
+> quote **bold** `code`
+
+---
+
+:::card{title="Card"}
+
+| K | V |
+|---|---|
+| x | y |
+
+:::
+
+::kv{A="1" B="2"}
+
+```js
+const x = 'long line for narrow width';
+```
+
+Paragraph with longwordlongwordlongword text.

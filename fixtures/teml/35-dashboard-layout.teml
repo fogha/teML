@@ -1,0 +1,45 @@
+# Dashboard layout (fixture 35)
+
+::::grid{columns="4" gap="2"}
+::metric{label="RPS" value="1.2k" role="success" change="+3%"}
+::metric{label="Errors" value="0.1%" role="warning"}
+::metric{label="P95" value="95ms"}
+::metric{label="Nodes" value="12/12" role="info"}
+::::
+
+::progress{label="CPU" value="40" max="100" role="success"}
+::progress{label="Disk" value="88" max="100" role="error"}
+
+::::grid{columns="2" gap="1"}
+:::warning{title="Alert"}
+Replica lag elevated.
+:::
+
+:::success
+Checks passing.
+:::
+::::
+
+| Svc | OK |
+|---|---|
+| api | yes |
+| db | yes |
+
+- [x] done
+- [ ] todo
+
+:::details{summary="More" open="true"}
+Nested detail body.
+:::
+
+:::figure{caption="Chart"}
+Trend line placeholder.
+:::
+
+::event{time="09:00" title="Start" detail="boot" role="info"}
+
+:highlight[mark] ~~strike~~ [safe](https://example.com) :fn{id="n"}
+
+:::footnote{id="n"}
+Note text.
+:::

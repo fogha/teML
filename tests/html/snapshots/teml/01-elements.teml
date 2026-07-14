@@ -1,0 +1,41 @@
+---
+title: Elements Fixture
+---
+
+# Heading One
+
+## Heading Two
+
+#### Deep Heading
+
+Paragraph with **bold**, *italic*, underline, and `inline code`.
+
+Link to [documentation](https://example.com/docs).
+
+- Alpha
+- Beta
+
+3. Gamma
+4. Delta
+
+> A quoted thought.
+
+---
+
+```typescript
+const answer = 42;
+```
+
+:::definition{term="Host"}
+db-primary
+:::
+
+:::definition{term="Port"}
+5432
+:::
+
+::image{alt="Latency chart" src="https://example.com/chart.png"}
+
+| Key | Value |
+| --- | --- |
+| Env | staging |

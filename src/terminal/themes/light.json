@@ -1,0 +1,31 @@
+{
+  "name": "light",
+  "roles": {
+    "heading1": { "fg": "black", "bold": true },
+    "heading2": { "fg": "black", "bold": true },
+    "heading3": { "fg": "black", "bold": true },
+    "heading4": { "fg": "black", "bold": true },
+    "success": { "fg": "green", "bold": true },
+    "warning": { "fg": "yellow", "bold": true },
+    "error": { "fg": "red", "bold": true },
+    "info": { "fg": "blue" },
+    "muted": { "fg": "brightBlack" },
+    "highlight": { "fg": "yellow", "bold": true },
+    "kbd": { "fg": "black", "bold": true },
+    "border": { "fg": "brightBlack" },
+    "cardTitle": { "fg": "black", "bold": true },
+    "link": { "fg": "blue", "underline": true },
+    "code": { "fg": "magenta" },
+    "codeBlock": { "fg": "black" },
+    "quote": { "fg": "brightBlack", "italic": true },
+    "listMarker": { "fg": "brightBlack" },
+    "text": {}
+  },
+  "decorations": {
+    "success": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "✓ success", "labelAscii": "[OK]" },
+    "warning": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "⚠ warning", "labelAscii": "[WARN]" },
+    "error": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "✗ error", "labelAscii": "[FAIL]" },
+    "info": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "ℹ info", "labelAscii": "[INFO]" },
+    "note": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "› note", "labelAscii": "[NOTE]" }
+  }
+}

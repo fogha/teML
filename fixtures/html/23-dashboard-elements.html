@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard HTML Elements</title>
+</head>
+<body>
+  <p>
+    <del>removed</del>
+    <s>struck</s>
+    <strike>legacy</strike>
+    Press <kbd>Ctrl</kbd>+<kbd>S</kbd> and <mark>highlight</mark> with <del><strong>nested</strong></del>.
+  </p>
+
+  <details open>
+    <summary>Native summary</summary>
+    <p>Native details body.</p>
+  </details>
+
+  <figure>
+    <figcaption>Native caption</figcaption>
+    <p>Native figure body.</p>
+  </figure>
+
+  <progress value="72" max="100" aria-label="CPU">CPU</progress>
+  <meter value="0.6" max="1" class="text-warning" title="Memory">Memory</meter>
+
+  <div data-teml="grid" data-columns="3" data-gap="2" onclick="evil()">
+    <p>Grid cell</p>
+  </div>
+
+  <div data-teml="details" data-summary="Bridge summary" data-open="true">
+    <p>Bridge details body.</p>
+  </div>
+
+  <div data-teml="figure" data-caption="Bridge caption">
+    <p>Bridge figure body.</p>
+  </div>
+
+  <div data-teml="metric" data-label="Requests" data-role="success">1.2k/s</div>
+  <div data-teml="progress" data-label="Disk" data-value="92" data-max="100" data-role="error"></div>
+  <div data-teml="event" data-time="09:15" data-detail="prod">Deploy finished</div>
+
+  <div data-teml="unknown-widget">
+    <p>Flattened unknown directive content.</p>
+  </div>
+
+  <img src="javascript:alert(1)" alt="Blocked chart">
+  <p>Inline <img src="https://example.com/icon.png" alt="icon"> safe image.</p>
+
+  <p><span class="text-success">Profile span still maps.</span></p>
+</body>
+</html>

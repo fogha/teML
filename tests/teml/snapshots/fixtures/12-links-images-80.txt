@@ -1,0 +1,14 @@
+Visit Example (https://example.com) for docs.
+
+[Image: Logo]
+
+Inline image in prose:
+
+[Image: icon]
+
+after text.
+
+Long URL: https://example.com/very/long/path/to/resource?query=alpha&beta=gamma
+(https://example.com/very/long/path/to/resource?query=alpha&beta=gamma)
+
+unsafe

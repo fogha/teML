@@ -1,0 +1,16 @@
+---
+title: Frontmatter Demo
+theme: dark
+lang: en
+base: https://example.com/docs
+roles:
+  accent:
+    fg: brightCyan
+    bold: true
+nested:
+  ignored: true
+---
+
+# Frontmatter Demo
+
+Body after YAML meta.
