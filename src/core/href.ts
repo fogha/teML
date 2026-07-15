@@ -43,9 +43,7 @@ export function resolveHref(href: string, base?: string): string {
   try {
     if (root.startsWith("file:")) {
       const basePath = fileURLToPath(root);
-      const resolved = target.startsWith("/")
-        ? pathResolve(target)
-        : pathResolve(basePath, target);
+      const resolved = target.startsWith("/") ? pathResolve(target) : pathResolve(basePath, target);
       return pathToFileURL(resolved).href;
     }
     return new URL(target, root).href;
@@ -71,7 +69,14 @@ function withinBase(resolved: string, base: string): boolean {
     const resolvedUrl = hasScheme(resolved) ? new URL(resolved) : new URL(resolved, root);
     const rootUrl = new URL(root);
     if (resolvedUrl.origin !== rootUrl.origin) return false;
-    return resolvedUrl.pathname.startsWith(rootUrl.pathname.replace(/\/$/, "") || "/");
+    const rootPath =
+      rootUrl.pathname === "/"
+        ? "/"
+        : rootUrl.pathname.endsWith("/")
+          ? rootUrl.pathname
+          : `${rootUrl.pathname}/`;
+    const exactRoot = rootPath === "/" ? "/" : rootPath.slice(0, -1);
+    return resolvedUrl.pathname === exactRoot || resolvedUrl.pathname.startsWith(rootPath);
   } catch {
     return false;
   }

@@ -18,7 +18,7 @@ export type MapOptions = {
   sanitize?: SanitizeOpts;
 };
 
-const VOID = new Set(["br", "hr", "img", "input", "meta", "link"]);
+const VOID = new Set(["br", "hr", "img", "meta", "link"]);
 const BLOCK_WRAPPERS = new Set([
   "div",
   "section",
@@ -29,6 +29,7 @@ const BLOCK_WRAPPERS = new Set([
   "body",
   "html",
   "figcaption",
+  "form",
 ]);
 const DATA_TEML_CONTAINERS = new Set(["grid", "details", "figure"]);
 const DATA_TEML_LEAFS = new Set(["metric", "progress", "event"]);
@@ -38,7 +39,11 @@ const PROGRESS_ROLE_CLASSES: Record<string, string> = {
   "text-danger": "error",
   "text-info": "info",
 };
-const PLACEHOLDER_TAGS = new Set(["canvas", "video", "iframe", "form", "object", "embed"]);
+const PLACEHOLDER_TAGS = new Set(["canvas", "video", "iframe", "object", "embed"]);
+/** input[type] values that map to a button leaf instead of a text input. */
+const INPUT_BUTTON_TYPES = new Set(["submit", "button"]);
+/** input[type] values not represented by any v1 interactive leaf (skipped). */
+const INPUT_UNSUPPORTED_TYPES = new Set(["hidden", "radio"]);
 
 function tagName(el: Element): string {
   return el.tagName.toLowerCase();
@@ -117,11 +122,7 @@ function childNodesExcluding(el: Element, excludeTags: Set<string>): Node[] {
   return nodes;
 }
 
-function mapImageLeaf(
-  el: Element,
-  opts: MapOptions,
-  diags: Diagnostics,
-): Block {
+function mapImageLeaf(el: Element, opts: MapOptions, diags: Diagnostics): Block {
   const attrs = getAttrs(el);
   const alt = sanitizeText(attrs.alt ?? "");
   const rawSrc = attrs.src ?? "";
@@ -166,6 +167,82 @@ function mapNativeProgressLeaf(el: Element): Block {
   return { type: "leaf", name: "progress", attrs: leafAttrs };
 }
 
+/** Find an element by id via attribute equality (no CSS-selector interpolation, no getElementById dependency). */
+function findElementById(owner: Document, id: string): Element | undefined {
+  for (const el of owner.querySelectorAll("[id]")) {
+    if (el.getAttribute("id") === id) return el;
+  }
+  return undefined;
+}
+
+/** Find a <label for="id"> by exact attribute equality (no CSS-selector interpolation). */
+function findLabelFor(el: Element, id: string): Element | undefined {
+  const owner = el.ownerDocument;
+  if (!owner) return undefined;
+  for (const label of owner.querySelectorAll("label")) {
+    if (label.getAttribute("for") === id) return label;
+  }
+  return undefined;
+}
+
+/** True when a <label for="id"> targets an input we actually map to an interactive leaf
+ *  (so mapBlocks can skip emitting the label itself as separate flow text). */
+function isConsumedLabel(el: Element): boolean {
+  const forId = el.getAttribute("for");
+  if (!forId) return false;
+  const owner = el.ownerDocument;
+  const target = owner ? findElementById(owner, forId) : undefined;
+  if (!target || tagName(target) !== "input") return false;
+  const type = (getAttrs(target).type ?? "text").toLowerCase();
+  return !INPUT_UNSUPPORTED_TYPES.has(type);
+}
+
+/** Resolve a human-readable label for an <input>: linked <label>, aria-label, placeholder, then name. */
+function inputLabel(el: Element, attrs: Record<string, string>): string | undefined {
+  if (attrs.id) {
+    const labelEl = findLabelFor(el, attrs.id);
+    const text = labelEl ? collapseWhitespace(textOfElement(labelEl)).trim() : "";
+    if (text) return sanitizeText(text);
+  }
+  const fallback = attrs["aria-label"] || attrs.placeholder || attrs.name;
+  return fallback ? sanitizeText(fallback) : undefined;
+}
+
+function mapNativeCheckbox(el: Element, attrs: Record<string, string>): Block {
+  const leafAttrs: Record<string, string> = {};
+  if (attrs.id) leafAttrs.id = sanitizeText(attrs.id);
+  const label = inputLabel(el, attrs);
+  if (label) leafAttrs.label = label;
+  leafAttrs.checked = el.hasAttribute("checked") ? "true" : "false";
+  return { type: "leaf", name: "checkbox", attrs: leafAttrs };
+}
+
+function mapNativeButton(el: Element, attrs: Record<string, string>): Block {
+  const leafAttrs: Record<string, string> = {};
+  if (attrs.id) leafAttrs.id = sanitizeText(attrs.id);
+  const text = collapseWhitespace(textOfElement(el)).trim();
+  const label = text || attrs.value;
+  if (label) leafAttrs.label = sanitizeText(label);
+  return { type: "leaf", name: "button", attrs: leafAttrs };
+}
+
+/** Map <input>: checkbox/button-like types delegate to their own leaf; hidden/radio are skipped (v1 scope). */
+function mapNativeInput(el: Element): Block | null {
+  const attrs = getAttrs(el);
+  const type = (attrs.type ?? "text").toLowerCase();
+  if (INPUT_UNSUPPORTED_TYPES.has(type)) return null;
+  if (type === "checkbox") return mapNativeCheckbox(el, attrs);
+  if (INPUT_BUTTON_TYPES.has(type)) return mapNativeButton(el, attrs);
+
+  const leafAttrs: Record<string, string> = {};
+  if (attrs.id) leafAttrs.id = sanitizeText(attrs.id);
+  const label = inputLabel(el, attrs);
+  if (label) leafAttrs.label = label;
+  if (attrs.placeholder) leafAttrs.placeholder = sanitizeText(attrs.placeholder);
+  if (attrs.value) leafAttrs.value = sanitizeText(attrs.value);
+  return { type: "leaf", name: "input", attrs: leafAttrs };
+}
+
 function mapNativeDetails(el: Element, opts: MapOptions, diags: Diagnostics): Block {
   const summaryEl = directChild(el, "summary");
   const attrs: Record<string, string> = {
@@ -205,7 +282,8 @@ function mapDataTemlBlock(
   diags: Diagnostics,
 ): Block[] | null {
   if (DATA_TEML_CONTAINERS.has(directive)) {
-    const spec = DIRECTIVE_REGISTRY.containers[directive as keyof typeof DIRECTIVE_REGISTRY.containers];
+    const spec =
+      DIRECTIVE_REGISTRY.containers[directive as keyof typeof DIRECTIVE_REGISTRY.containers];
     const allowed = "attrs" in spec ? spec.attrs : undefined;
     const attrs = copyDataDirectiveAttrs(el, allowed);
     return [
@@ -392,14 +470,9 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
     if (tag === "pre") {
       flushInline();
       const codeEl = el.querySelector("code");
-      const langMatch = codeEl
-        ? /language-([\w-]+)/.exec(getAttrs(codeEl).class ?? "")
-        : null;
+      const langMatch = codeEl ? /language-([\w-]+)/.exec(getAttrs(codeEl).class ?? "") : null;
       const sourceEl = codeEl ?? el;
-      const value = sanitizeText(
-        (sourceEl.textContent ?? "").replace(/^\n|\n$/g, ""),
-        "code",
-      );
+      const value = sanitizeText((sourceEl.textContent ?? "").replace(/^\n|\n$/g, ""), "code");
       blocks.push({ type: "codeBlock", language: langMatch?.[1], value });
       continue;
     }
@@ -442,6 +515,24 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
     if (tag === "img") {
       flushInline();
       blocks.push(mapImageLeaf(el, opts, diags));
+      continue;
+    }
+
+    if (tag === "button") {
+      flushInline();
+      blocks.push(mapNativeButton(el, getAttrs(el)));
+      continue;
+    }
+
+    if (tag === "input") {
+      flushInline();
+      const mapped = mapNativeInput(el);
+      if (mapped) blocks.push(mapped);
+      continue;
+    }
+
+    if (tag === "label" && isConsumedLabel(el)) {
+      // Already surfaced as the target input's `label` attr; skip to avoid duplicating it as flow text.
       continue;
     }
 

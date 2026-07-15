@@ -8,9 +8,22 @@ import type { ColorValue, Meta, RoleStyle } from "../core/ast.js";
 import type { Diagnostics } from "../core/diagnostics.js";
 
 export type NamedColor =
-  | "black" | "red" | "green" | "yellow" | "blue" | "magenta" | "cyan" | "white"
-  | "brightBlack" | "brightRed" | "brightGreen" | "brightYellow"
-  | "brightBlue" | "brightMagenta" | "brightCyan" | "brightWhite";
+  | "black"
+  | "red"
+  | "green"
+  | "yellow"
+  | "blue"
+  | "magenta"
+  | "cyan"
+  | "white"
+  | "brightBlack"
+  | "brightRed"
+  | "brightGreen"
+  | "brightYellow"
+  | "brightBlue"
+  | "brightMagenta"
+  | "brightCyan"
+  | "brightWhite";
 
 export type Color = ColorValue;
 
@@ -39,20 +52,68 @@ export type Theme = {
 
 /** Verified width-1 glyphs safe for decoration rendering. */
 export const SAFE_GLYPHS = new Set([
-  "•", "◦", "▸", "▪", "✓", "✗", "⚠", "ℹ", "›",
-  "─", "│", "┌", "┐", "└", "┘", "├", "┤", "┬", "┴", "┼", "▎",
+  "•",
+  "◦",
+  "▸",
+  "▪",
+  "✓",
+  "✗",
+  "⚠",
+  "ℹ",
+  "›",
+  "─",
+  "│",
+  "┌",
+  "┐",
+  "└",
+  "┘",
+  "├",
+  "┤",
+  "┬",
+  "┴",
+  "┼",
+  "▎",
 ]);
 
 export const NAMED_COLORS = new Set<string>([
-  "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
-  "brightBlack", "brightRed", "brightGreen", "brightYellow",
-  "brightBlue", "brightMagenta", "brightCyan", "brightWhite",
+  "black",
+  "red",
+  "green",
+  "yellow",
+  "blue",
+  "magenta",
+  "cyan",
+  "white",
+  "brightBlack",
+  "brightRed",
+  "brightGreen",
+  "brightYellow",
+  "brightBlue",
+  "brightMagenta",
+  "brightCyan",
+  "brightWhite",
 ]);
 
 export const REQUIRED_ROLES = [
-  "heading1", "heading2", "heading3", "heading4",
-  "success", "warning", "error", "info", "muted", "highlight", "border",
-  "link", "code", "codeBlock", "quote", "listMarker", "kbd", "cardTitle",
+  "heading1",
+  "heading2",
+  "heading3",
+  "heading4",
+  "success",
+  "warning",
+  "error",
+  "info",
+  "muted",
+  "highlight",
+  "border",
+  "link",
+  "code",
+  "codeBlock",
+  "quote",
+  "listMarker",
+  "kbd",
+  "cardTitle",
+  "focus",
 ] as const;
 
 export const REQUIRED_DECORATIONS = ["success", "warning", "error", "info"] as const;
@@ -106,13 +167,23 @@ function parseStyle(raw: unknown, diags?: Diagnostics, ctx?: string): Style {
   return style;
 }
 
-function validateDecorationGlyphs(text: string, diags?: Diagnostics, ctx?: string): void {
+function validateDecorationGlyphs(text: string, diags?: Diagnostics, ctx?: string): boolean {
   for (const ch of text) {
-    if (ch.charCodeAt(0) <= 0x7f) continue;
-    if (!SAFE_GLYPHS.has(ch)) {
-      diags?.warn("theme-unsafe-glyph", `unsafe decoration glyph '${ch}'${ctx ? ` in ${ctx}` : ""}`);
+    const codePoint = ch.codePointAt(0)!;
+    const isControl =
+      codePoint < 0x20 ||
+      (codePoint >= 0x7f && codePoint <= 0x9f) ||
+      (codePoint >= 0x202a && codePoint <= 0x202e) ||
+      (codePoint >= 0x2066 && codePoint <= 0x2069);
+    if (isControl || (codePoint > 0x7f && !SAFE_GLYPHS.has(ch))) {
+      diags?.warn(
+        "theme-unsafe-glyph",
+        `unsafe decoration character U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}${ctx ? ` in ${ctx}` : ""}`,
+      );
+      return false;
     }
   }
+  return true;
 }
 
 function parseDecoration(raw: unknown, diags?: Diagnostics, ctx?: string): Decoration | undefined {
@@ -127,11 +198,15 @@ function parseDecoration(raw: unknown, diags?: Diagnostics, ctx?: string): Decor
       continue;
     }
     if (typeof value !== "string") {
-      diags?.warn("theme-invalid-decoration", `expected string for ${key}${ctx ? ` in ${ctx}` : ""}`);
+      diags?.warn(
+        "theme-invalid-decoration",
+        `expected string for ${key}${ctx ? ` in ${ctx}` : ""}`,
+      );
       continue;
     }
-    dec[key as keyof Decoration] = value;
-    validateDecorationGlyphs(value, diags, `${ctx}.${key}`);
+    if (validateDecorationGlyphs(value, diags, `${ctx}.${key}`)) {
+      dec[key as keyof Decoration] = value;
+    }
   }
   if (
     typeof dec.gutterUnicode === "string" &&
@@ -214,7 +289,12 @@ export function loadTheme(nameOrPath: string, diags?: Diagnostics): Theme {
   let theme: Theme | null = null;
   if (BUILTIN_THEMES.has(nameOrPath)) {
     theme = loadBuiltinTheme(nameOrPath, diags);
-  } else if (existsSync(nameOrPath) || isAbsolute(nameOrPath) || nameOrPath.includes("/") || nameOrPath.endsWith(".json")) {
+  } else if (
+    existsSync(nameOrPath) ||
+    isAbsolute(nameOrPath) ||
+    nameOrPath.includes("/") ||
+    nameOrPath.endsWith(".json")
+  ) {
     theme = readThemeFile(nameOrPath, diags);
   } else {
     diags?.warn("theme-unknown", `unknown theme '${nameOrPath}', using dark`);
@@ -222,14 +302,42 @@ export function loadTheme(nameOrPath: string, diags?: Diagnostics): Theme {
   return theme ?? loadBuiltinTheme("dark", diags) ?? fallbackTheme();
 }
 
+/** Documents may select built-ins only; custom theme paths are a trusted CLI concern. */
+export function loadDocumentTheme(name: string | undefined, diags?: Diagnostics): Theme {
+  if (name == null || name === "") return loadTheme("auto", diags);
+  if (!BUILTIN_THEMES.has(name)) {
+    diags?.warn(
+      "document-theme-rejected",
+      `document theme '${name}' is not a built-in theme; using auto`,
+    );
+    return loadTheme("auto", diags);
+  }
+  return loadTheme(name, diags);
+}
+
 function fallbackTheme(): Theme {
   return {
     name: "dark",
     roles: Object.fromEntries(REQUIRED_ROLES.map((r) => [r, {}])),
     decorations: {
-      success: { gutterUnicode: "▎", gutterAscii: "|", labelUnicode: "✓ success", labelAscii: "[OK]" },
-      warning: { gutterUnicode: "▎", gutterAscii: "|", labelUnicode: "⚠ warning", labelAscii: "[WARN]" },
-      error: { gutterUnicode: "▎", gutterAscii: "|", labelUnicode: "✗ error", labelAscii: "[FAIL]" },
+      success: {
+        gutterUnicode: "▎",
+        gutterAscii: "|",
+        labelUnicode: "✓ success",
+        labelAscii: "[OK]",
+      },
+      warning: {
+        gutterUnicode: "▎",
+        gutterAscii: "|",
+        labelUnicode: "⚠ warning",
+        labelAscii: "[WARN]",
+      },
+      error: {
+        gutterUnicode: "▎",
+        gutterAscii: "|",
+        labelUnicode: "✗ error",
+        labelAscii: "[FAIL]",
+      },
       info: { gutterUnicode: "▎", gutterAscii: "|", labelUnicode: "ℹ info", labelAscii: "[INFO]" },
     },
   };

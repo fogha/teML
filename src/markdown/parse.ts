@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import type { Root } from "mdast";
 import { Diagnostics } from "../core/diagnostics.js";
 import type { TDoc } from "../core/ast.js";
+import { hasPathologicalNesting, pathologicalNestingFallback } from "../core/limits.js";
 import { mdastToTDoc, type ParseContext } from "../teml/mdast-to-tdoc.js";
 
 const processor = unified().use(remarkParse).use(remarkGfm);
@@ -20,5 +21,9 @@ export function parseMarkdown(
   diags: Diagnostics = new Diagnostics(),
   ctx: ParseContext = {},
 ): TDoc {
-  return mdastToTDoc(parseMarkdownToMdast(source), diags, ctx);
+  const normalized = source.replace(/\r\n?/g, "\n");
+  // Deeply chained blockquote/list nesting makes remark-parse's per-line
+  // container-continuation check cost superlinear time; see core/limits.ts.
+  if (hasPathologicalNesting(normalized)) return pathologicalNestingFallback(normalized, diags);
+  return mdastToTDoc(parseMarkdownToMdast(normalized), diags, ctx);
 }

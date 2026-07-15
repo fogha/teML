@@ -6,21 +6,48 @@ import { colorsEnabled } from "../terminal/capabilities.js";
 import type { Color, NamedColor, Style } from "../terminal/theme.js";
 import { isNamedColorValue } from "../terminal/theme.js";
 import type { Line } from "../render/styledLine.js";
+import type { ScreenOp } from "./screen.js";
 
 const ESC = "\x1b";
 const RESET = `${ESC}[0m`;
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 const FG: Record<NamedColor, number> = {
-  black: 30, red: 31, green: 32, yellow: 33, blue: 34, magenta: 35, cyan: 36, white: 37,
-  brightBlack: 90, brightRed: 91, brightGreen: 92, brightYellow: 93,
-  brightBlue: 94, brightMagenta: 95, brightCyan: 96, brightWhite: 97,
+  black: 30,
+  red: 31,
+  green: 32,
+  yellow: 33,
+  blue: 34,
+  magenta: 35,
+  cyan: 36,
+  white: 37,
+  brightBlack: 90,
+  brightRed: 91,
+  brightGreen: 92,
+  brightYellow: 93,
+  brightBlue: 94,
+  brightMagenta: 95,
+  brightCyan: 96,
+  brightWhite: 97,
 };
 
 const ANSI16_RGB: [number, number, number][] = [
-  [0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0],
-  [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192],
-  [128, 128, 128], [255, 0, 0], [0, 255, 0], [255, 255, 0],
-  [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255],
+  [0, 0, 0],
+  [128, 0, 0],
+  [0, 128, 0],
+  [128, 128, 0],
+  [0, 0, 128],
+  [128, 0, 128],
+  [0, 128, 128],
+  [192, 192, 192],
+  [128, 128, 128],
+  [255, 0, 0],
+  [0, 255, 0],
+  [255, 255, 0],
+  [0, 0, 255],
+  [255, 0, 255],
+  [0, 255, 255],
+  [255, 255, 255],
 ];
 
 function hasControlChars(s: string): boolean {
@@ -46,7 +73,9 @@ function rgbToAnsi256(r: number, g: number, b: number): number {
     if (r > 248) return 231;
     return Math.round(((r - 8) / 247) * 24) + 232;
   }
-  return 16 + 36 * Math.round(r / 255 * 5) + 6 * Math.round(g / 255 * 5) + Math.round(b / 255 * 5);
+  return (
+    16 + 36 * Math.round((r / 255) * 5) + 6 * Math.round((g / 255) * 5) + Math.round((b / 255) * 5)
+  );
 }
 
 function rgbToAnsi16(r: number, g: number, b: number): number {
@@ -68,7 +97,7 @@ function colorCode(color: Color, mode: ColorMode, fg: boolean): number[] {
     const base = FG[color];
     return [fg ? base : base + 10];
   }
-  if (typeof color === "string" && color.startsWith("#")) {
+  if (typeof color === "string" && HEX_COLOR.test(color)) {
     const [r, g, b] = parseHex(color);
     if (mode === "truecolor") return fg ? [38, 2, r, g, b] : [48, 2, r, g, b];
     if (mode === "ansi256") {
@@ -93,18 +122,6 @@ function styleKey(style: Style, mode: ColorMode): string {
   ].join("|");
 }
 
-function sgrCodes(style: Style, mode: ColorMode): number[] {
-  if (mode === "none") return [];
-  const codes: number[] = [];
-  if (style.bold) codes.push(1);
-  if (style.italic) codes.push(3);
-  if (style.underline) codes.push(4);
-  if (style.strike) codes.push(9);
-  if (style.fg) codes.push(...colorCode(style.fg, mode, true));
-  if (style.bg) codes.push(...colorCode(style.bg, mode, false));
-  return codes;
-}
-
 function sgrTransition(previous: Style, next: Style, mode: ColorMode): string {
   if (mode === "none") return "";
   const codes: number[] = [];
@@ -125,34 +142,34 @@ function osc8(url: string, text: string): string {
   return `${ESC}]8;;${url}${ESC}\\${text}${ESC}]8;;${ESC}\\`;
 }
 
-export function renderAnsi(lines: Line[], caps: Capabilities): string {
+export function renderAnsiLine(line: Line, caps: Capabilities): string {
   const mode = caps.colors;
-  const out: string[] = [];
-  for (const line of lines) {
-    let s = "";
-    let prevKey = "";
-    let previousStyle: Style = {};
-    let styled = false;
-    for (const span of line) {
-      if (span.text === "") continue;
-      const key = styleKey(span.style, mode);
-      if (key !== prevKey) {
-        const open = sgrTransition(previousStyle, span.style, mode);
-        if (open) styled = true;
-        s += open;
-        prevKey = key;
-        previousStyle = span.style;
-      }
-      let body = span.text;
-      if (span.style.href && caps.hyperlinks && !caps.showUrls && !hasControlChars(span.style.href)) {
-        body = osc8(span.style.href, body);
-      }
-      s += body;
+  let s = "";
+  let prevKey = "";
+  let previousStyle: Style = {};
+  let styled = false;
+  for (const span of line) {
+    if (span.text === "") continue;
+    const key = styleKey(span.style, mode);
+    if (key !== prevKey) {
+      const open = sgrTransition(previousStyle, span.style, mode);
+      if (open) styled = true;
+      s += open;
+      prevKey = key;
+      previousStyle = span.style;
     }
-    if (s.length && styled) s += RESET;
-    out.push(s);
+    let body = span.text;
+    if (span.style.href && caps.hyperlinks && !caps.showUrls && !hasControlChars(span.style.href)) {
+      body = osc8(span.style.href, body);
+    }
+    s += body;
   }
-  return out.join("\n") + "\n";
+  if (s.length && styled) s += RESET;
+  return s;
+}
+
+export function renderAnsi(lines: Line[], caps: Capabilities): string {
+  return lines.map((line) => renderAnsiLine(line, caps)).join("\n") + "\n";
 }
 
 /** Exported for unit tests. */
@@ -166,4 +183,49 @@ export function stylesNeedSgr(a: Style, b: Style, mode: ColorMode): boolean {
 
 export function ansiColorEnabled(caps: Capabilities): boolean {
   return colorsEnabled(caps);
+}
+
+/**
+ * Terminal *control* sequences (screen clear, SGR mouse tracking) used by
+ * in-process interactive hosts (interactive/host.ts) to manage the terminal
+ * itself — not document content, so none of the sanitize/theme machinery
+ * above applies to them. They still have to live here, and only here, to
+ * keep the S-2 single-emitter invariant this file's header describes true
+ * for the whole of `src/`.
+ */
+export const TERMINAL_CONTROL = {
+  clearScreen: `${ESC}[2J${ESC}[H`,
+  mouseOn: `${ESC}[?1000h${ESC}[?1006h`,
+  mouseOff: `${ESC}[?1000l${ESC}[?1006l`,
+  wheelOn: `${ESC}[?1000h${ESC}[?1006h`,
+  wheelOff: `${ESC}[?1000l${ESC}[?1006l`,
+  altScreenEnter: `${ESC}[?1049h`,
+  altScreenLeave: `${ESC}[?1049l`,
+  hideCursor: `${ESC}[?25l`,
+  showCursor: `${ESC}[?25h`,
+  eraseLine: `${ESC}[2K`,
+  /** The raw ESC byte itself, for hosts that need to *recognize* incoming
+   *  escape sequences (arrow keys, mouse reports) in raw keyboard input —
+   *  reading, not emitting, but kept here too so no other file needs its
+   *  own copy of the literal. */
+  escByte: ESC,
+} as const;
+
+export function cursorTo(row: number, col: number): string {
+  return `${ESC}[${Math.max(0, Math.trunc(row)) + 1};${Math.max(0, Math.trunc(col)) + 1}H`;
+}
+
+/** Encode pure screen operations. This remains the sole screen-control emitter. */
+export function encodeScreenOps(ops: readonly ScreenOp[], caps: Capabilities): string {
+  let out = "";
+  for (const op of ops) {
+    if (op.type === "clear") {
+      out += TERMINAL_CONTROL.clearScreen;
+      continue;
+    }
+    out += cursorTo(op.row, 0);
+    out += TERMINAL_CONTROL.eraseLine;
+    out += renderAnsiLine(op.line, caps);
+  }
+  return out;
 }

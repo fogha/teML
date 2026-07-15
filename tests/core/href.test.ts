@@ -26,3 +26,12 @@ test("processHref confines relative links to base directory", () => {
   expect(processHref("../secret", { base })).toBeNull();
   expect(processHref("section.html", { base })).toBe("https://example.com/docs/section.html");
 });
+
+test("processHref enforces a URL path-segment boundary", () => {
+  const base = "https://example.com/docs";
+  expect(processHref("https://example.com/docs/page.html", { base })).toBe(
+    "https://example.com/docs/page.html",
+  );
+  expect(processHref("https://example.com/docs-secret/page.html", { base })).toBeNull();
+  expect(processHref("https://example.com/docs2", { base })).toBeNull();
+});

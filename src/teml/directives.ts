@@ -29,6 +29,9 @@ export const DIRECTIVE_REGISTRY = {
     metric: { attrs: ["label", "value", "role", "change"] },
     progress: { attrs: ["label", "value", "max", "role"] },
     event: { attrs: ["time", "title", "detail", "role"] },
+    button: { attrs: ["id", "label"] },
+    input: { attrs: ["id", "label", "placeholder", "value"] },
+    checkbox: { attrs: ["id", "label", "checked"] },
   },
   inline: {
     success: {},
@@ -50,6 +53,13 @@ export const DIRECTIVE_REGISTRY = {
 export const CONTAINER_DIRECTIVES = new Set(Object.keys(DIRECTIVE_REGISTRY.containers));
 export const LEAF_DIRECTIVES = new Set(Object.keys(DIRECTIVE_REGISTRY.leafs));
 export const INLINE_DIRECTIVES = new Set(Object.keys(DIRECTIVE_REGISTRY.inline));
+
+/** Leaf directives that can hold keyboard focus in an interactive session. */
+export const FOCUSABLE_LEAFS = new Set(["button", "input", "checkbox"]);
+
+export function isFocusableLeaf(name: string): boolean {
+  return FOCUSABLE_LEAFS.has(name);
+}
 
 const INLINE_ROLE_NAMES = new Set(
   Object.keys(DIRECTIVE_REGISTRY.inline).filter((n) => n !== "status" && n !== "fn"),

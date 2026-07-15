@@ -25,10 +25,7 @@ import {
   sanitizeDirectiveAttrs,
 } from "./directives.js";
 
-const fragmentProcessor = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkDirective);
+const fragmentProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkDirective);
 
 type Positioned = { position?: { start: { line: number } } };
 
@@ -287,7 +284,11 @@ function mdToBlock(node: Content, diags: Diagnostics, ctx: ParseContext): Block 
   }
 }
 
-export function mdToBlocks(nodes: RootContent[], diags: Diagnostics, ctx: ParseContext = {}): Block[] {
+export function mdToBlocks(
+  nodes: RootContent[],
+  diags: Diagnostics,
+  ctx: ParseContext = {},
+): Block[] {
   const blocks: Block[] = [];
   for (const node of nodes) {
     const mapped = mdToBlock(node, diags, ctx);
@@ -298,13 +299,28 @@ export function mdToBlocks(nodes: RootContent[], diags: Diagnostics, ctx: ParseC
   return blocks;
 }
 
-const META_STRING_KEYS = new Set(["title", "theme", "lang", "base"]);
+const META_STRING_KEYS = new Set(["title", "lang", "base"]);
+const FRONTMATTER_THEMES = new Set(["dark", "light", "mono", "auto"]);
 const ROLE_STYLE_KEYS = new Set(["fg", "bg", "bold", "italic", "underline", "strike"]);
 const ANSI_COLORS = new Set([
-  "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
-  "brightBlack", "brightRed", "brightGreen", "brightYellow",
-  "brightBlue", "brightMagenta", "brightCyan", "brightWhite",
+  "black",
+  "red",
+  "green",
+  "yellow",
+  "blue",
+  "magenta",
+  "cyan",
+  "white",
+  "brightBlack",
+  "brightRed",
+  "brightGreen",
+  "brightYellow",
+  "brightBlue",
+  "brightMagenta",
+  "brightCyan",
+  "brightWhite",
 ]);
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 function parseRoleStyle(raw: unknown, diags: Diagnostics, line?: number): RoleStyle | null {
   if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -317,7 +333,11 @@ function parseRoleStyle(raw: unknown, diags: Diagnostics, line?: number): RoleSt
     if (k === "fg" || k === "bg") {
       if (typeof v !== "string") continue;
       const val = sanitizeText(v);
-      style[k] = val.startsWith("#") || ANSI_COLORS.has(val) ? val as RoleStyle["fg"] : val as RoleStyle["fg"];
+      if (HEX_COLOR.test(val) || ANSI_COLORS.has(val)) {
+        style[k] = val as RoleStyle["fg"];
+      } else {
+        diags.warn("frontmatter-invalid-color", `invalid frontmatter color '${val}'`, line);
+      }
     } else if (typeof v === "boolean") {
       (style as Record<string, boolean>)[k] = v;
     }
@@ -325,7 +345,11 @@ function parseRoleStyle(raw: unknown, diags: Diagnostics, line?: number): RoleSt
   return Object.keys(style).length ? style : null;
 }
 
-function parseRoles(raw: unknown, diags: Diagnostics, line?: number): Record<string, RoleStyle> | undefined {
+function parseRoles(
+  raw: unknown,
+  diags: Diagnostics,
+  line?: number,
+): Record<string, RoleStyle> | undefined {
   if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
     if (raw != null) diags.warn("frontmatter-ignored-key", "frontmatter key 'roles' ignored", line);
     return undefined;
@@ -353,7 +377,11 @@ export function extractMeta(tree: Root, diags: Diagnostics): Meta {
   const idx = tree.children.findIndex((n) => n.type === "yaml");
   if (idx === -1) return meta;
 
-  const yamlNode = tree.children[idx] as { type: "yaml"; value: string; position?: { start: { line: number } } };
+  const yamlNode = tree.children[idx] as {
+    type: "yaml";
+    value: string;
+    position?: { start: { line: number } };
+  };
   const line = lineOf(yamlNode);
   tree.children.splice(idx, 1);
 
@@ -371,6 +399,18 @@ export function extractMeta(tree: Root, diags: Diagnostics): Meta {
     if (key === "roles") {
       const roles = parseRoles(value, diags, line);
       if (roles) meta.roles = roles;
+      continue;
+    }
+    if (key === "theme") {
+      if (typeof value === "string" && FRONTMATTER_THEMES.has(sanitizeText(value))) {
+        meta.theme = sanitizeText(value);
+      } else {
+        diags.warn(
+          "frontmatter-theme-rejected",
+          "frontmatter theme must be one of: dark, light, mono, auto",
+          line,
+        );
+      }
       continue;
     }
     if (META_STRING_KEYS.has(key)) {

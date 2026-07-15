@@ -7,6 +7,7 @@ import {
   SAFE_GLYPHS,
   REQUIRED_ROLES,
   applyMetaRoles,
+  loadDocumentTheme,
   loadTheme,
   resolveRole,
   validateThemeShape,
@@ -83,18 +84,91 @@ test("loadTheme reads custom JSON path", () => {
     path,
     JSON.stringify({
       name: "brand",
-      roles: Object.fromEntries(REQUIRED_ROLES.map((r) => [r, r === "link" ? { fg: "#112233", underline: true } : {}])),
+      roles: Object.fromEntries(
+        REQUIRED_ROLES.map((r) => [r, r === "link" ? { fg: "#112233", underline: true } : {}]),
+      ),
       decorations: {
         success: { gutterUnicode: "▎", gutterAscii: "|", labelUnicode: "✓ ok", labelAscii: "[OK]" },
-        warning: { gutterUnicode: "▎", gutterAscii: "|", labelUnicode: "⚠ warn", labelAscii: "[WARN]" },
-        error: { gutterUnicode: "▎", gutterAscii: "|", labelUnicode: "✗ err", labelAscii: "[FAIL]" },
-        info: { gutterUnicode: "▎", gutterAscii: "|", labelUnicode: "ℹ info", labelAscii: "[INFO]" },
+        warning: {
+          gutterUnicode: "▎",
+          gutterAscii: "|",
+          labelUnicode: "⚠ warn",
+          labelAscii: "[WARN]",
+        },
+        error: {
+          gutterUnicode: "▎",
+          gutterAscii: "|",
+          labelUnicode: "✗ err",
+          labelAscii: "[FAIL]",
+        },
+        info: {
+          gutterUnicode: "▎",
+          gutterAscii: "|",
+          labelUnicode: "ℹ info",
+          labelAscii: "[INFO]",
+        },
       },
     }),
   );
   const theme = loadTheme(path);
   expect(theme.name).toBe("brand");
   expect(theme.roles.link.fg).toBe("#112233");
+});
+
+test("document theme selection cannot load a custom file path", () => {
+  const dir = mkdtempSync(join(tmpdir(), "teml-document-theme-"));
+  const path = join(dir, "hostile.json");
+  writeFileSync(path, JSON.stringify({ name: "hostile", roles: {}, decorations: {} }));
+  const d = new Diagnostics();
+  const theme = loadDocumentTheme(path, d);
+  expect(theme.name).toBe("auto");
+  expect(d.has("document-theme-rejected")).toBe(true);
+  expect(d.all().some((warning) => warning.message.includes("theme-load-failed"))).toBe(false);
+});
+
+test("theme decorations containing controls are rejected", () => {
+  const d = new Diagnostics();
+  const theme = validateThemeShape(
+    {
+      name: "unsafe",
+      roles: Object.fromEntries(REQUIRED_ROLES.map((role) => [role, {}])),
+      decorations: {
+        success: {
+          gutterUnicode: "▎",
+          gutterAscii: "\u001b[31m",
+          labelUnicode: "✓ ok",
+          labelAscii: "[OK]",
+        },
+        warning: {
+          gutterUnicode: "▎",
+          gutterAscii: "|",
+          labelUnicode: "⚠ warn",
+          labelAscii: "[WARN]",
+        },
+        error: {
+          gutterUnicode: "▎",
+          gutterAscii: "|",
+          labelUnicode: "✗ err",
+          labelAscii: "[FAIL]",
+        },
+        info: {
+          gutterUnicode: "▎",
+          gutterAscii: "|",
+          labelUnicode: "ℹ info",
+          labelAscii: "[INFO]",
+        },
+      },
+    },
+    d,
+  );
+  expect(theme?.decorations.success).toBeUndefined();
+  expect(d.has("theme-unsafe-glyph")).toBe(true);
+  expect(
+    d
+      .all()
+      .map((warning) => warning.message)
+      .join("\n"),
+  ).not.toContain("\u001b");
 });
 
 test("resolveRole warns on unknown roles", () => {
@@ -109,7 +183,11 @@ test("resolveRole warns on unknown roles", () => {
 test("applyMetaRoles merges custom roles", () => {
   const d = new Diagnostics();
   const base = loadTheme("dark", d);
-  const merged = applyMetaRoles(base, { roles: { brand: { fg: "#ff00aa", bold: true }, link: { underline: false } } }, d);
+  const merged = applyMetaRoles(
+    base,
+    { roles: { brand: { fg: "#ff00aa", bold: true }, link: { underline: false } } },
+    d,
+  );
   expect(merged.roles.brand).toEqual({ fg: "#ff00aa", bold: true });
   expect(merged.roles.link.underline).toBe(false);
   expect(d.has("custom-role-defined")).toBe(true);

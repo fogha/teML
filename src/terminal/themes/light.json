@@ -19,13 +19,39 @@
     "codeBlock": { "fg": "black" },
     "quote": { "fg": "brightBlack", "italic": true },
     "listMarker": { "fg": "brightBlack" },
+    "focus": { "fg": "white", "bg": "blue", "bold": true },
     "text": {}
   },
   "decorations": {
-    "success": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "✓ success", "labelAscii": "[OK]" },
-    "warning": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "⚠ warning", "labelAscii": "[WARN]" },
-    "error": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "✗ error", "labelAscii": "[FAIL]" },
-    "info": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "ℹ info", "labelAscii": "[INFO]" },
-    "note": { "gutterUnicode": "▎", "gutterAscii": "|", "labelUnicode": "› note", "labelAscii": "[NOTE]" }
+    "success": {
+      "gutterUnicode": "▎",
+      "gutterAscii": "|",
+      "labelUnicode": "✓ success",
+      "labelAscii": "[OK]"
+    },
+    "warning": {
+      "gutterUnicode": "▎",
+      "gutterAscii": "|",
+      "labelUnicode": "⚠ warning",
+      "labelAscii": "[WARN]"
+    },
+    "error": {
+      "gutterUnicode": "▎",
+      "gutterAscii": "|",
+      "labelUnicode": "✗ error",
+      "labelAscii": "[FAIL]"
+    },
+    "info": {
+      "gutterUnicode": "▎",
+      "gutterAscii": "|",
+      "labelUnicode": "ℹ info",
+      "labelAscii": "[INFO]"
+    },
+    "note": {
+      "gutterUnicode": "▎",
+      "gutterAscii": "|",
+      "labelUnicode": "› note",
+      "labelAscii": "[NOTE]"
+    }
   }
 }

@@ -2,7 +2,7 @@ import { test, expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Diagnostics, inlineText, normalize } from "../../src/core/index.js";
-import { parseTeml, parseToMdast } from "../../src/teml/parse.js";
+import { maxContainerNesting, parseTeml, parseToMdast } from "../../src/teml/parse.js";
 import { mdastToTDoc, extractMeta } from "../../src/teml/mdast-to-tdoc.js";
 
 const FIXTURES = join(process.cwd(), "fixtures/teml");
@@ -37,7 +37,9 @@ test("parse: headings clamp levels 5 and 6", async () => {
 
 test("parse: inline styles and links", async () => {
   const doc = normalize(parseTeml(await load("02-inline.teml")));
-  const para = doc.blocks.find((b) => b.type === "paragraph" && inlineText(b.children).includes("bold"));
+  const para = doc.blocks.find(
+    (b) => b.type === "paragraph" && inlineText(b.children).includes("bold"),
+  );
   expect(para?.type).toBe("paragraph");
   const dump = JSON.stringify(doc);
   expect(dump).toContain('"type":"bold"');
@@ -70,7 +72,9 @@ test("parse: inline spans and escaped directive", async () => {
   const dump = JSON.stringify(doc);
   expect(dump).toContain('"type":"span"');
   expect(dump).toContain('"role":"success"');
-  expect(inlineText(doc.blocks.flatMap((b) => (b.type === "paragraph" ? b.children : [])))).toContain(":notaspan[ignored]");
+  expect(
+    inlineText(doc.blocks.flatMap((b) => (b.type === "paragraph" ? b.children : []))),
+  ).toContain(":notaspan[ignored]");
   expect(d.all().some((w) => w.code === "unknown-directive")).toBe(false);
 });
 
@@ -92,6 +96,23 @@ test("parse: frontmatter meta and ignored nested key", async () => {
   expect(d.all().some((w) => w.code === "frontmatter-ignored-key")).toBe(true);
 });
 
+test("parse: invalid frontmatter colors are rejected", () => {
+  const d = new Diagnostics();
+  const doc = parseTeml(
+    '---\nroles:\n  danger:\n    fg: "#zzz"\n    bg: red\n---\n\n:danger[test]\n',
+    d,
+  );
+  expect(doc.meta.roles?.danger).toEqual({ bg: "red" });
+  expect(d.has("frontmatter-invalid-color")).toBe(true);
+});
+
+test("parse: frontmatter themes are limited to built-ins", () => {
+  const d = new Diagnostics();
+  const doc = parseTeml("---\ntheme: ../../private.json\n---\n\nsafe\n", d);
+  expect(doc.meta.theme).toBeUndefined();
+  expect(d.has("frontmatter-theme-rejected")).toBe(true);
+});
+
 test("parse: GFM table alignment", async () => {
   const doc = normalize(parseTeml(await load("09-tables.teml")));
   const table = doc.blocks.find((b) => b.type === "table");
@@ -111,7 +132,10 @@ test("parse: kitchen sink without throwing", async () => {
 
 test("parse: adversarial links and ESC stripped", async () => {
   const d = new Diagnostics();
-  const src = await readFile(join(process.cwd(), "fixtures/adversarial/javascript-link.teml"), "utf8");
+  const src = await readFile(
+    join(process.cwd(), "fixtures/adversarial/javascript-link.teml"),
+    "utf8",
+  );
   const doc = normalize(parseTeml(src, d));
   expect(JSON.stringify(doc)).not.toContain("javascript:");
   expect(d.all().some((w) => w.code === "link-dropped")).toBe(true);
@@ -124,4 +148,48 @@ test("mdastToTDoc export matches parseTeml", async () => {
   const a = normalize(parseTeml(src, d1));
   const b = normalize(mdastToTDoc(parseToMdast(src), d2));
   expect(b).toEqual(a);
+});
+
+test("maxContainerNesting counts concurrently-open fences, not total fence count", () => {
+  expect(maxContainerNesting(":::a\nx\n:::\n:::b\ny\n:::\n")).toBe(1);
+  expect(maxContainerNesting(":::a\n::::b\nx\n::::\n:::\n")).toBe(2);
+  expect(maxContainerNesting("no fences here\n")).toBe(0);
+});
+
+test("parse: pathologically deep container nesting degrades instead of costing O(depth^2)", () => {
+  // remark-directive's container tokenizer re-checks the whole open-container
+  // stack per line, so unbounded nesting depth is a CPU-exhaustion vector
+  // (a ~14KB document with 1600 nested fences previously took >7s to parse).
+  const depth = 2000;
+  const src = ":::a\n".repeat(depth) + "x\n" + ":::\n".repeat(depth);
+  const d = new Diagnostics();
+  const t0 = Date.now();
+  const doc = parseTeml(src, d);
+  const elapsedMs = Date.now() - t0;
+  expect(elapsedMs).toBeLessThan(1000);
+  expect(d.has("container-nesting-too-deep")).toBe(true);
+  // Fences are neutralized (treated as plain text), not dropped or crashed on.
+  expect(JSON.stringify(doc)).not.toContain('"type":"container"');
+});
+
+test("parse: container nesting within the safe limit still nests normally", async () => {
+  const d = new Diagnostics();
+  const doc = normalize(parseTeml(await load("05-containers.teml"), d));
+  expect(d.has("container-nesting-too-deep")).toBe(false);
+  expect(doc.blocks[0].type).toBe("container");
+});
+
+test("parse: pathologically deep list/blockquote chains degrade instead of costing O(depth) per line", () => {
+  // remark-parse's list/blockquote continuation check is O(open-container
+  // depth) per line, so a long chain of nested single-item lists (no `:::`
+  // fences involved) is a format-agnostic CPU-exhaustion vector distinct
+  // from the container-fence one above.
+  let src = "";
+  for (let i = 0; i < 800; i++) src += "  ".repeat(i) + "- x\n";
+  const d = new Diagnostics();
+  const t0 = Date.now();
+  const doc = parseTeml(src, d);
+  expect(Date.now() - t0).toBeLessThan(2000);
+  expect(d.has("pathological-nesting-rejected")).toBe(true);
+  expect(doc.blocks).toEqual([{ type: "codeBlock", value: src }]);
 });

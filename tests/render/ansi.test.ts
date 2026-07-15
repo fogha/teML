@@ -21,6 +21,13 @@ test("named colors map to basic fg", () => {
   expect(downgradeColor("red", "ansi16", true)).toEqual([31]);
 });
 
+test("malformed runtime colors cannot produce NaN SGR parameters", () => {
+  expect(downgradeColor("#zzz" as never, "truecolor", true)).toEqual([]);
+  const out = renderAnsi([[{ text: "safe", style: { fg: "#zzz" as never } }]], caps("truecolor"));
+  expect(out).not.toContain("NaN");
+  expect(out).toBe("safe\n");
+});
+
 test("minimal style transitions skip identical spans", () => {
   const a = { fg: "green" as const, bold: true };
   expect(stylesNeedSgr(a, a, "truecolor")).toBe(false);
@@ -29,10 +36,12 @@ test("minimal style transitions skip identical spans", () => {
 
 test("style transitions explicitly disable previous attributes", () => {
   const out = renderAnsi(
-    [[
-      { text: "bold", style: { bold: true } },
-      { text: "plain", style: {} },
-    ]],
+    [
+      [
+        { text: "bold", style: { bold: true } },
+        { text: "plain", style: {} },
+      ],
+    ],
     caps("ansi16"),
   );
   expect(out).toContain("\x1b[1mbold\x1b[22mplain");
@@ -40,11 +49,13 @@ test("style transitions explicitly disable previous attributes", () => {
 
 test("strike SGR 9 opens and 29 closes", () => {
   const out = renderAnsi(
-    [[
-      { text: "before", style: {} },
-      { text: "cut", style: { strike: true } },
-      { text: "after", style: {} },
-    ]],
+    [
+      [
+        { text: "before", style: {} },
+        { text: "cut", style: { strike: true } },
+        { text: "after", style: {} },
+      ],
+    ],
     caps("truecolor"),
   );
   expect(out).toContain("\x1b[9mcut\x1b[29mafter");
