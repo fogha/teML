@@ -6,7 +6,7 @@ against this git repository directly.
 ## Dev setup
 
 ```bash
-git clone <this repo> && cd teml
+git clone https://github.com/fogha/teML.git && cd teML
 npm install
 npm run build
 npm test

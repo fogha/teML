@@ -18,7 +18,7 @@ Requires **Node ≥ 20**.
 ## Quick start
 
 ```bash
-git clone https://github.com/<you>/teml.git && cd teml
+git clone https://github.com/fogha/teML.git && cd teML
 npm install
 npm run build
 

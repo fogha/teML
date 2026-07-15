@@ -14,6 +14,14 @@
     "accessibility"
   ],
   "author": "Fogha <collinslord50@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fogha/teML.git"
+  },
+  "homepage": "https://github.com/fogha/teML#readme",
+  "bugs": {
+    "url": "https://github.com/fogha/teML/issues"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
