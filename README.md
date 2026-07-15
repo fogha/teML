@@ -1,12 +1,16 @@
-# TeML — Terminal Markup Language (v1)
+# TeML — Terminal Markup Language (v1.5 Reader)
 
 Semantic documents for terminals: write **TeML**, **Markdown**, or convert **HTML**, get readable terminal output that degrades gracefully everywhere.
+
+Not yet published to npm — clone and build from source (see below). Once
+published, the target end-state usage is:
 
 ```bash
 npm install teml
 npx teml examples/demo.teml
 npx teml convert page.html --to teml
 npx teml view README.md --width 100
+npx teml read README.md
 ```
 
 Requires **Node ≥ 20**.
@@ -14,7 +18,7 @@ Requires **Node ≥ 20**.
 ## Quick start
 
 ```bash
-git clone <repo> && cd teml
+git clone https://github.com/<you>/teml.git && cd teml
 npm install
 npm run build
 
@@ -25,11 +29,23 @@ teml view examples/service-command-center.html --width 100
 npm run demo:command-center              # built command-center demo
 teml convert examples/demo.html --to teml
 teml view examples/demo.html             # HTML → terminal directly
+teml read README.md                      # full-screen Reader (scroll, links, search, TOC)
+teml read docs/                          # confined document browser
 teml render examples/demo.teml --width 80  # deterministic plain snapshot
+teml convert README.md --to speech       # semantic, non-ANSI accessibility text
 teml inspect examples/demo.teml --tokens
 cat examples/demo.teml | teml --no-color
 npm test                                 # full fixture + security suite
+npm run lint                             # eslint
+npm run format:check                     # prettier --check
 npm run pack:verify                      # npm pack install smoke test
+
+# LLM chat demo: DeepSeek replies in HTML, TeML renders it in your terminal
+export DEEPSEEK_API_KEY=sk-...
+npm run demo:chat                        # interactive REPL
+npm run demo:chat -- --mock              # try it with no API key/network
+
+npm run demo:settings                    # interactive HTML form (validation, no NDJSON)
 ```
 
 ## Library API
@@ -42,7 +58,10 @@ console.log(serializeTeml(document));
 ```
 
 The package root also exports Markdown/HTML frontends, the shared `TDoc` types,
-layout, renderers, capabilities, and themes.
+layout, renderers, capabilities, and themes. A separate `teml/interactive`
+entry point exports `runInteractiveApp` for building interactive (button/input/
+checkbox) CLI apps in Node without a subprocess — see
+[docs/interactive-protocol.md](docs/interactive-protocol.md#in-process-node-alternative-runinteractiveapp).
 
 ## Documentation
 
@@ -50,9 +69,11 @@ layout, renderers, capabilities, and themes.
 | --- | --- |
 | [docs/spec.md](docs/spec.md) | Format specification (directives, security, conformance) |
 | [docs/cli.md](docs/cli.md) | CLI reference (commands, flags, exit codes) |
+| [docs/reader.md](docs/reader.md) | Full-screen Reader keymap, navigation security, and terminal recovery |
 | [docs/theming.md](docs/theming.md) | Themes, roles, ASCII/color fallbacks |
 | [docs/tutorial.md](docs/tutorial.md) | 5-minute first conversion walkthrough |
-| [docs/demo.md](docs/demo.md) | Demo recording commands |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, testing, and PR expectations |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
 
 ## Pipeline
 
@@ -111,4 +132,4 @@ dependencies are lazy-loaded so TeML-only paths stay fast.
 
 ## License
 
-MIT
+[MIT](LICENSE)
