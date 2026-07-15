@@ -9,7 +9,13 @@ import { snapshotRender } from "../snapshot.js";
 
 const FIXTURES_DIR = join(process.cwd(), "fixtures/html");
 const CLI = join(process.cwd(), "dist/cli/main.js");
-const SNAPSHOT_FIXTURES = ["01-elements", "02-messy", "03-bootstrap", "04-realpage", "05-table-spans"];
+const SNAPSHOT_FIXTURES = [
+  "01-elements",
+  "02-messy",
+  "03-bootstrap",
+  "04-realpage",
+  "05-table-spans",
+];
 
 async function htmlFixtures(): Promise<string[]> {
   return (await readdir(FIXTURES_DIR))
@@ -55,9 +61,13 @@ test("CLI convert: html inference by extension", () => {
 
 test("CLI convert: html with explicit profile", () => {
   const file = join(FIXTURES_DIR, "03-bootstrap.html");
-  const out = execFileSync("node", [CLI, "convert", file, "--profile", "bootstrap", "--to", "teml"], {
-    encoding: "utf8",
-  });
+  const out = execFileSync(
+    "node",
+    [CLI, "convert", file, "--profile", "bootstrap", "--to", "teml"],
+    {
+      encoding: "utf8",
+    },
+  );
   expect(out).toContain(":::warning");
 });
 

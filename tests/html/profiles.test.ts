@@ -1,12 +1,8 @@
 import { test, expect } from "vitest";
-import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
+import { writeFileSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import {
-  elementMatches,
-  loadProfile,
-  validateProfile,
-} from "../../src/html/profiles/loader.js";
+import { elementMatches, loadProfile, validateProfile } from "../../src/html/profiles/loader.js";
 import { parseHTML } from "linkedom";
 
 test("validateProfile rejects invalid shape", () => {
@@ -37,7 +33,7 @@ test("loadProfile loads custom json path", () => {
 });
 
 test("elementMatches checks class and tag", () => {
-  const { document } = parseHTML("<html><body><div class=\"card alert\"></div></body></html>");
+  const { document } = parseHTML('<html><body><div class="card alert"></div></body></html>');
   const el = document.querySelector(".card")!;
   expect(elementMatches(el, { class: "card" })).toBe(true);
   expect(elementMatches(el, { class: "missing" })).toBe(false);

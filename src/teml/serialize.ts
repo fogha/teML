@@ -5,10 +5,7 @@ import type { Align, Block, Inline, ListItem, Meta, RoleStyle, TDoc } from "../c
 import { isShorthandInlineRole } from "./directives.js";
 import { codeFenceLength, escapeTemlText } from "./escape.js";
 
-function serializeInline(
-  nodes: Inline[],
-  ctx: "prose" | "link" | "tableCell" = "prose",
-): string {
+function serializeInline(nodes: Inline[], ctx: "prose" | "link" | "tableCell" = "prose"): string {
   let out = "";
   for (const n of nodes) {
     switch (n.type) {
@@ -53,11 +50,7 @@ function serializeInline(
 function attrStr(attrs: Record<string, string>): string {
   const entries = Object.entries(attrs).sort(([a], [b]) => a.localeCompare(b));
   if (!entries.length) return "";
-  return (
-    "{" +
-    entries.map(([k, v]) => `${k}="${escapeTemlText(v, "attr")}"`).join(" ") +
-    "}"
-  );
+  return "{" + entries.map(([k, v]) => `${k}="${escapeTemlText(v, "attr")}"`).join(" ") + "}";
 }
 
 function childDirectiveDepth(b: Block): number {
@@ -102,11 +95,7 @@ function serializeListItem(
     const body = serializeBlock(b);
     const bodyLines = body.split("\n");
     if (lines.length === 0) {
-      lines.push(
-        bodyLines
-          .map((l, j) => (j === 0 ? pad + marker + l : contPad + l))
-          .join("\n"),
-      );
+      lines.push(bodyLines.map((l, j) => (j === 0 ? pad + marker + l : contPad + l)).join("\n"));
     } else {
       lines.push(bodyLines.map((l) => contPad + l).join("\n"));
     }

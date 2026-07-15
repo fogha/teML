@@ -26,7 +26,11 @@ function walkInlines(nodes: Inline[], visit: (n: Inline) => void): void {
   }
 }
 
-function walkBlocks(blocks: Block[], visitBlock: (b: Block) => void, visitRef?: (id: string) => void): void {
+function walkBlocks(
+  blocks: Block[],
+  visitBlock: (b: Block) => void,
+  visitRef?: (id: string) => void,
+): void {
   for (const b of blocks) {
     visitBlock(b);
     switch (b.type) {
@@ -93,17 +97,21 @@ export function buildFootnoteIndex(blocks: Block[], diags: Diagnostics): Footnot
   const seenRefs = new Set<string>();
   let num = 0;
 
-  walkBlocks(blocks, () => {}, (id) => {
-    if (!definitions.has(id)) {
-      diags.warn("footnote-missing", `footnote reference '${id}' has no definition`);
-      return;
-    }
-    if (!seenRefs.has(id)) {
-      seenRefs.add(id);
-      num++;
-      order.set(id, num);
-    }
-  });
+  walkBlocks(
+    blocks,
+    () => {},
+    (id) => {
+      if (!definitions.has(id)) {
+        diags.warn("footnote-missing", `footnote reference '${id}' has no definition`);
+        return;
+      }
+      if (!seenRefs.has(id)) {
+        seenRefs.add(id);
+        num++;
+        order.set(id, num);
+      }
+    },
+  );
 
   for (const id of definitions.keys()) {
     if (!order.has(id)) {
@@ -122,7 +130,5 @@ export function footnoteNumber(index: FootnoteIndex, id: string): number | undef
 
 /** Ordered footnote ids for appendix rendering. */
 export function footnoteAppendixOrder(index: FootnoteIndex): string[] {
-  return [...index.order.entries()]
-    .sort((a, b) => a[1] - b[1])
-    .map(([id]) => id);
+  return [...index.order.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id);
 }

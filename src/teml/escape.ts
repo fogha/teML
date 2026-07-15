@@ -2,7 +2,7 @@
 
 export type EscapeContext = "prose" | "link" | "attr" | "codeInline" | "codeFence" | "tableCell";
 
-const PROSE_SPECIAL = /[\\*`\[\]{}_#|]/g;
+const PROSE_SPECIAL = /[\\*`[\]{}_#|]/g;
 const LINK_SPECIAL = /[\\*`[\]]/g;
 const TABLE_CELL_SPECIAL = /[\\|]/g;
 
@@ -21,7 +21,7 @@ export function escapeTemlText(s: string, ctx: EscapeContext = "prose"): string 
     case "attr":
       return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     case "codeInline": {
-      let out = s.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
+      const out = s.replace(/\\/g, "\\\\").replace(/`/g, "\\`");
       return out;
     }
     case "codeFence":

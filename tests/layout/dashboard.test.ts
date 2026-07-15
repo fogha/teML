@@ -88,7 +88,12 @@ test("grid reduces columns when cells would be narrower than 18", () => {
     },
   ]);
   const width = 40;
-  const lines = layoutDocument(d, { width, theme: loadTheme("dark"), caps: caps(width), diags: new Diagnostics() });
+  const lines = layoutDocument(d, {
+    width,
+    theme: loadTheme("dark"),
+    caps: caps(width),
+    diags: new Diagnostics(),
+  });
   assertViewport(lines, width);
   const plain = renderPlain(lines);
   const rows = plain.split("\n").filter(Boolean);
@@ -120,7 +125,12 @@ test("nested grid inside card respects viewport", () => {
     },
   ]);
   const width = 30;
-  const lines = layoutDocument(d, { width, theme: loadTheme("dark"), caps: caps(width), diags: new Diagnostics() });
+  const lines = layoutDocument(d, {
+    width,
+    theme: loadTheme("dark"),
+    caps: caps(width),
+    diags: new Diagnostics(),
+  });
   assertViewport(lines, width);
   expect(renderPlain(lines)).toContain("left cell");
   expect(renderPlain(lines)).toContain("right cell");
@@ -130,7 +140,12 @@ test("metric defaults and truncation at pathological width", () => {
   const d = doc([{ type: "leaf", name: "metric", attrs: {} }]);
   const width = 5;
   const out = renderPlain(
-    layoutDocument(d, { width, theme: loadTheme("dark"), caps: caps(width), diags: new Diagnostics() }),
+    layoutDocument(d, {
+      width,
+      theme: loadTheme("dark"),
+      caps: caps(width),
+      diags: new Diagnostics(),
+    }),
   );
   expect(out).toContain("Metri");
   expect(out).toContain("—");
@@ -159,10 +174,17 @@ test("progress clamps value and handles zero max safely", () => {
 });
 
 test("progress unicode and ascii bar glyphs", () => {
-  const block = doc([{ type: "leaf", name: "progress", attrs: { label: "Load", value: "50", max: "100" } }]);
+  const block = doc([
+    { type: "leaf", name: "progress", attrs: { label: "Load", value: "50", max: "100" } },
+  ]);
   const width = 20;
   const uni = renderPlain(
-    layoutDocument(block, { width, theme: loadTheme("dark"), caps: caps(width), diags: new Diagnostics() }),
+    layoutDocument(block, {
+      width,
+      theme: loadTheme("dark"),
+      caps: caps(width),
+      diags: new Diagnostics(),
+    }),
   );
   expect(uni).toMatch(/[█░]/);
 
@@ -191,7 +213,12 @@ test("event detail wraps with deterministic indent", () => {
     },
   ]);
   const width = 24;
-  const lines = layoutDocument(d, { width, theme: loadTheme("dark"), caps: caps(width), diags: new Diagnostics() });
+  const lines = layoutDocument(d, {
+    width,
+    theme: loadTheme("dark"),
+    caps: caps(width),
+    diags: new Diagnostics(),
+  });
   assertViewport(lines, width);
   const plain = renderPlain(lines);
   const detailLines = plain.split("\n").slice(1).filter(Boolean);
@@ -216,7 +243,12 @@ test("event ascii marker fallback", () => {
 test("details closed hides body", () => {
   const d = normalize(parseTeml(':::details{summary="Hidden" open="false"}\nSecret\n:::\n'));
   const out = renderPlain(
-    layoutDocument(d, { width: 40, theme: loadTheme("dark"), caps: caps(40), diags: new Diagnostics() }),
+    layoutDocument(d, {
+      width: 40,
+      theme: loadTheme("dark"),
+      caps: caps(40),
+      diags: new Diagnostics(),
+    }),
   );
   expect(out).toContain("Hidden");
   expect(out).not.toContain("Secret");
@@ -225,7 +257,12 @@ test("details closed hides body", () => {
 test("details open renders indented body", () => {
   const d = normalize(parseTeml(':::details{summary="Open" open="true"}\nVisible line\n:::\n'));
   const out = renderPlain(
-    layoutDocument(d, { width: 40, theme: loadTheme("dark"), caps: caps(40), diags: new Diagnostics() }),
+    layoutDocument(d, {
+      width: 40,
+      theme: loadTheme("dark"),
+      caps: caps(40),
+      diags: new Diagnostics(),
+    }),
   );
   expect(out).toContain("Open");
   expect(out).toContain("Visible line");
@@ -234,7 +271,12 @@ test("details open renders indented body", () => {
 test("figure renders caption after body", () => {
   const d = normalize(parseTeml(':::figure{caption="Trend"}\nBody content\n:::\n'));
   const out = renderPlain(
-    layoutDocument(d, { width: 40, theme: loadTheme("dark"), caps: caps(40), diags: new Diagnostics() }),
+    layoutDocument(d, {
+      width: 40,
+      theme: loadTheme("dark"),
+      caps: caps(40),
+      diags: new Diagnostics(),
+    }),
   );
   expect(out.indexOf("Body content")).toBeLessThan(out.indexOf("Figure: Trend"));
 });
@@ -280,11 +322,13 @@ test("inline strike style reaches spans", () => {
 
 test("ANSI strike emits SGR 9 and 29 on transition", () => {
   const out = renderAnsi(
-    [[
-      { text: "plain", style: {} },
-      { text: "struck", style: { strike: true } },
-      { text: "plain", style: {} },
-    ]],
+    [
+      [
+        { text: "plain", style: {} },
+        { text: "struck", style: { strike: true } },
+        { text: "plain", style: {} },
+      ],
+    ],
     caps(80, { colors: "ansi16" }),
   );
   expect(out).toContain("\x1b[9mstruck\x1b[29m");

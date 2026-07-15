@@ -20,7 +20,8 @@ test("S-2: only render/ansi.ts may contain ESC literal", async () => {
   for (const file of files) {
     if (file.endsWith("/render/ansi.ts")) continue;
     const text = await readFile(file, "utf8");
-    if (text.includes(esc) || text.includes("\\x1b")) offenders.push(file.replace(process.cwd() + "/", ""));
+    if (text.includes(esc) || text.includes("\\x1b"))
+      offenders.push(file.replace(process.cwd() + "/", ""));
   }
   expect(offenders).toEqual([]);
 });

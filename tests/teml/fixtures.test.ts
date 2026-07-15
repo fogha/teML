@@ -42,5 +42,5 @@ test("cli inspect --tokens on kitchen sink", async () => {
 test("tokensView matches inspect --tokens", async () => {
   const source = await readFile(join(FIXTURES_DIR, "06-inline-spans.teml"), "utf8");
   const doc = normalize(parseTeml(source));
-  expect(tokensView(doc)).toContain("span_start role=\"success\"");
+  expect(tokensView(doc)).toContain('span_start role="success"');
 });

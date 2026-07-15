@@ -15,7 +15,14 @@ const FIXTURES_DIR = join(process.cwd(), "fixtures/teml");
 const WIDTHS = [20, 40, 80, 120] as const;
 
 function caps(width: number, over: Partial<Capabilities> = {}): Capabilities {
-  return { colors: "truecolor", unicode: true, hyperlinks: false, width, ambiguousWide: false, ...over };
+  return {
+    colors: "truecolor",
+    unicode: true,
+    hyperlinks: false,
+    width,
+    ambiguousWide: false,
+    ...over,
+  };
 }
 
 async function fixtureFiles(): Promise<string[]> {
@@ -60,7 +67,13 @@ test("wrap-code wraps instead of truncating", () => {
   const d = normalize(parseTeml("```js\nconst x = 'hello world long line';\n```\n"));
   const diags = new Diagnostics();
   const wrapped = renderPlain(
-    layoutDocument(d, { width: 20, theme: loadTheme("dark"), caps: caps(20), diags, wrapCode: true }),
+    layoutDocument(d, {
+      width: 20,
+      theme: loadTheme("dark"),
+      caps: caps(20),
+      diags,
+      wrapCode: true,
+    }),
   );
   expect(diags.all().some((w) => w.code === "code-truncated")).toBe(false);
   expect(wrapped.split("\n").length).toBeGreaterThan(3);

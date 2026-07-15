@@ -36,10 +36,16 @@ export function inlineToSpans(nodes: Inline[], opts: InlineOpts, inherited: Styl
         out.push(...inlineToSpans(n.children, opts, mergeStyle(inherited, { strike: true })));
         break;
       case "code":
-        out.push({ text: n.value, style: mergeStyle(inherited, resolveRole(t, "code", opts.diags)) });
+        out.push({
+          text: n.value,
+          style: mergeStyle(inherited, resolveRole(t, "code", opts.diags)),
+        });
         break;
       case "link": {
-        const style = mergeStyle(inherited, { ...resolveRole(t, "link", opts.diags), href: n.href });
+        const style = mergeStyle(inherited, {
+          ...resolveRole(t, "link", opts.diags),
+          href: n.href,
+        });
         const childSpans = inlineToSpans(n.children, opts, style);
         const showUrl = Boolean(opts.showUrls ?? opts.caps.showUrls) || !opts.caps.hyperlinks;
         if (showUrl && n.href) {
@@ -76,7 +82,10 @@ export function inlineToSpans(nodes: Inline[], opts: InlineOpts, inherited: Styl
       case "footnoteRef": {
         const num = opts.footnotes ? footnoteNumber(opts.footnotes, n.id) : undefined;
         const label = num != null ? `[${num}]` : `[?]`;
-        out.push({ text: label, style: mergeStyle(inherited, resolveRole(t, "muted", opts.diags)) });
+        out.push({
+          text: label,
+          style: mergeStyle(inherited, resolveRole(t, "muted", opts.diags)),
+        });
         break;
       }
     }

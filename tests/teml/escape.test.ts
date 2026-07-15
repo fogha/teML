@@ -2,9 +2,7 @@ import { test, expect } from "vitest";
 import { escapeTemlText, codeFenceLength } from "../../src/teml/escape.js";
 
 test("escapeTemlText: prose specials and role prefix", () => {
-  expect(escapeTemlText("*bold `_[]{}_#|", "prose")).toBe(
-    "\\*bold \\`\\_\\[\\]\\{\\}\\_\\#\\|",
-  );
+  expect(escapeTemlText("*bold `_[]{}_#|", "prose")).toBe("\\*bold \\`\\_\\[\\]\\{\\}\\_\\#\\|");
   expect(escapeTemlText("see :success[ok]", "prose")).toBe("see \\:success\\[ok\\]");
   expect(escapeTemlText("already\\:escaped", "prose")).toBe("already\\\\:escaped");
 });

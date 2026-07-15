@@ -5,7 +5,12 @@ import { parseInline, parseTeml } from "../../src/teml/parse.js";
 import { serializeTeml } from "../../src/teml/serialize.js";
 import { parseMarkdown } from "../../src/markdown/parse.js";
 import { serializeMarkdown } from "../../src/markdown/serialize.js";
-import { DIRECTIVE_REGISTRY, isKnownContainer, isKnownLeaf, isShorthandInlineRole } from "../../src/teml/directives.js";
+import {
+  DIRECTIVE_REGISTRY,
+  isKnownContainer,
+  isKnownLeaf,
+  isShorthandInlineRole,
+} from "../../src/teml/directives.js";
 import { inlineToSpans } from "../../src/layout/inline.js";
 import { loadTheme, validateThemeShape } from "../../src/terminal/theme.js";
 import type { Capabilities } from "../../src/terminal/capabilities.js";
@@ -105,7 +110,10 @@ test("parseInline: nested strike preserves inner inline nodes", () => {
   expect(nodes).toEqual([
     {
       type: "strike",
-      children: [{ type: "bold", children: [{ type: "text", value: "bold" }] }, { type: "text", value: " strike" }],
+      children: [
+        { type: "bold", children: [{ type: "text", value: "bold" }] },
+        { type: "text", value: " strike" },
+      ],
     },
   ]);
 });
@@ -145,9 +153,11 @@ Body
   const d = new Diagnostics();
   const doc1 = normalize(parseTeml(src, d));
   expect(doc1.meta.roles?.deprecated).toEqual({ fg: "brightBlack", strike: true });
-  expect(d.all().some((w) => w.code === "frontmatter-ignored-key" && String(w.message).includes("strike"))).toBe(
-    false,
-  );
+  expect(
+    d
+      .all()
+      .some((w) => w.code === "frontmatter-ignored-key" && String(w.message).includes("strike")),
+  ).toBe(false);
 
   const out = serializeTeml(doc1);
   expect(out).toContain("strike: true");
@@ -176,10 +186,11 @@ roles:
 
 test("renderTokensView and inlineToSpans: strike style bit", () => {
   const theme = loadTheme("dark");
-  const spans = inlineToSpans(
-    [{ type: "strike", children: [{ type: "text", value: "x" }] }],
-    { theme, caps: caps(), diags: new Diagnostics() },
-  );
+  const spans = inlineToSpans([{ type: "strike", children: [{ type: "text", value: "x" }] }], {
+    theme,
+    caps: caps(),
+    diags: new Diagnostics(),
+  });
   expect(spans[0]?.style.strike).toBe(true);
 
   const rendered = renderTokensView([[{ text: "x", style: { strike: true } }]]);
@@ -223,7 +234,9 @@ test("validateThemeShape accepts strike style key", () => {
   );
   expect(theme?.roles.deprecated.strike).toBe(true);
   expect(theme?.roles.highlight.fg).toBe("yellow");
-  expect(d.all().some((w) => w.code === "theme-ignored-key" && String(w.message).includes("strike"))).toBe(false);
+  expect(
+    d.all().some((w) => w.code === "theme-ignored-key" && String(w.message).includes("strike")),
+  ).toBe(false);
 });
 
 test("built-in themes define highlight role", () => {

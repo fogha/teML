@@ -26,9 +26,7 @@ function capsFor(mode: ThemeMode, width: number, ascii: boolean, noColor: boolea
 }
 
 async function listFixtures(dir: string, ext: string): Promise<string[]> {
-  return (await readdir(join(process.cwd(), dir)))
-    .filter((f) => f.endsWith(ext))
-    .sort();
+  return (await readdir(join(process.cwd(), dir))).filter((f) => f.endsWith(ext)).sort();
 }
 
 async function loadDoc(kind: "teml" | "markdown" | "html", path: string) {

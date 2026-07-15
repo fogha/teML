@@ -18,7 +18,9 @@ function mapHtml(source: string, profile = loadProfile("bootstrap"), diags = new
 test("HTML dashboard fixture: native inline strike, kbd, highlight", async () => {
   const source = await readFile(FIXTURE, "utf8");
   const { doc } = mapHtml(source);
-  const para = doc.blocks.find((b) => b.type === "paragraph" && inlineText(b.children).includes("removed"));
+  const para = doc.blocks.find(
+    (b) => b.type === "paragraph" && inlineText(b.children).includes("removed"),
+  );
   expect(para?.type).toBe("paragraph");
   if (para?.type !== "paragraph") return;
 
@@ -42,9 +44,11 @@ test("HTML dashboard fixture: native details and figure containers", async () =>
   expect(details?.type).toBe("container");
   if (details?.type === "container") {
     expect(details.attrs).toEqual({ open: "true", summary: "Native summary" });
-    expect(details.children.some((c) => c.type === "paragraph" && inlineText(c.children).includes("Native details body"))).toBe(
-      true,
-    );
+    expect(
+      details.children.some(
+        (c) => c.type === "paragraph" && inlineText(c.children).includes("Native details body"),
+      ),
+    ).toBe(true);
     expect(JSON.stringify(details.children)).not.toContain("Native summary");
   }
 
@@ -53,9 +57,11 @@ test("HTML dashboard fixture: native details and figure containers", async () =>
   );
   expect(figure?.type).toBe("container");
   if (figure?.type === "container") {
-    expect(figure.children.some((c) => inlineText(c.type === "paragraph" ? c.children : []).includes("Native figure body"))).toBe(
-      true,
-    );
+    expect(
+      figure.children.some((c) =>
+        inlineText(c.type === "paragraph" ? c.children : []).includes("Native figure body"),
+      ),
+    ).toBe(true);
     expect(JSON.stringify(figure.children)).not.toContain("Native caption");
   }
 });
@@ -126,12 +132,14 @@ test("HTML dashboard fixture: data-teml bridge copies allowlisted attrs only", a
 test("HTML dashboard fixture: unknown data-teml flattens with diagnostic", async () => {
   const source = await readFile(FIXTURE, "utf8");
   const { doc, diags } = mapHtml(source);
-  expect(diags.all().some((w) => w.code === "unknown-directive" && w.message.includes("unknown-widget"))).toBe(
-    true,
-  );
+  expect(
+    diags.all().some((w) => w.code === "unknown-directive" && w.message.includes("unknown-widget")),
+  ).toBe(true);
   expect(
     doc.blocks.some(
-      (b) => b.type === "paragraph" && inlineText(b.children).includes("Flattened unknown directive content"),
+      (b) =>
+        b.type === "paragraph" &&
+        inlineText(b.children).includes("Flattened unknown directive content"),
     ),
   ).toBe(true);
   expect(doc.blocks.some((b) => b.type === "container" && b.name === "unknown-widget")).toBe(false);
@@ -146,16 +154,22 @@ test("HTML dashboard fixture: image href safety via processHref", async () => {
     (b) => b.type === "paragraph" && inlineText(b.children).includes("[Image: Blocked chart]"),
   );
   expect(blocked?.type).toBe("paragraph");
-  expect(doc.blocks.some((b) => b.type === "leaf" && b.name === "image" && b.attrs.src?.includes("javascript"))).toBe(
-    false,
-  );
+  expect(
+    doc.blocks.some(
+      (b) => b.type === "leaf" && b.name === "image" && b.attrs.src?.includes("javascript"),
+    ),
+  ).toBe(false);
 
   const inlinePara = doc.blocks.find(
     (b) => b.type === "paragraph" && inlineText(b.children).includes("safe image"),
   );
   expect(inlinePara?.type).toBe("paragraph");
   if (inlinePara?.type === "paragraph") {
-    expect(inlinePara.children.some((n) => n.type === "link" && n.href === "https://example.com/icon.png")).toBe(true);
+    expect(
+      inlinePara.children.some(
+        (n) => n.type === "link" && n.href === "https://example.com/icon.png",
+      ),
+    ).toBe(true);
   }
 });
 
@@ -172,12 +186,13 @@ test("HTML dashboard fixture: profile span matching still works", async () => {
 });
 
 test("HTML: data-teml takes precedence over profile container match", () => {
-  const html =
-    '<div class="card" data-teml="grid" data-columns="2"><p>inside</p></div>';
+  const html = '<div class="card" data-teml="grid" data-columns="2"><p>inside</p></div>';
   const diags = new Diagnostics();
   const doc = parseHtml(html);
   const root = extractContent(doc, diags, { preserveClasses: true });
-  const mapped = normalize(htmlToDocFromRoot(root, { profile: loadProfile("bootstrap") }, diags, doc));
+  const mapped = normalize(
+    htmlToDocFromRoot(root, { profile: loadProfile("bootstrap") }, diags, doc),
+  );
   const grid = mapped.blocks.find((b) => b.type === "container" && b.name === "grid");
   expect(grid?.type).toBe("container");
   expect(mapped.blocks.some((b) => b.type === "container" && b.name === "card")).toBe(false);

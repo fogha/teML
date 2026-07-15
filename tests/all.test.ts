@@ -1,9 +1,6 @@
 import { test, expect } from "vitest";
-import {
-  Diagnostics,
-  inlineText,
-  normalize,
-} from "../src/core/index.js";
+import { Diagnostics, inlineText, normalize } from "../src/core/index.js";
+import type { Block } from "../src/core/ast.js";
 import { cellWidth, truncateToWidth } from "../src/layout/measure.js";
 import { wrapSpans } from "../src/layout/wrap.js";
 import { parseTeml, parseInline } from "../src/teml/parse.js";
@@ -42,7 +39,8 @@ test("truncateToWidth never splits a wide char", () => {
 test("wrap: style survives line breaks", () => {
   const lines = wrapSpans([{ text: "aaa bbbbbbbb ccc", style: { bold: true } }], 8);
   expect(lines.length).toBeGreaterThanOrEqual(2);
-  for (const line of lines) for (const s of line) if (s.text.trim()) expect(s.style.bold).toBe(true);
+  for (const line of lines)
+    for (const s of line) if (s.text.trim()) expect(s.style.bold).toBe(true);
 });
 
 test("wrap: overlong word hard-breaks", () => {
@@ -60,16 +58,17 @@ test("parse: kitchen sink structure", () => {
   );
   expect(doc.meta.title).toBe("T");
   expect(doc.blocks.map((b) => b.type)).toEqual(["heading", "paragraph", "container", "leaf"]);
-  const card = doc.blocks[2] as any;
+  const card = doc.blocks[2] as Extract<Block, { type: "container" }>;
   expect(card.attrs.title).toBe("S");
-  expect(card.children[0].type).toBe("list");
+  expect(card.children[0]?.type).toBe("list");
 });
 
 test("parse: nested containers via colon count", () => {
   const doc = parseTeml(`::::card{title="Outer"}\n:::warning\ninner\n:::\n::::\n`);
-  const card = doc.blocks[0] as any;
+  const card = doc.blocks[0] as Extract<Block, { type: "container" }>;
   expect(card.name).toBe("card");
-  expect(card.children[0].name).toBe("warning");
+  const inner = card.children[0] as Extract<Block, { type: "container" }>;
+  expect(inner.name).toBe("warning");
 });
 
 test("parse: unknown directives degrade with warning (F-3)", () => {
@@ -81,7 +80,7 @@ test("parse: unknown directives degrade with warning (F-3)", () => {
 test("parse: heading clamp", () => {
   const d = new Diagnostics();
   const doc = parseTeml("##### deep\n", d);
-  expect((doc.blocks[0] as any).level).toBe(4);
+  expect((doc.blocks[0] as Extract<Block, { type: "heading" }>).level).toBe(4);
   expect(d.all().some((w) => w.code === "heading-clamped")).toBe(true);
 });
 
@@ -113,14 +112,16 @@ test("html: semantic mapping + hostile content neutralized", () => {
     <p>esc \x1b[31m here</p>`;
   const doc = normalize(htmlToDoc(html, d));
   expect(doc.meta.title).toBe("T");
-  const types = doc.blocks.map((b: any) => b.type + (b.name ? ":" + b.name : ""));
+  const types = doc.blocks.map((b) => b.type + ("name" in b ? ":" + b.name : ""));
   expect(types.includes("container:card")).toBe(true);
   expect(types.includes("container:warning")).toBe(true);
   const dump = JSON.stringify(doc);
   expect(dump.includes("alert(1)")).toBe(false);
   expect(dump.includes("\\u001b")).toBe(false);
-  const card = doc.blocks.find((b: any) => b.name === "card") as any;
-  expect(card.attrs.title).toBe("C");
+  const card = doc.blocks.find(
+    (b): b is Extract<Block, { type: "container" }> => b.type === "container" && b.name === "card",
+  );
+  expect(card?.attrs.title).toBe("C");
 });
 
 // ---- single-emitter invariant (S-2) ------------------------------------------------

@@ -59,8 +59,7 @@ export function validateProfile(raw: unknown): Profile {
     throw new Error("profile.version must be a number");
   if (raw.description != null && typeof raw.description !== "string")
     throw new Error("profile.description must be a string");
-  if (!Array.isArray(raw.containers))
-    throw new Error("profile.containers must be an array");
+  if (!Array.isArray(raw.containers)) throw new Error("profile.containers must be an array");
   if (!Array.isArray(raw.spans)) throw new Error("profile.spans must be an array");
 
   const containers: ContainerRule[] = raw.containers.map((item, i) => {

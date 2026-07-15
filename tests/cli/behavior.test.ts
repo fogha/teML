@@ -1,6 +1,6 @@
 import { test, expect } from "vitest";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -16,17 +16,25 @@ function withoutColorEnv(): NodeJS.ProcessEnv {
   return env;
 }
 
-function run(args: string[], env: NodeJS.ProcessEnv = process.env): {
+function run(
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): {
   stdout: string;
   stderr: string;
   status: number | null;
 } {
-  const r = spawnSync("node", [CLI, ...args], { encoding: "utf8", env: { ...process.env, ...env } });
+  const r = spawnSync("node", [CLI, ...args], {
+    encoding: "utf8",
+    env: { ...process.env, ...env },
+  });
   return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", status: r.status };
 }
 
 test("default command: teml FILE behaves as view", () => {
-  const out = execFileSync("node", [CLI, FIXTURE, "--width", "80", "--no-color"], { encoding: "utf8" });
+  const out = execFileSync("node", [CLI, FIXTURE, "--width", "80", "--no-color"], {
+    encoding: "utf8",
+  });
   expect(out).toMatch(/kitchen sink/i);
 });
 
@@ -96,15 +104,23 @@ test("--version exits 0", () => {
 });
 
 test("convert all directions", () => {
-  const temlOut = execFileSync("node", [CLI, "convert", MD_FIXTURE, "--from", "markdown", "--to", "teml"], {
-    encoding: "utf8",
-  });
+  const temlOut = execFileSync(
+    "node",
+    [CLI, "convert", MD_FIXTURE, "--from", "markdown", "--to", "teml"],
+    {
+      encoding: "utf8",
+    },
+  );
   expect(temlOut).toContain("#");
 
-  const mdOut = execFileSync("node", [CLI, "convert", FIXTURE, "--to", "markdown"], { encoding: "utf8" });
+  const mdOut = execFileSync("node", [CLI, "convert", FIXTURE, "--to", "markdown"], {
+    encoding: "utf8",
+  });
   expect(mdOut).toContain("#");
 
-  const jsonOut = execFileSync("node", [CLI, "convert", FIXTURE, "--to", "json"], { encoding: "utf8" });
+  const jsonOut = execFileSync("node", [CLI, "convert", FIXTURE, "--to", "json"], {
+    encoding: "utf8",
+  });
   expect(JSON.parse(jsonOut).blocks.length).toBeGreaterThan(0);
 
   const textOut = execFileSync("node", [CLI, "convert", FIXTURE, "--to", "text", "--width", "80"], {
@@ -113,9 +129,13 @@ test("convert all directions", () => {
   expect(textOut.length).toBeGreaterThan(20);
   expect(textOut.includes("\x1b")).toBe(false);
 
-  const htmlOut = execFileSync("node", [CLI, "convert", HTML_FIXTURE, "--from", "html", "--to", "teml"], {
-    encoding: "utf8",
-  });
+  const htmlOut = execFileSync(
+    "node",
+    [CLI, "convert", HTML_FIXTURE, "--from", "html", "--to", "teml"],
+    {
+      encoding: "utf8",
+    },
+  );
   expect(htmlOut).toContain(":::");
 });
 

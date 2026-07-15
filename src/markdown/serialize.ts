@@ -105,11 +105,7 @@ function serializeMdListItem(
     const body = serializeMdBlock(b, diags);
     const bodyLines = body.split("\n");
     if (lines.length === 0) {
-      lines.push(
-        bodyLines
-          .map((l, j) => (j === 0 ? pad + marker + l : contPad + l))
-          .join("\n"),
-      );
+      lines.push(bodyLines.map((l, j) => (j === 0 ? pad + marker + l : contPad + l)).join("\n"));
     } else {
       lines.push(bodyLines.map((l) => contPad + l).join("\n"));
     }
@@ -117,7 +113,11 @@ function serializeMdListItem(
   return lines.join("\n");
 }
 
-function serializeMdList(b: Extract<Block, { type: "list" }>, indent: number, diags: Diagnostics): string {
+function serializeMdList(
+  b: Extract<Block, { type: "list" }>,
+  indent: number,
+  diags: Diagnostics,
+): string {
   return b.items
     .map((item, i) => serializeMdListItem(item, b.ordered, b.start + i, indent, diags))
     .join("\n");
@@ -173,12 +173,16 @@ function serializeCardContainer(
   const parts: string[] = [];
   const title = attrs.title;
   if (title) parts.push(`## ${escapeMdText(title)}`);
-  else if (Object.keys(attrs).length) lossy(diags, "card without title degraded to body-only heading");
+  else if (Object.keys(attrs).length)
+    lossy(diags, "card without title degraded to body-only heading");
   parts.push(...children.map((c) => serializeMdBlock(c, diags)));
   return parts.filter(Boolean).join("\n\n");
 }
 
-function serializeDefinitionList(b: Extract<Block, { type: "definitionList" }>, diags: Diagnostics): string {
+function serializeDefinitionList(
+  b: Extract<Block, { type: "definitionList" }>,
+  diags: Diagnostics,
+): string {
   lossy(diags, "definition list degraded to bold term plus indented definition in Markdown output");
   const parts: string[] = [];
   for (const item of b.items) {
@@ -197,7 +201,10 @@ function serializeDefinitionList(b: Extract<Block, { type: "definitionList" }>, 
   return parts.join("\n\n");
 }
 
-function serializeFootnoteDefinition(b: Extract<Block, { type: "footnoteDefinition" }>, diags: Diagnostics): string {
+function serializeFootnoteDefinition(
+  b: Extract<Block, { type: "footnoteDefinition" }>,
+  diags: Diagnostics,
+): string {
   const body = b.children.map((c) => serializeMdBlock(c, diags)).join("\n");
   return `[^${escapeMdText(b.id)}]: ${body.replace(/\n/g, "\n  ")}`;
 }
@@ -223,7 +230,10 @@ function serializeImageLeaf(attrs: Record<string, string>, diags: Diagnostics): 
 
 function serializeGridContainer(children: Block[], diags: Diagnostics): string {
   lossy(diags, "grid container degraded to row-major flattened blocks in Markdown output");
-  return children.map((c) => serializeMdBlock(c, diags)).filter(Boolean).join("\n\n");
+  return children
+    .map((c) => serializeMdBlock(c, diags))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function serializeDetailsContainer(
@@ -236,7 +246,10 @@ function serializeDetailsContainer(
   const open = attrs.open?.trim().toLowerCase() !== "false";
   const header = `**${escapeMdText(summary)}**`;
   if (!open) return header;
-  const body = children.map((c) => serializeMdBlock(c, diags)).filter(Boolean).join("\n\n");
+  const body = children
+    .map((c) => serializeMdBlock(c, diags))
+    .filter(Boolean)
+    .join("\n\n");
   return body ? `${header}\n\n${body}` : header;
 }
 
@@ -246,7 +259,10 @@ function serializeFigureContainer(
   diags: Diagnostics,
 ): string {
   lossy(diags, "figure container degraded to body plus caption line in Markdown output");
-  const body = children.map((c) => serializeMdBlock(c, diags)).filter(Boolean).join("\n\n");
+  const body = children
+    .map((c) => serializeMdBlock(c, diags))
+    .filter(Boolean)
+    .join("\n\n");
   const caption = attrs.caption?.trim();
   const captionLine = caption ? `*Figure: ${escapeMdText(caption)}*` : "*Figure:*";
   return body ? `${body}\n\n${captionLine}` : captionLine;

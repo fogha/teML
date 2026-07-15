@@ -2,7 +2,6 @@
 
 import { cellWidth, graphemes, type MeasureOpts } from "./measure.js";
 import type { Line, Span } from "../render/styledLine.js";
-import { lineWidth } from "../render/styledLine.js";
 
 export type { Span, Line };
 

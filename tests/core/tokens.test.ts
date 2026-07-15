@@ -9,10 +9,7 @@ test("tokensView depth-first walk", () => {
         { type: "heading", level: 1, children: [text("Title")] },
         {
           type: "paragraph",
-          children: [
-            { type: "bold", children: [text("bold")] },
-            text(" plain"),
-          ],
+          children: [{ type: "bold", children: [text("bold")] }, text(" plain")],
         },
         {
           type: "container",
@@ -32,6 +29,8 @@ test("tokensView depth-first walk", () => {
   expect(lines.indexOf("heading_start level=1")).toBeLessThan(lines.indexOf('text value="Title"'));
   expect(lines.indexOf('text value="Title"')).toBeLessThan(lines.indexOf("heading_end level=1"));
   expect(lines.indexOf("bold_start")).toBeLessThan(lines.indexOf('text value="bold"'));
-  expect(lines.indexOf("container_start name=\"card\"")).toBeLessThan(lines.indexOf('attr title="S"'));
+  expect(lines.indexOf('container_start name="card"')).toBeLessThan(
+    lines.indexOf('attr title="S"'),
+  );
   expect(lines.at(-1)).toBe("document_end");
 });

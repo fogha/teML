@@ -12,8 +12,32 @@ import { wrapSpans } from "./wrap.js";
 export const COLUMN_FLOOR = 5;
 
 const B = {
-  u: { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", t: "┬", m: "┼", b: "┴", ml: "├", mr: "┤" },
-  a: { tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|", t: "+", m: "+", b: "+", ml: "+", mr: "+" },
+  u: {
+    tl: "┌",
+    tr: "┐",
+    bl: "└",
+    br: "┘",
+    h: "─",
+    v: "│",
+    t: "┬",
+    m: "┼",
+    b: "┴",
+    ml: "├",
+    mr: "┤",
+  },
+  a: {
+    tl: "+",
+    tr: "+",
+    bl: "+",
+    br: "+",
+    h: "-",
+    v: "|",
+    t: "+",
+    m: "+",
+    b: "+",
+    ml: "+",
+    mr: "+",
+  },
 };
 
 /**
@@ -50,8 +74,10 @@ export function columnWidths(
       widths[i]! += add;
       assigned += add;
     }
-    let left = remainder - assigned;
-    const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => fractions[b]! - fractions[a]! || a - b);
+    const left = remainder - assigned;
+    const order = Array.from({ length: n }, (_, i) => i).sort(
+      (a, b) => fractions[b]! - fractions[a]! || a - b,
+    );
     for (let k = 0; k < left; k++) widths[order[k % n]!]!++;
     return widths;
   }
@@ -86,7 +112,11 @@ function alignPad(line: Line, colW: number, align: Align, m: MeasureOpts): Line 
   if (align === "right") return [{ text: " ".repeat(pad), style: {} }, ...line];
   if (align === "center") {
     const left = Math.floor(pad / 2);
-    return [{ text: " ".repeat(left), style: {} }, ...line, { text: " ".repeat(pad - left), style: {} }];
+    return [
+      { text: " ".repeat(left), style: {} },
+      ...line,
+      { text: " ".repeat(pad - left), style: {} },
+    ];
   }
   return [...line, { text: " ".repeat(pad), style: {} }];
 }
@@ -159,7 +189,10 @@ function clampRow(line: Line, outerW: number, indent: number, m: MeasureOpts): L
   if (w <= max) return line;
   const plain = line.map((s) => s.text).join("");
   const style = line.find((s) => s.text.trim())?.style ?? {};
-  return [{ text: " ".repeat(indent), style: {} }, { text: truncateToWidth(plain, max, "…", m), style }];
+  return [
+    { text: " ".repeat(indent), style: {} },
+    { text: truncateToWidth(plain, max, "…", m), style },
+  ];
 }
 
 export function layoutTable(

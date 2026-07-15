@@ -3,7 +3,6 @@
 import type { TDoc } from "../../core/index.js";
 import { tokensView, renderTokensView } from "../../core/index.js";
 import { layoutDocument } from "../../layout/layout.js";
-import { loadTheme } from "../../terminal/theme.js";
 import type { LayoutOpts } from "../../layout/opts.js";
 
 export type InspectOpts = {

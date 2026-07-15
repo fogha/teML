@@ -14,11 +14,7 @@ export type {
 export { checkedListItem, doc, inlineText, listItem, text } from "./ast.js";
 export { Diagnostics } from "./diagnostics.js";
 export type { Warning } from "./diagnostics.js";
-export {
-  buildFootnoteIndex,
-  footnoteAppendixOrder,
-  footnoteNumber,
-} from "./footnotes.js";
+export { buildFootnoteIndex, footnoteAppendixOrder, footnoteNumber } from "./footnotes.js";
 export type { FootnoteIndex } from "./footnotes.js";
 export { normalize } from "./normalize.js";
 export { sanitizeHref, sanitizeText } from "./sanitize.js";

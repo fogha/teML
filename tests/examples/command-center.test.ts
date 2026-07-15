@@ -86,8 +86,12 @@ test("command-center TeML/HTML semantic parity at node-kind level", async () => 
     );
   }
 
-  const temlTasks = temlDoc.blocks.find((b) => b.type === "list" && b.items.some((i) => i.checked != null));
-  const htmlTasks = htmlDoc.blocks.find((b) => b.type === "list" && b.items.some((i) => i.checked != null));
+  const temlTasks = temlDoc.blocks.find(
+    (b) => b.type === "list" && b.items.some((i) => i.checked != null),
+  );
+  const htmlTasks = htmlDoc.blocks.find(
+    (b) => b.type === "list" && b.items.some((i) => i.checked != null),
+  );
   expect(temlTasks?.type).toBe("list");
   expect(htmlTasks?.type).toBe("list");
   if (temlTasks?.type === "list" && htmlTasks?.type === "list") {
@@ -102,8 +106,12 @@ test("command-center TeML/HTML semantic parity at node-kind level", async () => 
   const htmlFigure = collectContainers(htmlDoc, "figure")[0];
   expect(htmlFigure).toEqual(temlFigure);
 
-  const temlIntro = temlDoc.blocks.find((b) => b.type === "paragraph" && inlineText(b.children).includes("canary lane"));
-  const htmlIntro = htmlDoc.blocks.find((b) => b.type === "paragraph" && inlineText(b.children).includes("canary lane"));
+  const temlIntro = temlDoc.blocks.find(
+    (b) => b.type === "paragraph" && inlineText(b.children).includes("canary lane"),
+  );
+  const htmlIntro = htmlDoc.blocks.find(
+    (b) => b.type === "paragraph" && inlineText(b.children).includes("canary lane"),
+  );
   expect(temlIntro?.type).toBe("paragraph");
   expect(htmlIntro?.type).toBe("paragraph");
   if (temlIntro?.type === "paragraph" && htmlIntro?.type === "paragraph") {

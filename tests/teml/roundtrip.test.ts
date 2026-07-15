@@ -65,7 +65,16 @@ function genInline(rng: () => number, depth: number): Inline {
         children: [genInline(rng, 0)],
       };
     case 6: {
-      const role = pick(rng, ["success", "warning", "error", "info", "muted", "highlight", "kbd", "custom"]);
+      const role = pick(rng, [
+        "success",
+        "warning",
+        "error",
+        "info",
+        "muted",
+        "highlight",
+        "kbd",
+        "custom",
+      ]);
       if (isShorthandInlineRole(role)) return { type: "span", role, children: [genInline(rng, 0)] };
       return { type: "span", role, children: [genInline(rng, 0)] };
     }
@@ -83,7 +92,11 @@ function genBlock(rng: () => number, depth: number): Block {
   const kind = Math.floor(rng() * 10);
   switch (kind) {
     case 0:
-      return { type: "heading", level: pick(rng, [1, 2, 3, 4] as const), children: genInlines(rng) };
+      return {
+        type: "heading",
+        level: pick(rng, [1, 2, 3, 4] as const),
+        children: genInlines(rng),
+      };
     case 1:
       return { type: "paragraph", children: genInlines(rng) };
     case 2:
@@ -153,10 +166,7 @@ function genMeta(rng: () => number): Meta {
     title: randText(rng),
     theme: pick(rng, ["dark", "mono", "auto"]),
     lang: rng() > 0.5 ? "en" : undefined,
-    roles:
-      rng() > 0.5
-        ? { accent: { fg: "brightCyan", bold: true } }
-        : undefined,
+    roles: rng() > 0.5 ? { accent: { fg: "brightCyan", bold: true } } : undefined,
   };
 }
 
@@ -191,9 +201,7 @@ test("serializeTeml: frontmatter includes lang and roles", () => {
 });
 
 test("serializeTeml: nested container fence depth", () => {
-  const doc = normalize(
-    parseTeml(`::::card{title="Outer"}\n:::warning\ninner\n:::\n::::\n`),
-  );
+  const doc = normalize(parseTeml(`::::card{title="Outer"}\n:::warning\ninner\n:::\n::::\n`));
   const out = serializeTeml(doc);
   expect(out).toMatch(/^::::card/m);
   expect(out).toContain(":::warning");

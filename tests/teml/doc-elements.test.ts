@@ -51,7 +51,12 @@ test("task list round-trips checked state", () => {
 test("task list markers: unicode and ascii fallbacks", () => {
   const doc = normalize(parseTeml("- [x] yes\n- [ ] no\n"));
   const uni = renderPlain(
-    layoutDocument(doc, { width: 40, theme: loadTheme("dark"), caps: caps(), diags: new Diagnostics() }),
+    layoutDocument(doc, {
+      width: 40,
+      theme: loadTheme("dark"),
+      caps: caps(),
+      diags: new Diagnostics(),
+    }),
   );
   expect(uni).toMatch(/☑/);
   expect(uni).toMatch(/☐/);
@@ -104,7 +109,12 @@ test("footnotes: TeML round-trip and appendix layout", async () => {
   expect(back).toEqual(doc);
 
   const out = renderPlain(
-    layoutDocument(doc, { width: 40, theme: loadTheme("dark"), caps: caps({ width: 40 }), diags: d }),
+    layoutDocument(doc, {
+      width: 40,
+      theme: loadTheme("dark"),
+      caps: caps({ width: 40 }),
+      diags: d,
+    }),
   );
   expect(out).toContain("Footnotes");
   expect(out).toContain("[traffic]");
@@ -114,13 +124,16 @@ test("footnotes: TeML round-trip and appendix layout", async () => {
 test("footnotes: duplicate and missing diagnostics", () => {
   const d = new Diagnostics();
   normalize(
-    parseTeml("Ref :fn{id=\"a\"}\n\n:::footnote{id=\"a\"}\nOne\n:::\n\n:::footnote{id=\"a\"}\nDup\n:::\n", d),
+    parseTeml(
+      'Ref :fn{id="a"}\n\n:::footnote{id="a"}\nOne\n:::\n\n:::footnote{id="a"}\nDup\n:::\n',
+      d,
+    ),
     d,
   );
   expect(d.all().some((w) => w.code === "footnote-duplicate")).toBe(true);
 
   const d2 = new Diagnostics();
-  normalize(parseTeml("Missing :fn{id=\"ghost\"}\n", d2), d2);
+  normalize(parseTeml('Missing :fn{id="ghost"}\n', d2), d2);
   expect(d2.all().some((w) => w.code === "footnote-missing")).toBe(true);
 });
 
@@ -156,7 +169,10 @@ test("nested combination fixture snapshot @ narrow width", async () => {
 });
 
 test("complex docs fixture smoke: 30-realworld-excerpt", async () => {
-  const source = await readFile(join(process.cwd(), "fixtures/teml/30-realworld-excerpt.teml"), "utf8");
+  const source = await readFile(
+    join(process.cwd(), "fixtures/teml/30-realworld-excerpt.teml"),
+    "utf8",
+  );
   const doc = normalize(parseTeml(source, new Diagnostics()));
   const out = snapshotRender(doc, 80, "plain", "dark");
   expect(out.length).toBeGreaterThan(100);

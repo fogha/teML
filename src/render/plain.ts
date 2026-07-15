@@ -4,5 +4,14 @@
 import type { Line } from "../render/styledLine.js";
 
 export function renderPlain(lines: Line[]): string {
-  return lines.map((line) => line.map((s) => s.text).join("").replace(/\s+$/, "")).join("\n") + "\n";
+  return (
+    lines
+      .map((line) =>
+        line
+          .map((s) => s.text)
+          .join("")
+          .replace(/\s+$/, ""),
+      )
+      .join("\n") + "\n"
+  );
 }

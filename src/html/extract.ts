@@ -30,7 +30,7 @@ function removeUnwanted(root: Element): void {
   for (const el of toRemove) el.remove();
 }
 
-function readabilityRoot(document: Document, diags: Diagnostics): Element | null {
+function readabilityRoot(document: Document, _diags: Diagnostics): Element | null {
   const clone = document.cloneNode(true) as Document;
   const reader = new Readability(clone);
   const article = reader.parse();
@@ -38,10 +38,7 @@ function readabilityRoot(document: Document, diags: Diagnostics): Element | null
 
   const { document: fragDoc } = parseHTML(article.content);
   const page = fragDoc.querySelector("#readability-page-1, .page, article, main, body");
-  const root =
-    (page as Element | null) ??
-    fragDoc.body?.firstElementChild ??
-    fragDoc.body;
+  const root = (page as Element | null) ?? fragDoc.body?.firstElementChild ?? fragDoc.body;
   if (!root) return null;
   removeUnwanted(root);
   return root;

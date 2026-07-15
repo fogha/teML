@@ -2,7 +2,6 @@ import { test, expect } from "vitest";
 import { doc, text } from "../../src/core/ast.js";
 import { Diagnostics } from "../../src/core/diagnostics.js";
 import { COLUMN_FLOOR, columnWidths, layoutTable } from "../../src/layout/table.js";
-import { cellWidth } from "../../src/layout/measure.js";
 import { layoutDocument } from "../../src/layout/layout.js";
 import { lineWidth } from "../../src/render/styledLine.js";
 import { renderPlain } from "../../src/render/plain.js";

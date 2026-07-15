@@ -60,6 +60,11 @@ test("width: tty columns beat COLUMNS env", () => {
 });
 
 test("hyperlinks enabled for iTerm", () => {
-  const caps = detectCapabilities({}, env({ TERM_PROGRAM: "iTerm.app", COLORTERM: "truecolor" }), true, 80);
+  const caps = detectCapabilities(
+    {},
+    env({ TERM_PROGRAM: "iTerm.app", COLORTERM: "truecolor" }),
+    true,
+    80,
+  );
   expect(caps.hyperlinks).toBe(true);
 });

@@ -3,9 +3,22 @@
 
 /** Named ANSI palette entries and 24-bit hex colors for document-defined roles. */
 export type AnsiColorName =
-  | "black" | "red" | "green" | "yellow" | "blue" | "magenta" | "cyan" | "white"
-  | "brightBlack" | "brightRed" | "brightGreen" | "brightYellow"
-  | "brightBlue" | "brightMagenta" | "brightCyan" | "brightWhite";
+  | "black"
+  | "red"
+  | "green"
+  | "yellow"
+  | "blue"
+  | "magenta"
+  | "cyan"
+  | "white"
+  | "brightBlack"
+  | "brightRed"
+  | "brightGreen"
+  | "brightYellow"
+  | "brightBlue"
+  | "brightMagenta"
+  | "brightCyan"
+  | "brightWhite";
 
 export type HexColor = `#${string}`;
 

@@ -28,7 +28,9 @@ test("map: heading clamp emits diagnostic", async () => {
   const doc = parseHtml(source);
   const root = extractContent(doc, diags, { preserveClasses: true });
   const mapped = htmlToDocFromRoot(root, {}, diags, doc);
-  expect(mapped.blocks.every((b) => b.type !== "heading" || (b.type === "heading" && b.level <= 4))).toBe(true);
+  expect(
+    mapped.blocks.every((b) => b.type !== "heading" || (b.type === "heading" && b.level <= 4)),
+  ).toBe(true);
   expect(diags.has("heading-clamped")).toBe(true);
 });
 

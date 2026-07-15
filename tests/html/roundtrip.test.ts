@@ -8,11 +8,7 @@ import { serializeTeml } from "../../src/teml/serialize.js";
 
 const FIXTURES = join(process.cwd(), "fixtures/html");
 
-const ROUNDTRIP_FIXTURES = [
-  "03-bootstrap.html",
-  "10-dl-kv.html",
-  "12-code-blocks.html",
-];
+const ROUNDTRIP_FIXTURES = ["03-bootstrap.html", "10-dl-kv.html", "12-code-blocks.html"];
 
 for (const file of ROUNDTRIP_FIXTURES) {
   test(`HTML→TeML roundtrip AST-stable: ${file}`, async () => {

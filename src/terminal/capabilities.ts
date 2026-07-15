@@ -24,11 +24,7 @@ export function colorsEnabled(caps: Capabilities): boolean {
   return caps.colors !== "none";
 }
 
-function detectColorMode(
-  env: NodeJS.ProcessEnv,
-  isTTY: boolean,
-  override?: boolean,
-): ColorMode {
+function detectColorMode(env: NodeJS.ProcessEnv, isTTY: boolean, override?: boolean): ColorMode {
   if (override === false) return "none";
   if (env.NO_COLOR != null && env.NO_COLOR !== "") return "none";
   if (!isTTY && override !== true) return "none";
