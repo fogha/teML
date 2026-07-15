@@ -188,13 +188,13 @@ Turn rendered documents into a navigable reading experience — the `less`/`man`
 
 | ID | Pri | Requirement |
 | --- | --- | --- |
-| V-1 | P0 | Full-screen viewer: alternate screen, raw mode, resize handling, clean restore on exit/crash (terminal never left in a broken state). |
+| V-1 | P0 | `teml read FILE` full-screen viewer: alternate screen, raw mode, resize handling, and clean restore on normal exit, SIGINT, SIGTERM, SIGHUP, and catchable failures. `teml view` remains one-shot and pipe-safe. SIGKILL cannot be handled in-process; recovery is `reset`, a new terminal, or an outer tmux/screen session. |
 | V-2 | P0 | Scrolling (j/k, arrows, PgUp/PgDn, Home/End, mouse wheel where supported); position indicator in status bar. |
-| V-3 | P0 | Link focus and activation: Tab/Shift+Tab cycle, Enter follows; local `.teml`/converted links open in-viewer with history (back/forward navigation stack); external links hand off to the OS opener after confirmation. |
+| V-3 | P0 | Link focus and activation: Tab/Shift+Tab cycle, Enter follows; local `.teml`/converted links open in-viewer with history (`b`/`f` back/forward); external `http`/`https`/`mailto` links hand off to the OS opener only after an in-viewer confirmation whose default action is Cancel. |
 | V-4 | P0 | Screen buffer + damage-diff repaint (introduced here per design doc §9.3); flicker-free on scroll and resize. |
-| V-5 | P0 | Document-root confinement: link navigation cannot escape the resolved base (S-series continues to apply). |
+| V-5 | P0 | Document-root confinement: runtime navigation re-resolves links against the initial file's directory or explicit `--base` and cannot escape that root (S-series continues to apply). Out-of-root targets are rejected, not opened externally. |
 | V-6 | P1 | In-document search (`/` incremental, n/N), table of contents pane from headings (`t`). |
-| V-7 | P1 | `teml view dir/` file browser for `.teml` collections (Glow-style discovery). |
+| V-7 | P1 | `teml read dir/` confined file browser for `.teml`, `.md`/`.markdown`, and `.html`/`.htm` collections (Glow-style discovery). |
 | V-8 | P2 | Reader preferences persisted (theme, width cap, last position per file). |
 
 ### 8.3 Non-goals
@@ -203,7 +203,7 @@ Forms, buttons, and any host-app events (that is v2); editing; multi-pane layout
 
 ### 8.4 Acceptance criteria & metrics
 
-A 10,000-line document scrolls at 60fps-equivalent smoothness in mainstream emulators; kill -9 during viewing leaves the terminal usable; docs sites converted from HTML are navigable end-to-end by keyboard alone. Metric: viewer sessions >2 min median (reading, not bouncing); adoption as a pager (`teml` set as `$PAGER`-adjacent tool) reported in the wild.
+A 10,000-line document scrolls with bounded viewport work and damage-only repaint in mainstream emulators; normal exit, SIGINT, SIGTERM, SIGHUP, and catchable failures restore raw mode, cursor visibility, mouse mode, and alternate-screen state; docs sites converted from HTML are navigable end-to-end by keyboard alone. SIGKILL is explicitly outside the in-process restoration guarantee. Metric: viewer sessions >2 min median (reading, not bouncing); adoption as a pager (`teml` set as `$PAGER`-adjacent tool) reported in the wild.
 
 ---
 
@@ -215,7 +215,7 @@ Deliver the category-defining capability: documents become applications. A host 
 
 ### 9.2 The mode boundary (P0, security-critical)
 
-- **Document mode** (`teml view file`): interactive widgets render but are inert or link-like. A downloaded file can never trigger actions. This boundary is permanent and non-configurable.
+- **Document mode** (`teml view file` or full-screen `teml read file`): interactive widgets render but are inert. Reader links may navigate only within the confined document root, and external links require confirmation. A downloaded file can never trigger host-app actions. This boundary is permanent and non-configurable.
 - **App mode** (`teml app -- ./my-host`, or host launches runtime): events flow only to the host process that supplied the document. The runtime itself never executes anything; it is a pure renderer/multiplexer.
 
 ### 9.3 Functional requirements
@@ -389,7 +389,7 @@ Everything in v6 is optional to the mission; nothing before v6 depends on it. It
 
 **Security (permanent, P0).** The invariants from v1 never relax: sanitize-at-ingestion, single ANSI emitter, scheme allowlists, no execution, document/app mode boundary, capability prompts for anything beyond rendering. Every release adds adversarial fixtures for its new surface (v2: hostile hosts; v3: hostile streams; v4: hostile origins; v5: hostile packages). A published threat model and a security-report process ship with v2.
 
-**Accessibility (grows from P1 to P0 by v2).** The semantic AST enables a screen-reader-oriented linear backend ("warning: one replica restarting. Button: Deploy, focused, 1 of 2") — shipped as `--to speech` in v1.5, integrated into the interactive runtime by v2. Keyboard-complete operation is P0 everywhere; color is never the sole carrier of meaning (role glyphs guarantee this).
+**Accessibility (grows from P1 to P0 by v2).** The semantic AST enables a screen-reader-oriented linear backend ("warning: one replica restarting. Button: Deploy") — shipped as deterministic, non-ANSI `teml convert --to speech` output in v1.5, then integrated with live focus announcements in the interactive runtime by v2. Keyboard-complete operation is P0 everywhere; color is never the sole carrier of meaning (role glyphs guarantee this).
 
 **Performance budgets.** Startup <50 ms; static render <100 ms/1k blocks; interaction paint <16 ms; patch apply <50 ms; streaming memory bounded by viewport + retained AST, not by stream length. Budgets are CI-enforced from the release that introduces each path.
 

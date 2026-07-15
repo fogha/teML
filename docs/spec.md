@@ -74,6 +74,9 @@ Unknown containers are kept with a `unknown-directive` warning.
 | `metric` | `label`, `value`, `role`, `change` | KPI label + bold value (+ optional delta) |
 | `progress` | `label`, `value`, `max`, `role` | Label, percent, and filled bar (`█`/`░` or `#`/`-`) |
 | `event` | `time`, `title`, `detail`, `role` | Timeline row with marker, time, title, wrapped detail |
+| `button` | `id`, `label` | `[ Label ]`; focusable, clickable under `teml run` |
+| `input` | `id`, `label`, `value`, `placeholder` | `Label: [value]`; focusable, editable under `teml run` |
+| `checkbox` | `id`, `label`, `checked` | `☑`/`☐` (or `[x]`/`[ ]`) + label; focusable, toggleable under `teml run` |
 
 ### Inline spans
 
@@ -93,8 +96,9 @@ TeML text escapes `\`, `` ` ``, `*`, `_`, `[`, `]`, `:`, `{`, `}` where needed. 
 
 1. **S-1:** All text is sanitized at ingestion (`sanitizeText`): C0 controls (except `\n`), DEL, C1, bidi controls, stray ZW chars stripped; ZWJ preserved inside emoji sequences; tabs expand in code.
 2. **S-3:** Link targets pass `processHref`: scheme allowlist `http`, `https`, `mailto`, relative/`#` anchors; `file:` only with `--allow-file-links`; resolved URLs must stay within `--base` when set.
-3. Raw HTML nodes in Markdown are dropped with `raw-html-ignored`.
-4. No execution semantics exist in the format.
+3. **S-6 (Reader):** `teml read` re-resolves every activated target against the session's fixed document root. Targets outside that root or outside the scheme allowlist are not loaded or opened and emit a visible diagnostic. External `http`, `https`, and `mailto` targets require explicit confirmation.
+4. Raw HTML nodes in Markdown are dropped with `raw-html-ignored`.
+5. No execution semantics exist in the format.
 
 ## Conformance
 
@@ -145,6 +149,30 @@ Rules:
 2. Only registry allowlisted `data-*` keys are copied; event handlers (`onclick`, …) and unknown keys are dropped.
 3. Unknown `data-teml` values flatten to child content with an `unknown-directive` warning.
 4. Native `<details>`, `<figure>`, `<progress>`, `<meter>`, `<mark>`, `<del>`, `<s>`, `<strike>`, and `<kbd>` map to the same AST nodes without requiring `data-teml`.
+
+## Interactivity
+
+`button`, `input`, and `checkbox` are ordinary declarative leaf directives.
+Their behavior is determined by an explicit mode boundary:
+
+| Mode | Command | Widgets | Links | Host events |
+| --- | --- | --- | --- | --- |
+| Static | `view`, `convert`, `render` | Static | Rendered link/URL fallback | None |
+| Reader | `read` | Visible but inert | Confined in-viewer navigation; confirmed external open | None |
+| App | `run` | Focus, typing, toggling, clicking | Host-defined app behavior | NDJSON |
+
+Each interactive widget needs a stable, unique `id` to participate in app-mode
+keyboard navigation. `teml run` never emits raw ANSI itself — focus is
+rendered via the theme's `focus` role plus a fixed-width textual marker
+(`▸`/`>`), preserving the single-emitter rule.
+
+## Speech backend
+
+`teml convert --to speech` emits deterministic linear UTF-8 text from the
+normalized semantic AST. It names heading levels and semantic roles, reads
+links as labels plus targets, linearizes table rows, and identifies inert
+widgets by type and label. It emits no ANSI and does not depend on color or
+decoration glyphs. Live Reader focus announcements are outside v1.5.
 
 ## Highlight and strike
 
