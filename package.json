@@ -2,6 +2,18 @@
   "name": "teml",
   "version": "1.0.0",
   "description": "Terminal Markup Language — semantic documents for terminals",
+  "keywords": [
+    "terminal",
+    "cli",
+    "markdown",
+    "markup",
+    "tui",
+    "ansi",
+    "terminal-ui",
+    "pager",
+    "accessibility"
+  ],
+  "author": "Fogha <collinslord50@gmail.com>",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -27,6 +39,7 @@
   },
   "scripts": {
     "build": "tsc && node scripts/copy-assets.mjs",
+    "prepublishOnly": "npm run build && npm test",
     "test": "vitest run && vitest run --config vitest.perf.config.ts",
     "test:watch": "vitest",
     "test:perf": "vitest run --config vitest.perf.config.ts",
