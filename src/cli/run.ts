@@ -13,14 +13,15 @@ function debugLog(flags: CliFlags, stage: string, ms: number): void {
   process.stderr.write(`teml: debug: ${stage} ${ms.toFixed(2)}ms\n`);
 }
 
-function readInput(file?: string): { source: string; name: string } {
+/** Read a file, or stdin when `file` is omitted or `-`. Shared by every command, including `run`. */
+export function readInput(file?: string): { source: string; name: string } {
   if (!file || file === "-") {
     return { source: readFileSync(0, "utf8"), name: "<stdin>" };
   }
   return { source: readFileSync(file, "utf8"), name: file };
 }
 
-function inferFormat(source: string, name: string): "teml" | "markdown" | "html" {
+export function inferFormat(source: string, name: string): "teml" | "markdown" | "html" {
   const lower = name.toLowerCase();
   if (lower.endsWith(".html") || lower.endsWith(".htm")) return "html";
   if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "markdown";
@@ -28,14 +29,14 @@ function inferFormat(source: string, name: string): "teml" | "markdown" | "html"
   return "teml";
 }
 
-function sanitizeOpts(flags: CliFlags): SanitizeOpts {
+export function sanitizeOpts(flags: CliFlags): SanitizeOpts {
   return {
     allowFile: flags.allowFileLinks,
     base: flags.base,
   };
 }
 
-async function toDoc(
+export async function toDoc(
   source: string,
   name: string,
   flags: CliFlags,
@@ -71,7 +72,11 @@ async function toDoc(
   return { doc, diags };
 }
 
-export async function execute(command: CommandName, file: string | undefined, flags: CliFlags): Promise<number> {
+export async function execute(
+  command: CommandName,
+  file: string | undefined,
+  flags: CliFlags,
+): Promise<number> {
   let input;
   const tRead = performance.now();
   try {
@@ -98,7 +103,7 @@ export async function execute(command: CommandName, file: string | undefined, fl
   }
 
   const { detectCapabilities } = await import("../terminal/capabilities.js");
-  const { loadTheme, applyMetaRoles } = await import("../terminal/theme.js");
+  const { loadTheme, loadDocumentTheme, applyMetaRoles } = await import("../terminal/theme.js");
   const caps = detectCapabilities({
     width: flags.width,
     color: flags.color,
@@ -106,7 +111,9 @@ export async function execute(command: CommandName, file: string | undefined, fl
     ambiguousWide: flags.ambiguousWide,
     showUrls: flags.showUrls,
   });
-  const baseTheme = loadTheme(flags.theme ?? doc.meta.theme ?? "auto", diags);
+  const baseTheme = flags.theme
+    ? loadTheme(flags.theme, diags)
+    : loadDocumentTheme(doc.meta.theme, diags);
   const theme = applyMetaRoles(baseTheme, doc.meta, diags);
   const layoutOpts = {
     width: caps.width,

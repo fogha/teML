@@ -43,6 +43,14 @@ test("CLI convert: teml → json", () => {
   expect(JSON.parse(out).meta.title).toBe("Kitchen Sink");
 });
 
+test("CLI convert: teml → semantic speech text", () => {
+  const out = execFileSync("node", [CLI, "convert", TEML_FIXTURE, "--to", "speech"], {
+    encoding: "utf8",
+  });
+  expect(out).toContain("Heading level 1: Kitchen Sink");
+  expect(out).not.toContain("\x1b");
+});
+
 test("CLI view: markdown file renders without error", () => {
   const out = execFileSync("node", [CLI, "view", MD_FIXTURE], { encoding: "utf8" });
   expect(out.length).toBeGreaterThan(20);
@@ -58,7 +66,9 @@ test("CLI convert: markdown and teml produce equivalent AST", async () => {
   const mdTypes = mdDoc.blocks.map((b) => b.type);
   const temlTypes = temlDoc.blocks.map((b) => b.type);
   expect(temlTypes[0]).toBe("heading");
-  expect(temlTypes.filter((t) => t === "heading").length).toBe(mdTypes.filter((t) => t === "heading").length);
+  expect(temlTypes.filter((t) => t === "heading").length).toBe(
+    mdTypes.filter((t) => t === "heading").length,
+  );
   expect(temlTypes.includes("table")).toBe(mdTypes.includes("table"));
   expect(temlTypes.includes("codeBlock")).toBe(true);
 });

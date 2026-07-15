@@ -6,8 +6,9 @@ import { serializeTeml } from "../../teml/serialize.js";
 import { serializeMarkdown } from "../../markdown/serialize.js";
 import { runRender } from "./render.js";
 import type { Capabilities } from "../../terminal/capabilities.js";
+import { renderSpeech } from "../../render/speech.js";
 
-export type ConvertTo = "teml" | "markdown" | "text" | "json";
+export type ConvertTo = "teml" | "markdown" | "text" | "speech" | "json";
 
 export type ConvertOpts = {
   to: ConvertTo;
@@ -37,6 +38,8 @@ export function runConvert(doc: TDoc, opts: ConvertOpts): string {
         diags: opts.diags,
         wrapCode: opts.wrapCode,
       });
+    case "speech":
+      return renderSpeech(doc);
     case "teml":
     default:
       return serializeTeml(doc);

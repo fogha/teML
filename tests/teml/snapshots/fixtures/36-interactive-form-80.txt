@@ -1,0 +1,24 @@
+INTERACTIVE FORM (FIXTURE 36)
+════════════════════════════════════════════════════════════════════════════════
+
+Widgets used by teml run are still fully declarative outside an
+interactive
+session: teml view/convert/render show them as static
+controls with no focus
+marker, same as any other leaf directive.
+
+  Name: [your name]
+
+  Email: [ada@example.com]
+
+  ☑ I agree to the terms
+
+  ☐ Send me the newsletter
+
+  [ Submit ]
+
+┌─ Nested in a card ───────────────────────────────────────────────────────────┐
+│   Also focusable: []                                                         │
+│                                                                              │
+│   [ OK ]                                                                     │
+└──────────────────────────────────────────────────────────────────────────────┘

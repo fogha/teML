@@ -3,7 +3,7 @@
 import type { Command } from "commander";
 
 export type InputFormat = "teml" | "markdown" | "html";
-export type OutputFormat = "teml" | "markdown" | "text" | "json";
+export type OutputFormat = "teml" | "markdown" | "text" | "speech" | "json";
 
 export type CliFlags = {
   from?: InputFormat;
@@ -25,17 +25,19 @@ export type CliFlags = {
 };
 
 const INPUT_FORMATS = new Set<InputFormat>(["teml", "markdown", "html"]);
-const OUTPUT_FORMATS = new Set<OutputFormat>(["teml", "markdown", "text", "json"]);
+const OUTPUT_FORMATS = new Set<OutputFormat>(["teml", "markdown", "text", "speech", "json"]);
 
 export function parseInputFormat(value: string): InputFormat {
   const v = value.toLowerCase() as InputFormat;
-  if (!INPUT_FORMATS.has(v)) throw new Error(`invalid --from format '${value}' (expected teml|markdown|html)`);
+  if (!INPUT_FORMATS.has(v))
+    throw new Error(`invalid --from format '${value}' (expected teml|markdown|html)`);
   return v;
 }
 
 export function parseOutputFormat(value: string): OutputFormat {
   const v = value.toLowerCase() as OutputFormat;
-  if (!OUTPUT_FORMATS.has(v)) throw new Error(`invalid --to format '${value}' (expected teml|markdown|text|json)`);
+  if (!OUTPUT_FORMATS.has(v))
+    throw new Error(`invalid --to format '${value}' (expected teml|markdown|text|speech|json)`);
   return v;
 }
 
@@ -50,7 +52,7 @@ export function addSharedOptions(cmd: Command): Command {
   cmd.exitOverride();
   cmd
     .option("--from <format>", "input format: teml, markdown, html", parseInputFormat)
-    .option("--to <format>", "output format: teml, markdown, text, json", parseOutputFormat)
+    .option("--to <format>", "output format: teml, markdown, text, speech, json", parseOutputFormat)
     .option("--profile <name|path>", "HTML profile (bootstrap or path to JSON)")
     .option("--base <url|path>", "base URL or directory for relative links")
     .option("--width <n>", "layout width in columns", parseWidth)

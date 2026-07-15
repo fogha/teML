@@ -10,7 +10,12 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 function run(cmd, cwd = root) {
-  return execSync(cmd, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 10 * 1024 * 1024 });
+  return execSync(cmd, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: 10 * 1024 * 1024,
+  });
 }
 
 console.log("pack-verify: building…");
@@ -45,11 +50,21 @@ try {
 
   writeFileSync(
     join(proj, "verify-api.mjs"),
-    "import { parseTeml, serializeTeml } from 'teml';\n" +
-      "if (!serializeTeml(parseTeml('# Public API\\n')).includes('Public API')) process.exit(1);\n",
+    "import { parseTeml, serializeTeml, layoutDocumentDetailed, renderSpeech } from 'teml';\n" +
+      "const doc = parseTeml('# Public API\\n');\n" +
+      "if (!serializeTeml(doc).includes('Public API')) process.exit(1);\n" +
+      "if (typeof layoutDocumentDetailed !== 'function' || !renderSpeech(doc).includes('Heading level 1')) process.exit(1);\n",
   );
   run("node verify-api.mjs", proj);
   console.log("pack-verify: public library API present");
+
+  writeFileSync(
+    join(proj, "verify-interactive-api.mjs"),
+    "import { runInteractiveApp } from 'teml/interactive';\n" +
+      "if (typeof runInteractiveApp !== 'function') process.exit(1);\n",
+  );
+  run("node verify-interactive-api.mjs", proj);
+  console.log("pack-verify: teml/interactive subpath export present");
 
   const demoPath = join(proj, "demo.teml");
   cpSync(join(root, "examples/demo.teml"), demoPath);

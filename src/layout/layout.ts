@@ -2,11 +2,14 @@
 // with exactly one blank line between top-level blocks (policy: only
 // layoutDocument inserts blanks). Every block degrades under ascii/narrow.
 
-import { inlineText, buildFootnoteIndex, footnoteAppendixOrder, footnoteNumber } from "../core/index.js";
+import {
+  inlineText,
+  buildFootnoteIndex,
+  footnoteAppendixOrder,
+  footnoteNumber,
+} from "../core/index.js";
 import type { Block, TDoc } from "../core/index.js";
 import type { Capabilities } from "../terminal/capabilities.js";
-import { colorsEnabled } from "../terminal/capabilities.js";
-import type { Style, Theme } from "../terminal/theme.js";
 import { decoration, mergeStyle, resolveRole } from "../terminal/theme.js";
 import { cellWidth, truncateToWidth, type MeasureOpts } from "./measure.js";
 import type { Line, Span } from "../render/styledLine.js";
@@ -22,6 +25,8 @@ import {
   layoutMetric,
   layoutProgress,
 } from "./dashboard.js";
+import { layoutButton, layoutCheckbox, layoutInput } from "./interactive.js";
+import { recordWidgetHit, shiftHits, visualHeight } from "./hits.js";
 import { isAlertContainer } from "../teml/directives.js";
 import type { LayoutOpts } from "./opts.js";
 
@@ -42,6 +47,17 @@ function borders(caps: Capabilities) {
 
 export { inlineToSpans };
 
+function semanticStart(opts: LayoutOpts): number {
+  return opts.regions?.headings.length ?? 0;
+}
+
+function shiftSemanticRows(opts: LayoutOpts, startIndex: number, rowOffset: number): void {
+  if (!opts.regions || rowOffset === 0) return;
+  for (let i = startIndex; i < opts.regions.headings.length; i++) {
+    opts.regions.headings[i]!.row += rowOffset;
+  }
+}
+
 // ---- blocks → lines -------------------------------------------------------
 
 export function layoutBlock(b: Block, opts: LayoutOpts, indent = 0): Line[] {
@@ -52,6 +68,12 @@ export function layoutBlock(b: Block, opts: LayoutOpts, indent = 0): Line[] {
       return wrapSpans(inlineToSpans(b.children, opts), Math.max(1, width - indent), m);
 
     case "heading": {
+      opts.regions?.headings.push({
+        id: `heading-${opts.regions.headings.length + 1}`,
+        level: b.level,
+        row: 0,
+        text: inlineText(b.children),
+      });
       const role = `heading${b.level}` as const;
       const style = resolveRole(theme, role, diags);
       const raw = inlineText(b.children);
@@ -61,7 +83,10 @@ export function layoutBlock(b: Block, opts: LayoutOpts, indent = 0): Line[] {
       if (b.level <= 2) {
         lines.push([
           { text: " ".repeat(indent), style: {} },
-          { text: ruleCh.repeat(Math.max(1, width - indent)), style: resolveRole(theme, "border", diags) },
+          {
+            text: ruleCh.repeat(Math.max(1, width - indent)),
+            style: resolveRole(theme, "border", diags),
+          },
         ]);
       }
       return lines.map((line) =>
@@ -70,10 +95,15 @@ export function layoutBlock(b: Block, opts: LayoutOpts, indent = 0): Line[] {
     }
 
     case "thematicBreak":
-      return [[
-        { text: " ".repeat(indent), style: {} },
-        { text: (caps.unicode ? "─" : "-").repeat(Math.max(1, width - indent)), style: resolveRole(theme, "border", diags) },
-      ]];
+      return [
+        [
+          { text: " ".repeat(indent), style: {} },
+          {
+            text: (caps.unicode ? "─" : "-").repeat(Math.max(1, width - indent)),
+            style: resolveRole(theme, "border", diags),
+          },
+        ],
+      ];
 
     case "list":
       return layoutList(b, opts, indent);
@@ -131,7 +161,10 @@ export function layoutBlock(b: Block, opts: LayoutOpts, indent = 0): Line[] {
             { text: truncateToWidth(body, innerW, "…", m), style },
           ]);
         } else {
-          lines.push([{ text: " ".repeat(indent), style: {} }, { text: body, style }]);
+          lines.push([
+            { text: " ".repeat(indent), style: {} },
+            { text: body, style },
+          ]);
         }
       }
 
@@ -180,17 +213,22 @@ function layoutDefinitionList(
     );
     const defIndent = indent + 2;
     for (const def of item.definitions) {
-      lines.push(...layoutBlocks(def, { ...opts, width: Math.max(1, width - 2) }, true, defIndent));
+      const rowOffset = visualHeight(lines);
+      const regionStart = semanticStart(opts);
+      const definitionLines = layoutBlocks(
+        def,
+        { ...opts, width: Math.max(1, width - 2) },
+        true,
+        defIndent,
+      );
+      shiftSemanticRows(opts, regionStart, rowOffset);
+      lines.push(...definitionLines);
     }
   }
   return lines;
 }
 
-function layoutList(
-  b: Extract<Block, { type: "list" }>,
-  opts: LayoutOpts,
-  indent: number,
-): Line[] {
+function layoutList(b: Extract<Block, { type: "list" }>, opts: LayoutOpts, indent: number): Line[] {
   const { width, theme, caps, diags } = opts;
   const m = measureOpts(opts);
   const lines: Line[] = [];
@@ -207,21 +245,28 @@ function layoutList(
 
     item.blocks.forEach((block, bi) => {
       if (block.type === "list") {
-        lines.push(...layoutList(block, opts, baseIndent + markerW));
+        const rowOffset = visualHeight(lines);
+        const hitStart = opts.hits?.length ?? 0;
+        const regionStart = semanticStart(opts);
+        const nested = layoutList(block, opts, baseIndent + markerW);
+        shiftHits(opts, hitStart, rowOffset);
+        shiftSemanticRows(opts, regionStart, rowOffset);
+        lines.push(...nested);
         return;
       }
+      const rowOffset = visualHeight(lines);
+      const hitStart = opts.hits?.length ?? 0;
+      const regionStart = semanticStart(opts);
       const inner = layoutBlock(block, { ...opts, width: contentW }, 0);
+      shiftHits(opts, hitStart, rowOffset);
+      shiftSemanticRows(opts, regionStart, rowOffset);
       inner.forEach((line, j) => {
         const showMarker = bi === 0 && j === 0;
         const prefix: Span = {
           text: showMarker ? marker : " ".repeat(markerW),
           style: resolveRole(theme, "listMarker", diags),
         };
-        lines.push([
-          { text: " ".repeat(baseIndent), style: {} },
-          prefix,
-          ...line,
-        ]);
+        lines.push([{ text: " ".repeat(baseIndent), style: {} }, prefix, ...line]);
       });
     });
   });
@@ -248,6 +293,7 @@ function layoutContainer(
     const label = caps.unicode ? dec.labelUnicode : dec.labelAscii;
     const title = b.attrs.title;
     const headerText = title ? `${label}: ${title}` : label;
+    const regionStart = semanticStart(opts);
     const inner = layoutBlocks(
       b.children,
       { ...opts, width: Math.max(1, width - indent - gutterW) },
@@ -263,13 +309,26 @@ function layoutContainer(
       { text: " ".repeat(indent), style: {} },
       ...line,
     ]);
+    shiftSemanticRows(opts, regionStart, visualHeight(headerLines));
     for (const line of inner) {
-      out.push([{ text: " ".repeat(indent), style: {} }, { text: gutter, style: roleStyle }, ...line]);
+      out.push([
+        { text: " ".repeat(indent), style: {} },
+        { text: gutter, style: roleStyle },
+        ...line,
+      ]);
     }
     return out;
   }
+  const regionStart = semanticStart(opts);
   const inner = layoutBlocks(b.children, opts, true, indent);
-  return [[{ text: " ".repeat(indent), style: {} }, { text: `[${b.name}]`, style: resolveRole(theme, "muted", diags) }], ...inner];
+  shiftSemanticRows(opts, regionStart, 1);
+  return [
+    [
+      { text: " ".repeat(indent), style: {} },
+      { text: `[${b.name}]`, style: resolveRole(theme, "muted", diags) },
+    ],
+    ...inner,
+  ];
 }
 
 function layoutCard(
@@ -283,9 +342,18 @@ function layoutCard(
   const borderStyle = resolveRole(theme, "border", diags);
   const outerW = Math.max(1, width - indent);
   const innerWidth = Math.max(1, outerW - 4);
+  const hitStart = opts.hits?.length ?? 0;
+  const regionStart = semanticStart(opts);
   const inner = layoutBlocks(b.children, { ...opts, width: innerWidth }, true, 0);
+  shiftHits(opts, hitStart, 1); // account for the "top" border/title line prepended below
+  shiftSemanticRows(opts, regionStart, 1);
 
-  const title = b.attrs.title ? ` ${b.attrs.title} ` : "";
+  // Reserve "┌─" (2) + "┐" (1) so the title itself is truncated instead of
+  // letting topFill clamp to 0 while an oversized title still overflows outerW.
+  const maxTitleW = Math.max(0, outerW - 3);
+  const rawTitle = b.attrs.title ? ` ${b.attrs.title} ` : "";
+  const title =
+    cellWidth(rawTitle, m) > maxTitleW ? truncateToWidth(rawTitle, maxTitleW, "…", m) : rawTitle;
   const titleW = cellWidth(title, m);
   const topFill = Math.max(0, outerW - 2 - 1 - titleW);
   const top: Line = title
@@ -305,7 +373,9 @@ function layoutCard(
     let lw = lineWidth(content, m);
     if (lw > innerWidth) {
       const plain = content.map((s) => s.text).join("");
-      content = [{ text: truncateToWidth(plain, innerWidth, "…", m), style: content[0]?.style ?? {} }];
+      content = [
+        { text: truncateToWidth(plain, innerWidth, "…", m), style: content[0]?.style ?? {} },
+      ];
       lw = lineWidth(content, m);
     }
     const pad = Math.max(0, innerWidth - lw);
@@ -336,7 +406,12 @@ function layoutLeaf(b: Extract<Block, { type: "leaf" }>, opts: LayoutOpts, inden
       return entries.map(([k, v]) => {
         const row = pad + k.padEnd(keyW + 2) + v;
         if (cellWidth(row, m) > innerW) {
-          return [{ text: truncateToWidth(row, innerW, "…", m), style: resolveRole(theme, "muted", diags) }];
+          return [
+            {
+              text: truncateToWidth(row, innerW, "…", m),
+              style: resolveRole(theme, "muted", diags),
+            },
+          ];
         }
         return [
           { text: pad, style: {} },
@@ -347,10 +422,15 @@ function layoutLeaf(b: Extract<Block, { type: "leaf" }>, opts: LayoutOpts, inden
     }
     case "image": {
       const label = `[Image: ${b.attrs.alt ?? b.attrs.src ?? "image"}]`;
-      return [[
-        { text: pad, style: {} },
-        { text: truncateToWidth(label, innerW, "…", m), style: resolveRole(theme, "muted", diags) },
-      ]];
+      return [
+        [
+          { text: pad, style: {} },
+          {
+            text: truncateToWidth(label, innerW, "…", m),
+            style: resolveRole(theme, "muted", diags),
+          },
+        ],
+      ];
     }
     case "metric":
       return layoutMetric(b, opts, indent);
@@ -358,11 +438,31 @@ function layoutLeaf(b: Extract<Block, { type: "leaf" }>, opts: LayoutOpts, inden
       return layoutProgress(b, opts, indent);
     case "event":
       return layoutEvent(b, opts, indent);
+    case "button": {
+      const lines = layoutButton(b, opts, indent);
+      recordWidgetHit(opts, b, lines);
+      return lines;
+    }
+    case "input": {
+      const lines = layoutInput(b, opts, indent);
+      recordWidgetHit(opts, b, lines);
+      return lines;
+    }
+    case "checkbox": {
+      const lines = layoutCheckbox(b, opts, indent);
+      recordWidgetHit(opts, b, lines);
+      return lines;
+    }
     case "break":
       return [[]];
     default:
       opts.diags.warn("unknown-directive", `unknown leaf directive ::${b.name}`);
-      return [[{ text: pad, style: {} }, { text: `[${b.name}]`, style: resolveRole(theme, "muted", diags) }]];
+      return [
+        [
+          { text: pad, style: {} },
+          { text: `[${b.name}]`, style: resolveRole(theme, "muted", diags) },
+        ],
+      ];
   }
 }
 
@@ -384,8 +484,15 @@ function layoutFootnoteAppendix(opts: LayoutOpts): Line[] {
     const num = footnoteNumber(index, id)!;
     const def = index.definitions.get(id);
     if (!def) continue;
-    lines.push(clampFootnoteLine([{ text: `${num}. [${id}]`, style: muted }], width, 0, measureOpts(opts)));
-    for (const line of layoutBlocks(def.children, { ...opts, width: Math.max(1, width - 4) }, true, 4)) {
+    lines.push(
+      clampFootnoteLine([{ text: `${num}. [${id}]`, style: muted }], width, 0, measureOpts(opts)),
+    );
+    for (const line of layoutBlocks(
+      def.children,
+      { ...opts, width: Math.max(1, width - 4) },
+      true,
+      4,
+    )) {
       lines.push(clampFootnoteLine(line, width, 0, measureOpts(opts)));
     }
     lines.push([]);
@@ -400,14 +507,32 @@ function clampFootnoteLine(line: Line, outerW: number, indent: number, m: Measur
   if (w <= max) return line;
   const plain = line.map((s) => s.text).join("");
   const style = line.find((s) => s.text.trim())?.style ?? {};
-  return [{ text: " ".repeat(indent), style: {} }, { text: truncateToWidth(plain, max - indent, "…", m), style }];
+  return [
+    { text: " ".repeat(indent), style: {} },
+    { text: truncateToWidth(plain, max - indent, "…", m), style },
+  ];
 }
 
-function layoutBlocks(blocks: Block[], opts: LayoutOpts, blankBetween: boolean, indent = 0): Line[] {
+function layoutBlocks(
+  blocks: Block[],
+  opts: LayoutOpts,
+  blankBetween: boolean,
+  indent = 0,
+): Line[] {
   const out: Line[] = [];
+  let visualRow = 0;
   blocks.forEach((b, i) => {
-    if (i > 0 && blankBetween) out.push([]);
-    out.push(...layoutBlock(b, opts, indent));
+    if (i > 0 && blankBetween) {
+      out.push([]);
+      visualRow += 1;
+    }
+    const hitStart = opts.hits?.length ?? 0;
+    const regionStart = semanticStart(opts);
+    const lines = layoutBlock(b, opts, indent);
+    shiftHits(opts, hitStart, visualRow);
+    shiftSemanticRows(opts, regionStart, visualRow);
+    out.push(...lines);
+    visualRow += visualHeight(lines);
   });
   return out;
 }
@@ -417,9 +542,19 @@ export function layoutDocument(docNode: TDoc, opts: LayoutOpts): Line[] {
   const layoutOpts: LayoutOpts = { ...opts, footnotes };
   const visible = docNode.blocks.filter((b) => b.type !== "footnoteDefinition");
   const out: Line[] = [];
+  let visualRow = 0;
   visible.forEach((b, i) => {
-    if (i > 0) out.push([]);
-    out.push(...layoutBlock(b, layoutOpts, 0));
+    if (i > 0) {
+      out.push([]);
+      visualRow += 1;
+    }
+    const hitStart = layoutOpts.hits?.length ?? 0;
+    const regionStart = semanticStart(layoutOpts);
+    const lines = layoutBlock(b, layoutOpts, 0);
+    shiftHits(layoutOpts, hitStart, visualRow);
+    shiftSemanticRows(layoutOpts, regionStart, visualRow);
+    out.push(...lines);
+    visualRow += visualHeight(lines);
   });
   const appendix = layoutFootnoteAppendix(layoutOpts);
   if (appendix.length) {

@@ -16,6 +16,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./interactive": {
+      "types": "./dist/interactive/host.d.ts",
+      "import": "./dist/interactive/host.js"
     }
   },
   "engines": {

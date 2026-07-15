@@ -1,0 +1,20 @@
+# Interactive form (fixture 36)
+
+Widgets used by `teml run` are still fully declarative outside an
+interactive session: `teml view`/`convert`/`render` show them as static
+controls with no focus marker, same as any other leaf directive.
+
+::input{id="name" label="Name" placeholder="your name"}
+
+::input{id="email" label="Email" value="ada@example.com"}
+
+::checkbox{id="agree" label="I agree to the terms" checked="true"}
+
+::checkbox{id="newsletter" label="Send me the newsletter"}
+
+::button{id="submit" label="Submit"}
+
+:::card{title="Nested in a card"}
+::input{id="nested" label="Also focusable"}
+::button{id="nested-ok" label="OK"}
+:::

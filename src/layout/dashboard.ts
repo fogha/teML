@@ -6,6 +6,7 @@ import { lineWidth, padLine } from "../render/styledLine.js";
 import { mergeStyle, resolveRole } from "../terminal/theme.js";
 import type { LayoutOpts } from "./opts.js";
 import { cellWidth, truncateToWidth, type MeasureOpts } from "./measure.js";
+import { shiftHits, visualHeight } from "./hits.js";
 import { wrapSpans } from "./wrap.js";
 
 export type LayoutBlockFn = (b: Block, opts: LayoutOpts, indent: number) => Line[];
@@ -22,7 +23,12 @@ function measureOpts(opts: LayoutOpts): MeasureOpts {
   return { ambiguousWide: opts.caps.ambiguousWide };
 }
 
-function clampBoundedInt(raw: string | undefined, min: number, max: number, fallback: number): number {
+function clampBoundedInt(
+  raw: string | undefined,
+  min: number,
+  max: number,
+  fallback: number,
+): number {
   const n = raw == null || raw.trim() === "" ? NaN : Number.parseInt(raw, 10);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.trunc(n)));
@@ -89,12 +95,6 @@ function joinGridRow(cells: Line[][], colWidths: number[], gap: number, m: Measu
   return out;
 }
 
-function withIndent(lines: Line[], indent: number): Line[] {
-  if (indent <= 0) return lines;
-  const pad = " ".repeat(indent);
-  return lines.map((line) => [{ text: pad, style: {} }, ...line]);
-}
-
 function clampPhysicalLines(lines: Line[], outerW: number, indent: number, m: MeasureOpts): Line[] {
   const max = Math.max(1, outerW);
   return lines.map((line) => {
@@ -120,15 +120,22 @@ export function layoutGrid(
   if (!children.length) return [];
 
   const out: Line[] = [];
+  let visualRow = 0;
   for (let i = 0; i < children.length; i += cols) {
     const rowBlocks = children.slice(i, i + cols);
     const rowWidths = colWidths.slice(0, rowBlocks.length);
+    const hitStart = opts.hits?.length ?? 0;
     const cellLines = rowBlocks.map((child, ci) => {
       const cellW = rowWidths[ci]!;
       const cellOpts: LayoutOpts = { ...opts, width: cellW };
       return layoutBlockFn(child, cellOpts, 0);
     });
-    out.push(...joinGridRow(cellLines, rowWidths, gap, m));
+    // Hit-testing doesn't disambiguate columns (v1): widgets in different
+    // cells of the same row-group land on the same recorded row.
+    shiftHits(opts, hitStart, visualRow);
+    const rowLines = joinGridRow(cellLines, rowWidths, gap, m);
+    out.push(...rowLines);
+    visualRow += visualHeight(rowLines);
   }
 
   return clampPhysicalLines(out, opts.width, indent, m);
@@ -245,7 +252,9 @@ export function layoutEvent(
   const lines: Line[] = [[{ text: pad, style: {} }, ...clampLine(headLine, innerW, m)]];
 
   if (detail) {
-    const markerCol = time ? cellWidth(time, m) + 1 + cellWidth(marker, m) + 1 : cellWidth(marker, m) + 1;
+    const markerCol = time
+      ? cellWidth(time, m) + 1 + cellWidth(marker, m) + 1
+      : cellWidth(marker, m) + 1;
     const detailIndent = Math.min(innerW - 1, markerCol);
     const detailW = Math.max(1, innerW - detailIndent);
     const detailLines = wrapSpans([{ text: detail, style: muted }], detailW, m);
@@ -277,21 +286,29 @@ export function layoutDetails(
   const muted = resolveRole(theme, "muted", diags);
   const marker = caps.unicode ? (open ? "▼" : "▶") : open ? "v" : ">";
 
-  const headerLine = wrapSpans(
-    [
-      { text: marker, style: muted },
-      { text: " ", style: {} },
-      { text: summary, style: mergeStyle(muted, { bold: true }) },
-    ],
-    innerW,
-    m,
-  )[0] ?? [];
+  const headerLine =
+    wrapSpans(
+      [
+        { text: marker, style: muted },
+        { text: " ", style: {} },
+        { text: summary, style: mergeStyle(muted, { bold: true }) },
+      ],
+      innerW,
+      m,
+    )[0] ?? [];
 
   const lines: Line[] = [[{ text: pad, style: {} }, ...clampLine(headerLine, innerW, m)]];
 
   if (open) {
     const bodyIndent = indent + 2;
-    const body = layoutBlocksFn(b.children, { ...opts, width: Math.max(1, opts.width - 2) }, true, bodyIndent);
+    const hitStart = opts.hits?.length ?? 0;
+    const body = layoutBlocksFn(
+      b.children,
+      { ...opts, width: Math.max(1, opts.width - 2) },
+      true,
+      bodyIndent,
+    );
+    shiftHits(opts, hitStart, 1); // account for the summary/header line above the body
     lines.push(...body);
   }
 

@@ -1,7 +1,6 @@
 import { test, expect } from "vitest";
 import { doc, text } from "../../src/core/ast.js";
 import { Diagnostics } from "../../src/core/diagnostics.js";
-import { cellWidth } from "../../src/layout/measure.js";
 import { layoutDocument } from "../../src/layout/layout.js";
 import { lineWidth } from "../../src/render/styledLine.js";
 import { renderPlain } from "../../src/render/plain.js";
@@ -38,17 +37,27 @@ test("nested list adds 2-cell indent per level", () => {
       ],
     },
   ]);
-  const out = renderPlain(layoutDocument(d, { width: 40, theme: loadTheme("dark"), caps: caps(), diags: new Diagnostics() }));
+  const out = renderPlain(
+    layoutDocument(d, {
+      width: 40,
+      theme: loadTheme("dark"),
+      caps: caps(),
+      diags: new Diagnostics(),
+    }),
+  );
   const lines = out.split("\n").filter(Boolean);
   expect(lines.some((l) => l.startsWith("• outer"))).toBe(true);
   expect(lines.some((l) => l.startsWith("  • inner"))).toBe(true);
 });
 
 test("code block has padding and right-aligned language", () => {
-  const d = doc([
-    { type: "codeBlock", language: "bash", value: "echo hi" },
-  ]);
-  const lines = layoutDocument(d, { width: 30, theme: loadTheme("dark"), caps: caps({ width: 30 }), diags: new Diagnostics() });
+  const d = doc([{ type: "codeBlock", language: "bash", value: "echo hi" }]);
+  const lines = layoutDocument(d, {
+    width: 30,
+    theme: loadTheme("dark"),
+    caps: caps({ width: 30 }),
+    diags: new Diagnostics(),
+  });
   expect(lines.length).toBeGreaterThanOrEqual(3);
   const plain = renderPlain(lines);
   const top = plain.split("\n")[0] ?? "";
@@ -65,9 +74,36 @@ test("card viewport width invariant", () => {
     },
   ]);
   const width = 50;
-  const lines = layoutDocument(d, { width, theme: loadTheme("dark"), caps: caps({ width }), diags: new Diagnostics() });
+  const lines = layoutDocument(d, {
+    width,
+    theme: loadTheme("dark"),
+    caps: caps({ width }),
+    diags: new Diagnostics(),
+  });
   const widths = lines.map((l) => lineWidth(l));
   expect(widths.every((w) => w === width)).toBe(true);
+});
+
+test("card title too long for the width is truncated, not overflowed", () => {
+  const d = doc([
+    {
+      type: "container",
+      name: "card",
+      attrs: { title: "Nested in a card" },
+      children: [{ type: "paragraph", children: [text("x")] }],
+    },
+  ]);
+  const width = 20;
+  const lines = layoutDocument(d, {
+    width,
+    theme: loadTheme("dark"),
+    caps: caps({ width }),
+    diags: new Diagnostics(),
+  });
+  const widths = lines.map((l) => lineWidth(l));
+  expect(widths.every((w) => w === width)).toBe(true);
+  const top = renderPlain([lines[0] ?? []]);
+  expect(top).toContain("…");
 });
 
 test("ascii fallback uses + borders", () => {
@@ -80,7 +116,12 @@ test("ascii fallback uses + borders", () => {
     },
   ]);
   const out = renderPlain(
-    layoutDocument(d, { width: 30, theme: loadTheme("dark"), caps: caps({ unicode: false, width: 30 }), diags: new Diagnostics() }),
+    layoutDocument(d, {
+      width: 30,
+      theme: loadTheme("dark"),
+      caps: caps({ unicode: false, width: 30 }),
+      diags: new Diagnostics(),
+    }),
   );
   expect(out.includes("+")).toBe(true);
   expect(out.includes("┌")).toBe(false);
