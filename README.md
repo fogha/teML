@@ -22,31 +22,13 @@ git clone https://github.com/fogha/teML.git && cd teML
 npm install
 npm run build
 
-teml examples/demo.teml                  # styled render (default view command)
-teml examples/demo.teml --ascii --no-color
-teml view examples/service-command-center.teml --theme dark --width 100
-teml view examples/service-command-center.html --width 100
-npm run demo:command-center              # built command-center demo
-teml convert examples/demo.html --to teml
-teml view examples/demo.html             # HTML → terminal directly
-teml read README.md                      # full-screen Reader (scroll, links, search, TOC)
-teml read docs/                          # confined document browser
-teml render examples/demo.teml --width 80  # deterministic plain snapshot
-teml convert README.md --to speech       # semantic, non-ANSI accessibility text
-teml inspect examples/demo.teml --tokens
-cat examples/demo.teml | teml --no-color
-npm test                                 # full fixture + security suite
-npm run lint                             # eslint
-npm run format:check                     # prettier --check
-npm run pack:verify                      # npm pack install smoke test
-
-# LLM chat demo: DeepSeek replies in HTML, TeML renders it in your terminal
-export DEEPSEEK_API_KEY=sk-...
-npm run demo:chat                        # interactive REPL
-npm run demo:chat -- --mock              # try it with no API key/network
-
-npm run demo:settings                    # interactive HTML form (validation, no NDJSON)
+teml examples/demo.teml                                                   # styled render (default view command)
+teml view examples/service-command-center.teml --theme dark --width 100  # dashboard-style layout
+teml read README.md                                                       # full-screen Reader (scroll, links, search, TOC)
 ```
+
+More commands (other example docs, `--to speech`, chat/settings demos, dev scripts) are in
+[docs/cli.md](docs/cli.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Library API
 
