@@ -20,5 +20,3 @@ Deployment finished in **4m 12s** with status :success[Passed]. Full details in 
 | search | Degraded | 310ms |
 
 > Deploys are boring now. That is the point.
-
-See [docs/demo.md](../docs/demo.md) for recording instructions.

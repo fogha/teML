@@ -1,0 +1,15 @@
+---
+title: Sign up
+theme: dark
+---
+
+# Sign up
+
+Try it: **Tab**/**Shift+Tab** to move focus, type into the inputs,
+**Space**/**Enter** to toggle the checkbox or click the button. Name below
+starts with a suggested default — type or press Backspace to replace it.
+
+::input{id="name" label="Name" value="Jane Doe"}
+::input{id="email" label="Email" placeholder="you@example.com"}
+::checkbox{id="agree" label="I agree to the terms"}
+::button{id="submit" label="Submit"}

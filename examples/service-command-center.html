@@ -1,121 +1,203 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Service Command Center</title>
-</head>
-<body>
-  <main>
-    <header>
-      <h1>Service Command Center</h1>
-      <p>
-        Platform overview for <strong>Sunday, 12 July 2026</strong>.
-        Fleet status is <span class="text-success">Healthy</span>;
-        <mark>canary lane</mark> is active.
-        <del>Legacy routing</del> is <span class="text-muted">deprecated</span>.
-      </p>
-    </header>
+  <head>
+    <meta charset="utf-8" />
+    <title>Service Command Center</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Service Command Center</h1>
+        <p>
+          Platform overview for <strong>Sunday, 12 July 2026</strong>. Fleet status is
+          <span class="text-success">Healthy</span>; <mark>canary lane</mark> is active.
+          <del>Legacy routing</del> is <span class="text-muted">deprecated</span>.
+        </p>
+      </header>
 
-    <table>
-      <tbody>
-        <tr><th>Cluster</th><td>prod-eu-1</td><th>Region</th><td>eu-west-1</td></tr>
-        <tr><th>Release</th><td>v4.2.1</td><th>On call</th><td>M. Chen</td></tr>
-        <tr><th>Updated</th><td>17:04 UTC</td><th></th><td></td></tr>
-      </tbody>
-    </table>
-
-    <div data-teml="grid" data-columns="4" data-gap="2">
-      <div data-teml="metric" data-label="Requests/s" data-role="success" data-change="+6%">18.4k</div>
-      <div data-teml="metric" data-label="Error rate" data-role="success" data-change="-0.01%">0.04%</div>
-      <div data-teml="metric" data-label="P95 latency" data-role="warning" data-change="+18ms">112ms</div>
-      <div data-teml="metric" data-label="Saturation" data-role="info">61%</div>
-    </div>
-
-    <progress value="58" max="100" aria-label="CPU pool">CPU pool 58%</progress>
-    <progress value="74" max="100" aria-label="Memory pool">Memory pool 74%</progress>
-    <progress value="92" max="100" aria-label="Disk on db-03">Disk on db-03 92%</progress>
-
-    <div data-teml="grid" data-columns="2" data-gap="2">
-      <section class="card">
-        <h2>Ingress</h2>
-        <p>Edge traffic is stable. TLS handshakes remain under budget.</p>
-        <div class="alert alert-success">
-          All six ingress nodes pass synthetic checks.
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Data plane</h2>
-        <p>Replication lag is within SLO on every shard.</p>
-        <div class="alert alert-warning">
-          Shard <code>s-07</code> compaction is slower than baseline.
-        </div>
-      </section>
-    </div>
-
-    <section>
-      <h2>Service health</h2>
       <table>
-        <thead>
-          <tr><th>Service</th><th>Health</th><th>Replicas</th><th>P95</th><th>Errors</th></tr>
-        </thead>
         <tbody>
-          <tr><td>API gateway</td><td>Healthy</td><td>8/8</td><td>84ms</td><td>0.02%</td></tr>
-          <tr><td>Auth</td><td>Healthy</td><td>4/4</td><td>39ms</td><td>0.00%</td></tr>
-          <tr><td>Billing</td><td>Degraded</td><td>6/6</td><td>241ms</td><td>0.31%</td></tr>
-          <tr><td>Search</td><td>Healthy</td><td>5/5</td><td>118ms</td><td>0.05%</td></tr>
-          <tr><td>Notify</td><td>Healthy</td><td>3/3</td><td>67ms</td><td>0.01%</td></tr>
+          <tr>
+            <th>Cluster</th>
+            <td>prod-eu-1</td>
+            <th>Region</th>
+            <td>eu-west-1</td>
+          </tr>
+          <tr>
+            <th>Release</th>
+            <td>v4.2.1</td>
+            <th>On call</th>
+            <td>M. Chen</td>
+          </tr>
+          <tr>
+            <th>Updated</th>
+            <td>17:04 UTC</td>
+            <th></th>
+            <td></td>
+          </tr>
         </tbody>
       </table>
-    </section>
 
-    <section>
-      <h2>Runbook tasks</h2>
-      <ul>
-        <li><input type="checkbox" checked disabled> Confirm canary metrics</li>
-        <li><input type="checkbox" checked disabled> Page on-call for billing drift</li>
-        <li><input type="checkbox" disabled> Fail over billing read path</li>
-        <li><input type="checkbox" disabled> Post incident summary</li>
-      </ul>
-    </section>
+      <div data-teml="grid" data-columns="4" data-gap="2">
+        <div data-teml="metric" data-label="Requests/s" data-role="success" data-change="+6%">
+          18.4k
+        </div>
+        <div data-teml="metric" data-label="Error rate" data-role="success" data-change="-0.01%">
+          0.04%
+        </div>
+        <div data-teml="metric" data-label="P95 latency" data-role="warning" data-change="+18ms">
+          112ms
+        </div>
+        <div data-teml="metric" data-label="Saturation" data-role="info">61%</div>
+      </div>
 
-    <details open>
-      <summary>Billing mitigation steps</summary>
-      <ol>
-        <li>Drain <code>billing-canary</code> from the mesh</li>
-        <li>Compare shadow traffic against primary</li>
-        <li>Promote canary if error budget holds for 15 minutes</li>
-      </ol>
-      <p>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> to open the billing playbook.</p>
-    </details>
+      <progress value="58" max="100" aria-label="CPU pool">CPU pool 58%</progress>
+      <progress value="74" max="100" aria-label="Memory pool">Memory pool 74%</progress>
+      <progress value="92" max="100" aria-label="Disk on db-03">Disk on db-03 92%</progress>
 
-    <figure>
-      <p>ASCII sparkline (narrow terminals):</p>
-      <pre><code>  .:*#*#*:..  </code></pre>
-      <p>Budget consumed: 38% with 4.2 days remaining.</p>
-      <figcaption>Weekly error budget burn</figcaption>
-    </figure>
+      <div data-teml="grid" data-columns="2" data-gap="2">
+        <section class="card">
+          <h2>Ingress</h2>
+          <p>Edge traffic is stable. TLS handshakes remain under budget.</p>
+          <div class="alert alert-success">All six ingress nodes pass synthetic checks.</div>
+        </section>
 
-    <section>
-      <h2>Event timeline</h2>
-      <div data-teml="event" data-time="17:04" data-detail="All probes green across eu-west-1" data-role="success">Health sweep</div>
-      <div data-teml="event" data-time="16:51" data-detail="P95 crossed 200ms on primary pool" data-role="warning">Billing latency</div>
-      <div data-teml="event" data-time="16:44" data-detail="v4.2.1 serving 12% of ingress traffic" data-role="info">Canary promoted</div>
-      <div data-teml="event" data-time="16:30" data-detail="Rollout completed in 7m 12s" data-role="success">Deploy finished</div>
-    </section>
+        <section class="card">
+          <h2>Data plane</h2>
+          <p>Replication lag is within SLO on every shard.</p>
+          <div class="alert alert-warning">
+            Shard <code>s-07</code> compaction is slower than baseline.
+          </div>
+        </section>
+      </div>
 
-    <p>
-      Follow the
-      <a href="https://status.example.com/services/billing">status page</a>
-      for customer-facing updates.
-      <sup><a href="#status">[status]</a></sup>
-    </p>
-    <aside id="status">
-      Public status feed; internal-only fields are stripped before publish.
-    </aside>
+      <section>
+        <h2>Service health</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Health</th>
+              <th>Replicas</th>
+              <th>P95</th>
+              <th>Errors</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>API gateway</td>
+              <td>Healthy</td>
+              <td>8/8</td>
+              <td>84ms</td>
+              <td>0.02%</td>
+            </tr>
+            <tr>
+              <td>Auth</td>
+              <td>Healthy</td>
+              <td>4/4</td>
+              <td>39ms</td>
+              <td>0.00%</td>
+            </tr>
+            <tr>
+              <td>Billing</td>
+              <td>Degraded</td>
+              <td>6/6</td>
+              <td>241ms</td>
+              <td>0.31%</td>
+            </tr>
+            <tr>
+              <td>Search</td>
+              <td>Healthy</td>
+              <td>5/5</td>
+              <td>118ms</td>
+              <td>0.05%</td>
+            </tr>
+            <tr>
+              <td>Notify</td>
+              <td>Healthy</td>
+              <td>3/3</td>
+              <td>67ms</td>
+              <td>0.01%</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-    <hr>
-    <p class="text-muted">Rendered with TeML — safe at width 20 through 120.</p>
-  </main>
-</body>
+      <section>
+        <h2>Runbook tasks</h2>
+        <ul>
+          <li><input type="checkbox" checked disabled /> Confirm canary metrics</li>
+          <li><input type="checkbox" checked disabled /> Page on-call for billing drift</li>
+          <li><input type="checkbox" disabled /> Fail over billing read path</li>
+          <li><input type="checkbox" disabled /> Post incident summary</li>
+        </ul>
+      </section>
+
+      <details open>
+        <summary>Billing mitigation steps</summary>
+        <ol>
+          <li>Drain <code>billing-canary</code> from the mesh</li>
+          <li>Compare shadow traffic against primary</li>
+          <li>Promote canary if error budget holds for 15 minutes</li>
+        </ol>
+        <p>Press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> to open the billing playbook.</p>
+      </details>
+
+      <figure>
+        <p>ASCII sparkline (narrow terminals):</p>
+        <pre><code>  .:*#*#*:..  </code></pre>
+        <p>Budget consumed: 38% with 4.2 days remaining.</p>
+        <figcaption>Weekly error budget burn</figcaption>
+      </figure>
+
+      <section>
+        <h2>Event timeline</h2>
+        <div
+          data-teml="event"
+          data-time="17:04"
+          data-detail="All probes green across eu-west-1"
+          data-role="success"
+        >
+          Health sweep
+        </div>
+        <div
+          data-teml="event"
+          data-time="16:51"
+          data-detail="P95 crossed 200ms on primary pool"
+          data-role="warning"
+        >
+          Billing latency
+        </div>
+        <div
+          data-teml="event"
+          data-time="16:44"
+          data-detail="v4.2.1 serving 12% of ingress traffic"
+          data-role="info"
+        >
+          Canary promoted
+        </div>
+        <div
+          data-teml="event"
+          data-time="16:30"
+          data-detail="Rollout completed in 7m 12s"
+          data-role="success"
+        >
+          Deploy finished
+        </div>
+      </section>
+
+      <p>
+        Follow the
+        <a href="https://status.example.com/services/billing">status page</a>
+        for customer-facing updates.
+        <sup><a href="#status">[status]</a></sup>
+      </p>
+      <aside id="status">
+        Public status feed; internal-only fields are stripped before publish.
+      </aside>
+
+      <hr />
+      <p class="text-muted">Rendered with TeML — safe at width 20 through 120.</p>
+    </main>
+  </body>
 </html>
