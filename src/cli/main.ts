@@ -2,11 +2,11 @@
 // cli/main.ts — Commander entrypoint. stdout = output; stderr = diagnostics (C-2).
 
 import type { Command } from "commander";
+import { readVersion } from "./version.js";
 
 const earlyArgs = process.argv.slice(2);
-const VERSION = "1.0.0";
 if (earlyArgs.length === 1 && (earlyArgs[0] === "-v" || earlyArgs[0] === "--version")) {
-  process.stdout.write(`${VERSION}\n`);
+  process.stdout.write(`${readVersion()}\n`);
   process.exit(0);
 }
 
@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   program
     .name("teml")
     .description("Terminal Markup Language — semantic documents for terminals")
-    .version(VERSION, "-v, --version", "print version");
+    .version(readVersion(), "-v, --version", "print version");
 
   const viewCmd = addSharedOptions(
     new Command("view")
