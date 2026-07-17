@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copy non-TypeScript assets into dist/ after tsc (themes, HTML profiles).
+// Copy non-TypeScript assets into dist/ after tsc.
 
 import { chmodSync, cpSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -9,8 +9,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const assetDirs = [
   ["src/terminal/themes", "dist/terminal/themes"],
-  ["src/html/profiles", "dist/html/profiles"],
   ["docs", "dist/assets/docs"],
+];
+
+const assetFiles = [
+  ["src/html/profiles/bootstrap.json", "dist/html/profiles/bootstrap.json"],
+  ["examples/demo.teml", "dist/assets/demo.teml"],
 ];
 
 for (const [srcRel, destRel] of assetDirs) {
@@ -19,6 +23,13 @@ for (const [srcRel, destRel] of assetDirs) {
   const dest = join(root, destRel);
   mkdirSync(dirname(dest), { recursive: true });
   cpSync(src, dest, { recursive: true });
+}
+
+for (const [srcRel, destRel] of assetFiles) {
+  const src = join(root, srcRel);
+  const dest = join(root, destRel);
+  mkdirSync(dirname(dest), { recursive: true });
+  cpSync(src, dest);
 }
 
 // tsc doesn't preserve/set the executable bit; npm's own install step usually

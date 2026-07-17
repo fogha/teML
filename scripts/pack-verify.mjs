@@ -66,13 +66,12 @@ try {
   run("node verify-interactive-api.mjs", proj);
   console.log("pack-verify: teml/interactive subpath export present");
 
-  const demoPath = join(proj, "demo.teml");
-  cpSync(join(root, "examples/demo.teml"), demoPath);
-  const rendered = run(`npx --yes teml render ${demoPath} --width 80`, proj);
+  const rendered = run("npx --yes teml demo --width 80 --no-color", proj);
   if (!/deploy report/i.test(rendered)) {
-    console.error("pack-verify: FAIL — external example render missing expected heading");
+    console.error("pack-verify: FAIL — built-in demo render missing expected heading");
     process.exit(1);
   }
+  console.log("pack-verify: built-in demo present");
 
   const docsSpec = join(proj, "node_modules/teml/dist/assets/docs/spec.md");
   try {

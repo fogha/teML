@@ -1,36 +1,37 @@
-# TeML — Terminal Markup Language (v1.5 Reader)
+# TeML — Terminal Markup Language
 
-Semantic documents for terminals: write **TeML**, **Markdown**, or convert **HTML**, get readable terminal output that degrades gracefully everywhere.
+Build readable terminal documents and interactive CLI interfaces from **TeML**,
+**Markdown**, or semantic **HTML**.
 
-Not yet published to npm — clone and build from source (see below). Once
-published, the target end-state usage is:
+## Install from GitHub
 
 ```bash
-npm install teml
-npx teml examples/demo.teml
-npx teml convert page.html --to teml
-npx teml view README.md --width 100
-npx teml read README.md
+npm install --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+teml --version
 ```
 
-Requires **Node ≥ 20**.
+This downloads the small prebuilt package from the latest GitHub Release—not
+the repository or development dependencies. Requires **Node ≥ 20**.
 
 ## Quick start
 
 ```bash
-git clone https://github.com/fogha/teML.git && cd teML
-npm install
-npm run build
-
-teml examples/demo.teml                                                   # styled render (default view command)
-teml view examples/service-command-center.teml --theme dark --width 100  # dashboard-style layout
-teml read README.md                                                       # full-screen Reader (scroll, links, search, TOC)
+teml demo                         # built-in showcase; no files or network needed
+teml path/to/document.md          # render TeML, Markdown, or HTML once
+teml read path/to/docs/           # full-screen Reader: search, links, and TOC
 ```
 
-More commands (other example docs, `--to speech`, chat/settings demos, dev scripts) are in
-[docs/cli.md](docs/cli.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+Run `teml --help` for an overview or `teml help <command>` for detailed
+behavior, options, keys, and examples. The complete reference is in
+[docs/cli.md](docs/cli.md).
 
 ## Library API
+
+Install the same GitHub Release locally in your application:
+
+```bash
+npm install https://github.com/fogha/teML/releases/latest/download/teml.tgz
+```
 
 ```ts
 import { Diagnostics, parseTeml, serializeTeml } from "teml";
@@ -44,6 +45,35 @@ layout, renderers, capabilities, and themes. A separate `teml/interactive`
 entry point exports `runInteractiveApp` for building interactive (button/input/
 checkbox) CLI apps in Node without a subprocess — see
 [docs/interactive-protocol.md](docs/interactive-protocol.md#in-process-node-alternative-runinteractiveapp).
+
+## Build a CLI interface with HTML
+
+Use semantic HTML as the view, ordinary JavaScript as the controller, and TeML
+as the terminal runtime:
+
+```js
+import { runInteractiveApp } from "teml/interactive";
+
+const values = await runInteractiveApp(
+  `<h2>Account</h2>
+   <label for="name">Name</label>
+   <input id="name" placeholder="Ada">
+   <button id="save">Save</button>`,
+  {
+    handlers: {
+      onClick(id, _values, ctx) {
+        if (id === "save") ctx.exit();
+      },
+    },
+  },
+);
+
+console.log(`Saved ${values.name}`);
+```
+
+Inputs, checkboxes, buttons, validation rerenders, keyboard focus, mouse
+clicks, terminal resizing, and cleanup are handled by TeML. See
+[`examples/settings-app.mjs`](examples/settings-app.mjs) for a complete app.
 
 ## Documentation
 

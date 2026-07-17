@@ -1,86 +1,83 @@
-# Convert your first page in 5 minutes
+# Your first terminal document in 5 minutes
 
-This tutorial takes you from zero to a readable terminal view of a real documentation page.
+This tutorial uses the prebuilt GitHub Release. You do not need to clone or
+build the repository.
 
 ## 1. Install (1 min)
 
-```bash
-npm install -g teml
-# or without installing:
-npx teml --version
-```
-
-From source in this repo:
+Requires Node 20 or newer:
 
 ```bash
-npm install
-npm run build
-node dist/cli/main.js --version
+npm install --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+teml --version
 ```
 
-## 2. View the kitchen sink (30 sec)
+## 2. See TeML immediately (30 sec)
 
 ```bash
-teml examples/demo.teml
+teml demo
 ```
 
-You should see a deploy report with cards, alerts, a KV block, and a table. Pipe to a file to verify plain output:
+The built-in showcase needs no file or network connection. It demonstrates
+cards, alerts, key/value summaries, tables, roles, and width-aware layout.
+
+Try the fallback behavior used by logs and pipelines:
 
 ```bash
-teml examples/demo.teml --no-color > /tmp/demo.txt
+teml demo --ascii --no-color
 ```
 
-## 3. Convert HTML → TeML (1 min)
+## 3. Render HTML (1 min)
+
+Create a small status page:
 
 ```bash
-teml convert examples/demo.html --to teml > /tmp/demo-from-html.teml
-teml /tmp/demo-from-html.teml --width 100
+cat > /tmp/status.html <<'HTML'
+<h1>Deploy status</h1>
+<div class="alert alert-success">Production is healthy.</div>
+<div data-teml="metric" data-label="Availability" data-value="99.99%"></div>
+HTML
+
+teml /tmp/status.html
 ```
 
-Bootstrap-style cards and alerts map automatically with the default profile.
+TeML maps semantic HTML and supported Bootstrap-style classes into terminal
+layout. Scripts, unsafe links, and control characters are neutralized.
 
-## 4. Convert Markdown (1 min)
+## 4. Convert instead of render (1 min)
 
 ```bash
-teml convert examples/demo.md --from markdown --to teml
-teml view examples/demo.md --width 80
+teml convert /tmp/status.html --to teml > /tmp/status.teml
+teml convert /tmp/status.html --to speech
+teml inspect /tmp/status.html --tokens
 ```
 
-Markdown views directly without an intermediate file.
+`convert` supports TeML, Markdown, plain text, semantic speech text, and the
+normalized JSON AST.
 
-## 5. Save a doc site page offline (1 min)
-
-Save any documentation HTML locally (browser → Save Page, or `curl` once), then:
+## 5. Open the Reader (1 min)
 
 ```bash
-teml view ./saved-page.html --width 100 --no-color | less
+teml read /tmp/status.teml
 ```
 
-Try the bundled real-page fixtures:
+Use arrow keys or `j`/`k` to scroll, `/` to search, `t` for the table of
+contents, `?` for complete help, and `q` to quit. Reader requires a real
+terminal.
+
+## Useful help
 
 ```bash
-teml view fixtures/html/04-realpage.html --width 80
-teml view fixtures/html/20-mdn-excerpt.html --width 80
+teml --help
+teml help view
+teml help read
+teml help convert
+teml help run
 ```
-
-## 6. Inspect and debug (30 sec)
-
-```bash
-teml inspect examples/demo.teml --tokens | head
-teml view examples/demo.teml --debug
-```
-
-## Checklist
-
-- [ ] `teml --version` prints `1.x`
-- [ ] Kitchen sink renders with borders and colors (or plain with `--no-color`)
-- [ ] HTML convert emits `:::card` / alert directives
-- [ ] Markdown file views without errors
-- [ ] Saved HTML page is readable at width 80–120
 
 ## Next steps
 
-- Read [spec.md](./spec.md) for directive syntax
-- Read [cli.md](./cli.md) for all flags
-- Read [theming.md](./theming.md) to customize colors
-- Run `npm test` in the repo for the full fixture corpus
+- Read [spec.md](./spec.md) for TeML syntax
+- Read [cli.md](./cli.md) for every command and flag
+- Read [interactive-protocol.md](./interactive-protocol.md) to build CLI apps
+- Read [theming.md](./theming.md) to customize terminal output

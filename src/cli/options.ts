@@ -47,14 +47,35 @@ export function parseWidth(value: string): number {
   return n;
 }
 
-/** Attach input/output and layout flags shared by view, convert, inspect, render. */
-export function addSharedOptions(cmd: Command): Command {
+export type SharedOptionConfig = {
+  /** Input format/profile/base/link options. Default: true. */
+  input?: boolean;
+  /** The convert-only --to option. Default: false. */
+  output?: boolean;
+};
+
+/** Attach the relevant input/output and layout flags to one command. */
+export function addSharedOptions(cmd: Command, config: SharedOptionConfig = {}): Command {
+  const includeInput = config.input ?? true;
   cmd.exitOverride();
+  cmd.configureOutput({
+    outputError: (message, write) => write(`teml: ${message}`),
+  });
+  if (includeInput) {
+    cmd
+      .option("--from <format>", "input format: teml, markdown, html", parseInputFormat)
+      .option("--profile <name|path>", "HTML profile (bootstrap or path to JSON)")
+      .option("--base <url|path>", "base URL or directory for relative links")
+      .option("--allow-file-links", "allow file: scheme links");
+  }
+  if (config.output) {
+    cmd.option(
+      "--to <format>",
+      "output format: teml, markdown, text, speech, json",
+      parseOutputFormat,
+    );
+  }
   cmd
-    .option("--from <format>", "input format: teml, markdown, html", parseInputFormat)
-    .option("--to <format>", "output format: teml, markdown, text, speech, json", parseOutputFormat)
-    .option("--profile <name|path>", "HTML profile (bootstrap or path to JSON)")
-    .option("--base <url|path>", "base URL or directory for relative links")
     .option("--width <n>", "layout width in columns", parseWidth)
     .option("--theme <name|path>", "theme: dark, light, mono, auto, or path to JSON")
     .option("--no-color", "disable ANSI colors")
@@ -63,7 +84,6 @@ export function addSharedOptions(cmd: Command): Command {
     .option("--ambiguous-wide", "treat ambiguous-width Unicode as wide (2 cells)")
     .option("--wrap-code", "wrap code block lines instead of truncating")
     .option("--show-urls", "always show link URLs in visible text")
-    .option("--allow-file-links", "allow file: scheme links")
     .option("--debug", "print stage timings to stderr");
   // Commander initializes a negated option such as --no-color to `true`.
   // Preserve `undefined` as the auto-detect state; explicit --color/--no-color

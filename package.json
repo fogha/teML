@@ -1,6 +1,6 @@
 {
   "name": "teml",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Terminal Markup Language — semantic documents for terminals",
   "keywords": [
     "terminal",
@@ -26,7 +26,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "teml": "./dist/cli/main.js"
+    "teml": "dist/cli/main.js"
   },
   "files": [
     "dist/",
@@ -46,9 +46,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc && node scripts/copy-assets.mjs",
+    "clean": "node scripts/clean.mjs",
+    "build": "npm run clean && tsc && node scripts/copy-assets.mjs",
     "prepublishOnly": "npm run build && npm test",
-    "test": "vitest run && vitest run --config vitest.perf.config.ts",
+    "test": "vitest run",
+    "test:all": "npm test && npm run test:perf",
     "test:watch": "vitest",
     "test:perf": "vitest run --config vitest.perf.config.ts",
     "lint": "eslint .",
@@ -56,6 +58,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "pack:verify": "node scripts/pack-verify.mjs",
+    "release:pack": "npm run build && node scripts/release-pack.mjs",
     "dev": "tsx src/cli/main.ts",
     "dev:demo": "tsx examples/hardcoded.ts",
     "demo": "node dist/cli/main.js examples/demo.teml",
@@ -90,5 +93,10 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.64.0",
     "vitest": "^3.2.0"
+  },
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
   }
 }

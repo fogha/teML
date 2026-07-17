@@ -38,6 +38,13 @@ test("default command: teml FILE behaves as view", () => {
   expect(out).toMatch(/kitchen sink/i);
 });
 
+test("demo renders the bundled showcase without an input file", () => {
+  const r = run(["demo", "--width", "80", "--no-color"]);
+  expect(r.status).toBe(0);
+  expect(r.stdout).toMatch(/deploy report/i);
+  expect(r.stderr).toBe("");
+});
+
 test("redirect stdout has zero ESC bytes", () => {
   const out = execFileSync("node", [CLI, FIXTURE, "--width", "80"], {
     encoding: "utf8",
@@ -79,6 +86,8 @@ test("missing file exits 1 with stderr message and empty stdout", () => {
 test("bad flag exits 2", () => {
   const r = run(["view", FIXTURE, "--not-a-flag"]);
   expect(r.status).toBe(2);
+  expect(r.stderr).toContain("teml: error: unknown option");
+  expect(r.stderr).not.toContain("error: error:");
 });
 
 test("stdin pipe renders html", () => {

@@ -27,4 +27,36 @@ jobs:
       - run: npm run format:check
       - run: npm run build
       - run: npm test
+
+  performance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:perf
+        env:
+          # GitHub-hosted runners are shared and slower than the <100ms local
+          # target. This still catches large regressions without flaky CI.
+          TEML_PARSE_PERF_BUDGET_MS: "200"
+
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
       - run: npm run pack:verify

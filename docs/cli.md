@@ -1,13 +1,22 @@
 # TeML CLI reference
 
-Install: `npm install teml` or run with `npx teml`.
+Install the prebuilt package from the latest GitHub Release:
 
-Build from source: `npm run build` then `node dist/cli/main.js`.
+```bash
+npm install --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+```
+
+This downloads the packaged runtime only, not the repository or development
+dependencies. Requires Node 20 or newer.
+
+After installation, `teml --help` gives an overview and
+`teml help <command>` gives detailed behavior and examples for one command.
 
 ## Commands
 
 | Command | Description |
 | --- | --- |
+| `teml demo` | Render the built-in showcase; no input file or network needed |
 | `teml [file]` | Default: same as `view` |
 | `teml view [file]` | One-shot render to stdout (ANSI when capable; pipe-safe) |
 | `teml read <file\|directory>` | Full-screen Reader: scroll, links, search, TOC, and confined file browsing (TTY required) |
@@ -80,11 +89,14 @@ See [reader.md](reader.md) for the complete keymap and security behavior.
 ## Examples
 
 ```bash
+# Verify the installation with the built-in showcase
+teml demo
+
 # View TeML (default command)
-teml examples/demo.teml
+teml report.teml
 
 # Full-screen Reader
-teml read examples/demo.teml
+teml read README.md
 teml read docs/
 
 # Service command-center demo (TeML + synchronized HTML)

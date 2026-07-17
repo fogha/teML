@@ -12,6 +12,10 @@ import { ReaderSession } from "../../src/reader/session.js";
 import { diffFrames, type ScreenFrame } from "../../src/render/screen.js";
 
 const CLI = join(process.cwd(), "dist/cli/main.js");
+const parsePerfBudgetMs = (() => {
+  const configured = Number(process.env.TEML_PARSE_PERF_BUDGET_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : 100;
+})();
 
 function buildLargeSource(blocks: number): string {
   const parts: string[] = ["---\ntitle: Perf\n---\n\n"];
@@ -69,7 +73,7 @@ test("1000-block layout+render median < 100ms", () => {
   expect(median).toBeLessThan(100);
 });
 
-test("1000-block parse+layout+render median < 100ms", () => {
+test(`1000-block parse+layout+render median < ${parsePerfBudgetMs}ms`, () => {
   const source = buildLargeSource(1000);
   for (let w = 0; w < 2; w++) {
     normalize(parseTeml(source, new Diagnostics()));
@@ -98,7 +102,7 @@ test("1000-block parse+layout+render median < 100ms", () => {
   samples.sort((a, b) => a - b);
   const median = samples[Math.floor(samples.length / 2)]!;
   console.log(`perf: 1000-block parse+layout+render median=${median.toFixed(2)}ms`);
-  expect(median).toBeLessThan(100);
+  expect(median).toBeLessThan(parsePerfBudgetMs);
 });
 
 test("CLI --version adds < 15ms over host Node startup", () => {

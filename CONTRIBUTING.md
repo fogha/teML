@@ -19,7 +19,8 @@ and Windows).
 
 ```bash
 npm run build          # tsc + copy non-TS assets (themes, HTML profiles, docs) into dist/
-npm test                # vitest (functional + fixtures) then the perf suite
+npm test                # functional, fixture, CLI, and security tests
+npm run test:all        # functional tests followed by local performance targets
 npm run test:watch      # vitest in watch mode, functional tests only
 npm run test:perf       # perf/benchmark gates only
 npm run lint            # eslint .

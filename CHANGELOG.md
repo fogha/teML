@@ -1,10 +1,10 @@
 # Changelog
 
-All notable changes to this project are documented in this file. Nothing has
-been published to npm yet, so entries are grouped by development milestone
-rather than by released version.
+All notable changes to this project are documented in this file. Public
+versioning starts at 0.1.0; the v1.0 and v1.5 labels below are earlier internal
+development milestones, not published package versions.
 
-## Unreleased — Production readiness cleanup
+## v0.1.0 — Initial public preview (2026-07-17)
 
 - Added `LICENSE` (MIT) and package metadata (`author`, `keywords`,
   `prepublishOnly`) so the package is ready for a real `npm publish` when
@@ -19,13 +19,16 @@ rather than by released version.
   Prettier, wired up as `lint`, `lint:fix`, `format`, and `format:check`
   scripts; fixed everything both tools flagged across `src/`, `tests/`,
   `scripts/`, and `examples/`.
-- CI now runs on Windows in addition to Ubuntu and macOS, and every job runs
-  lint, format-check, and `pack:verify` in addition to the build/test steps
-  that already existed.
+- CI now runs functional tests on Windows, Ubuntu, and macOS; package and
+  performance verification run as dedicated Linux jobs.
 - Added this changelog and `CONTRIBUTING.md` (dev setup, test layout, code
   style, PR expectations); reframed the README's quick start so the first
   thing a stranger sees works today (clone + build) rather than assuming an
   npm publish that hasn't happened yet.
+- Added a prebuilt `teml.tgz` GitHub Release artifact, a built-in `teml demo`,
+  detailed root/subcommand help, and GitHub-only installation docs.
+- Running `teml` with no arguments in an interactive terminal now shows help
+  instead of silently waiting for stdin; piped stdin behavior is unchanged.
 
 ## v1.5 — Reader, shared terminal client, and security hardening
 
