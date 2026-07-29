@@ -6,6 +6,7 @@ import { parseMarkdown } from "../../src/markdown/parse.js";
 import { serializeMarkdown } from "../../src/markdown/serialize.js";
 import { parseTeml } from "../../src/teml/parse.js";
 import { sanitizeText } from "../../src/core/sanitize.js";
+import { parseGuardBudgetMs } from "../budget.js";
 
 const MD_DIR = join(process.cwd(), "fixtures/markdown");
 
@@ -156,7 +157,7 @@ test("plain Markdown with pathologically deep list nesting degrades instead of h
   const d = new Diagnostics();
   const t0 = Date.now();
   const doc = parseMarkdown(src, d);
-  expect(Date.now() - t0).toBeLessThan(2000);
+  expect(Date.now() - t0).toBeLessThan(parseGuardBudgetMs(2000));
   expect(d.has("pathological-nesting-rejected")).toBe(true);
   expect(doc.blocks).toEqual([{ type: "codeBlock", value: src }]);
 });

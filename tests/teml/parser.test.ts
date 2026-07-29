@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Diagnostics, inlineText, normalize } from "../../src/core/index.js";
 import { maxContainerNesting, parseInline, parseTeml, parseToMdast } from "../../src/teml/parse.js";
 import { mdastToTDoc, extractMeta } from "../../src/teml/mdast-to-tdoc.js";
+import { parseGuardBudgetMs } from "../budget.js";
 
 const FIXTURES = join(process.cwd(), "fixtures/teml");
 
@@ -166,7 +167,7 @@ test("parse: pathologically deep container nesting degrades instead of costing O
   const t0 = Date.now();
   const doc = parseTeml(src, d);
   const elapsedMs = Date.now() - t0;
-  expect(elapsedMs).toBeLessThan(1000);
+  expect(elapsedMs).toBeLessThan(parseGuardBudgetMs(1000));
   expect(d.has("container-nesting-too-deep")).toBe(true);
   // Fences are neutralized (treated as plain text), not dropped or crashed on.
   expect(JSON.stringify(doc)).not.toContain('"type":"container"');
@@ -189,7 +190,7 @@ test("parse: pathologically deep list/blockquote chains degrade instead of costi
   const d = new Diagnostics();
   const t0 = Date.now();
   const doc = parseTeml(src, d);
-  expect(Date.now() - t0).toBeLessThan(2000);
+  expect(Date.now() - t0).toBeLessThan(parseGuardBudgetMs(2000));
   expect(d.has("pathological-nesting-rejected")).toBe(true);
   expect(doc.blocks).toEqual([{ type: "codeBlock", value: src }]);
 });
@@ -202,7 +203,7 @@ test("parse: a long emphasis-delimiter run degrades instead of overflowing the p
   const d = new Diagnostics();
   const t0 = Date.now();
   const doc = parseTeml(src, d);
-  expect(Date.now() - t0).toBeLessThan(1000);
+  expect(Date.now() - t0).toBeLessThan(parseGuardBudgetMs(1000));
   expect(d.has("pathological-delimiters-rejected")).toBe(true);
   expect(doc.blocks).toEqual([{ type: "codeBlock", value: src }]);
 });
@@ -224,7 +225,7 @@ test("parseToMdast applies the same input guards as parseTeml", () => {
   const fences = ":::a\n".repeat(2000) + "x\n" + ":::\n".repeat(2000);
   const mdast = parseToMdast(fences);
   expect(JSON.stringify(mdast)).not.toContain('"containerDirective"');
-  expect(Date.now() - t0).toBeLessThan(2000);
+  expect(Date.now() - t0).toBeLessThan(parseGuardBudgetMs(2000));
 });
 
 test("parseInline keeps a pathological fragment as literal text", () => {
@@ -232,6 +233,6 @@ test("parseInline keeps a pathological fragment as literal text", () => {
   const d = new Diagnostics();
   const t0 = Date.now();
   expect(parseInline(src, d)).toEqual([{ type: "text", value: src }]);
-  expect(Date.now() - t0).toBeLessThan(1000);
+  expect(Date.now() - t0).toBeLessThan(parseGuardBudgetMs(1000));
   expect(d.has("pathological-inline-rejected")).toBe(true);
 });

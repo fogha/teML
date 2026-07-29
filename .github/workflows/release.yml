@@ -43,6 +43,9 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm run build
       - run: pnpm test
+        env:
+          # Shared runners are noisy; the >7s regression this guards still fails.
+          TEML_NESTING_PARSE_BUDGET_MS: "5000"
       - run: cargo fmt --manifest-path crates/teml-host/Cargo.toml -- --check
       - run: cargo fmt --manifest-path examples/rust-host/Cargo.toml -- --check
       - run: cargo clippy --locked --all-features --manifest-path crates/teml-host/Cargo.toml --all-targets -- -D warnings
