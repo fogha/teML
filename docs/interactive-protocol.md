@@ -851,6 +851,59 @@ and
 `tests/system/interactive-journey.test.ts` for the integrated test-harness
 pattern.
 
+## The same handlers from Rust, Go, and Python
+
+Everything above describes the wire. Writing to it directly means hand-rolling
+the loop in section [Starting a session](#starting-a-session), which is identical
+boilerplate in every application. The Rust, Go, and Python host libraries
+therefore ship a driver with the same handler contract as `runInteractiveApp`, so
+the loop lives in the library and application code contains only decisions:
+
+```rust
+// Rust — crates/teml-host
+impl App for Form {
+    fn on_click(&mut self, id: &str, values: &Values, ctx: &mut Context<'_>) {
+        if id == "submit" { ctx.exit(); }
+    }
+}
+teml_host::run(SessionOptions::for_terminal("view.html")?, &mut Form::default())?;
+```
+
+```go
+// Go — hosts/go/app
+values, err := app.Run(opts, app.Handlers{
+    OnClick: func(id string, values app.Values, ctx *app.Context) {
+        if id == "submit" { ctx.Exit() }
+    },
+})
+```
+
+```python
+# Python — hosts/python
+def on_click(widget_id: str, values: dict[str, str], ctx: Context) -> None:
+    if widget_id == "submit":
+        ctx.exit()
+
+values = run("view.html", on_click=on_click)
+```
+
+Each driver spawns the engine, negotiates frames, holds raw mode, paints every
+frame, restores the terminal even on failure, and returns the final widget values.
+The four handlers (`change`, `toggle`, `click`, `error`) and the six context
+actions (`exit`, `render`, `replace`, `append`, `remove`, `values`) are the same in
+all four hosts, deliberately: the contract is what lets one document be the
+interface for a program in any language. Handler requests are queued and sent
+after the handler returns, never interleaved with the event stream being
+dispatched. `values` accumulates from `change`/`toggle`, and a `click` payload is
+the engine's authoritative snapshot.
+
+The three example applications (`examples/rust-host/`,
+`hosts/go/examples/incident-handoff/`, `hosts/python/examples/incident_handoff/`)
+are the same program in three languages, and their `view.html` files are
+byte-identical — verifiable with `shasum -a 256`. Porting the driver to a new
+language is specified in
+[docs/host-porting-playbook.md](host-porting-playbook.md).
+
 ## Implementation reference
 
 | Concern                                                               | Module                                                          |
@@ -868,3 +921,6 @@ pattern.
 | Rust reference host + equivalence tests                               | `examples/rust-host/`                                           |
 | In-process Node host (`runInteractiveApp`)                            | `src/interactive/host.ts`                                       |
 | Example app built on `runInteractiveApp`                              | `examples/settings-app.mjs`                                     |
+| Rust handler driver (`run`, `App`, `Context`)                         | `crates/teml-host/src/app.rs`                                   |
+| Go handler driver (`Run`, `Handlers`, `Context`)                      | `hosts/go/app/app.go`                                           |
+| Python handler driver (`run`, `Context`)                              | `hosts/python/src/teml_host/app.py`                             |

@@ -42,6 +42,16 @@ impl SessionOptions {
         }
     }
 
+    /// Like [`SessionOptions::new`], with dimensions read from the current
+    /// terminal, so an application does not need its own terminal dependency
+    /// just to seed the first frame.
+    #[cfg(feature = "terminal")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "terminal")))]
+    pub fn for_terminal(document: impl Into<PathBuf>) -> std::io::Result<Self> {
+        let (width, height) = crossterm::terminal::size()?;
+        Ok(Self::new(document, width, height))
+    }
+
     /// Populate default monorepo package script search paths from a manifest dir.
     pub fn with_default_package_scripts(mut self, manifest_dir: &Path) -> Self {
         self.engine.package_scripts = default_package_scripts(manifest_dir);

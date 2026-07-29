@@ -17,153 +17,54 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fogha/teml/hosts/go/engine"
+	"github.com/fogha/teml/hosts/go/app"
 	"github.com/fogha/teml/hosts/go/protocol"
-	"github.com/fogha/teml/hosts/go/screen"
-	"github.com/fogha/teml/hosts/go/terminal"
 )
 
 func main() {
-	if !terminal.IsTerminal() {
-		fmt.Fprintln(os.Stderr, "incident-handoff needs a real terminal — run it directly, not piped.")
-		os.Exit(1)
-	}
-
-	width, height, err := terminal.Size()
+	viewPath := viewHTMLPath()
+	opts, err := app.ForTerminal(viewPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	viewPath := viewHTMLPath()
-	session, err := engine.Spawn(engine.SpawnOptions{
-		ViewPath: viewPath,
-		Width:    width,
-		Height:   height,
-		Frames:   protocol.FrameANSI,
-		Mode:     protocol.FramePatches,
+	var outcome string
+	_, err = app.Run(opts, app.Handlers{
+		OnClick: func(id string, values app.Values, ctx *app.Context) {
+			switch id {
+			case "cancel":
+				outcome = "Cancelled — no incident handoff sent."
+				ctx.Exit()
+			case "submit":
+				if err := validate(values); err != nil {
+					markup, readErr := screenHTML(viewPath, err.Error())
+					if readErr != nil {
+						fmt.Fprintln(os.Stderr, readErr)
+						outcome = "Render error."
+						ctx.Exit()
+						return
+					}
+					ctx.Render(markup, protocol.DocHTML)
+				} else {
+					outcome = formatSuccess(values)
+					ctx.Exit()
+				}
+			}
+		},
+		OnError: func(message string, _ *app.Context) {
+			fmt.Fprintf(os.Stderr, "\r\n[teml] %s\r\n", message)
+		},
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	defer session.Close()
-	fmt.Fprintln(os.Stderr, session.Engine.Diagnostics())
 
-	firstFrame, err := session.InitialFrame()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	supportsScroll := false
-	for _, cap := range firstFrame.Capabilities {
-		if cap == string(protocol.CapScroll) {
-			supportsScroll = true
-			break
-		}
-	}
-
-	buf := screen.NewBuffer(screen.PreferredANSI)
-	if err := buf.Apply(firstFrame); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	raw, err := terminal.EnterRaw()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	defer raw.Close()
-	if err := terminal.EnableMouseCapture(os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	if err := terminal.Paint(os.Stdout, buf); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	reader := terminal.NewReader(os.Stdin)
-	var done string
-	for done == "" {
-		cmd, err := reader.ReadCommand()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			break
-		}
-		if cmd == nil {
-			continue
-		}
-		if cmd.Type == "exit" {
-			break
-		}
-		if cmd.Type == "scroll" {
-			mapped := terminal.MapScroll(cmd.ScrollRows, supportsScroll)
-			cmd = &mapped
-		}
-		if err := session.Send(*cmd); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			break
-		}
-
-		for {
-			ev, err := session.Next()
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				done = "Session ended unexpectedly."
-				break
-			}
-			switch ev.Type {
-			case "frame":
-				if err := buf.Apply(ev); err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					done = "Frame error."
-					break
-				}
-				if err := terminal.Paint(os.Stdout, buf); err != nil {
-					fmt.Fprintln(os.Stderr, err)
-					done = "Paint error."
-				}
-				if done == "" {
-					goto nextInput
-				}
-			case "click":
-				switch ev.ID {
-				case "cancel":
-					done = "Cancelled — no incident handoff sent."
-					_ = session.Send(protocol.Exit())
-				case "submit":
-					if err := validate(ev.Values); err != nil {
-						markup, err := screenHTML(viewPath, err.Error())
-						if err != nil {
-							fmt.Fprintln(os.Stderr, err)
-							done = "Render error."
-							break
-						}
-						if err := session.Send(protocol.Render(markup, protocol.DocHTML)); err != nil {
-							fmt.Fprintln(os.Stderr, err)
-							done = "Send error."
-						}
-					} else {
-						done = formatSuccess(ev.Values)
-						_ = session.Send(protocol.Exit())
-					}
-				}
-			case "error":
-				fmt.Fprintf(os.Stderr, "\r\n[teml] %s\r\n", ev.Message)
-			case "exit":
-				goto finished
-			}
-			if done != "" {
-				break
-			}
-		}
-	nextInput:
-	}
-finished:
-	if done != "" {
-		fmt.Println(done)
+	if outcome != "" {
+		fmt.Println(outcome)
+	} else {
+		fmt.Println("Session ended without submission.")
 	}
 }
 

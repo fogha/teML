@@ -7,9 +7,12 @@
 //! - [`Session`] spawns and speaks NDJSON with a TeML engine subprocess
 //! - [`ScreenBuffer`] reconstructs full and patch frames on the host side
 //! - [`paint`] and optional [`terminal`] helpers repaint a real TTY safely
+//! - [`app::run`] drives the whole loop for applications that only want to
+//!   handle semantic events
 //!
-//! The application owns the event loop; this crate does not embed a widget
-//! framework.
+//! An application can own the event loop, or hand it to [`app::run`] and
+//! implement [`app::App`]. This crate does not embed a widget framework either
+//! way: the document is the interface.
 
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -19,6 +22,10 @@ pub mod paint;
 pub mod protocol;
 pub mod screen;
 pub mod session;
+
+#[cfg(feature = "terminal")]
+#[cfg_attr(docsrs, doc(cfg(feature = "terminal")))]
+pub mod app;
 
 #[cfg(feature = "terminal")]
 #[cfg_attr(docsrs, doc(cfg(feature = "terminal")))]
@@ -40,6 +47,9 @@ pub use protocol::{
 };
 pub use screen::{PreferredFrame, ScreenBuffer, ScrollRegion, Viewport};
 pub use session::{Session, SessionError, SessionOptions};
+
+#[cfg(feature = "terminal")]
+pub use app::{run, run_headless, App, Context, Values};
 
 #[cfg(feature = "terminal")]
 pub use terminal::{paint_terminal, CrosstermEvents, TermGuard, TerminalEvents, TerminalInput};

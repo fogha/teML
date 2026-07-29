@@ -16,14 +16,57 @@ PyPI name.
 POSIX terminal helpers (`termios` / `tty`) are production-ready. Windows console
 support is **experimental** and not covered by integration tests.
 
-## Install (editable)
+## Install
+
+```sh
+python -m pip install teml-host
+```
+
+This is the host library only; it drives a TeML engine that it locates at runtime
+(see [Engine discovery](#engine-discovery)). For local development against this
+repository, install it editable instead:
 
 ```sh
 cd hosts/python
 python -m pip install -e ".[dev]"
 ```
 
-## Quick start (headless contract)
+## Quick start
+
+Supply handlers and let the package own the loop, the terminal, and painting:
+
+```python
+from teml_host import Context, run
+
+def on_click(widget_id: str, values: dict[str, str], ctx: Context) -> None:
+    if widget_id == "submit":
+        ctx.exit()
+
+values = run("view.html", on_click=on_click)
+```
+
+`run` spawns the engine, holds raw mode for the session, paints every frame, and
+returns the final widget values once a handler calls `ctx.exit()`, the user
+presses Ctrl+C, or the engine ends the session. Terminal state is restored even
+if the loop raises. Terminal dimensions are read for you unless you pass
+`width`/`height`.
+
+Handlers can also mutate the document: `ctx.render()` swaps the whole view, while
+`ctx.replace()`/`ctx.append()`/`ctx.remove()` target one addressable container.
+Requests are queued and sent once the handler returns, so a handler never
+interleaves commands with the event stream it is being dispatched from.
+`run_headless` is the same loop with an injected event source and no painting,
+for tests.
+
+The `on_change`/`on_toggle`/`on_click`/`on_error` contract and these context
+actions match the Node, Rust, and Go hosts, so one view behaves the same way
+whichever language drives it — `examples/incident_handoff/view.html` is
+byte-identical to the Rust and Go example views.
+
+## Session API (headless contract)
+
+For applications that need unusual control, the lower-level session is public and
+you can own the loop yourself:
 
 ```python
 from teml_host import Session, PreferredFrame, ScreenBuffer, CharCommand

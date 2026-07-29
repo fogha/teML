@@ -6,6 +6,7 @@ Framework-neutral Go bindings for driving [`teml run`](../../docs/interactive-pr
 
 | Package | Responsibility |
 |---------|----------------|
+| [`app`](app/) | `Run`/`RunHeadless` loop driver, `Handlers`, `Context` actions |
 | [`protocol`](protocol/) | Typed commands, events, wire limits (`update` and document mutations) |
 | [`ndjson`](ndjson/) | 8 MiB-safe line splitting |
 | [`screen`](screen/) | Full/patch frame reconstruction |
@@ -25,6 +26,15 @@ Discovery order (first match wins):
 
 `ResolvedEngine.Diagnostics()` records program, path, source, and `--version`. Missing engines return an error; contract tests **fail** instead of skipping.
 
+## Install
+
+```sh
+go get github.com/fogha/teml/hosts/go
+```
+
+This is the host library only; it drives a TeML engine that it locates at runtime
+(see [Engine resolution](#engine-resolution)).
+
 ## Quick start
 
 Build the Node engine from the repo root, then run the incident-handoff example:
@@ -43,7 +53,46 @@ export TEML_CLI=/path/to/dist/cli/main.js
 go test ./...
 ```
 
+## Handler API (`app`)
+
+Supply handlers and let the package own the loop, the terminal, and painting:
+
+```go
+opts, err := app.ForTerminal("view.html")
+if err != nil {
+    return err
+}
+
+values, err := app.Run(opts, app.Handlers{
+    OnClick: func(id string, values app.Values, ctx *app.Context) {
+        if id == "submit" {
+            ctx.Exit()
+        }
+    },
+})
+```
+
+`Run` spawns the engine, holds raw mode for the session, paints every frame, and
+returns the final widget values once a handler calls `ctx.Exit()`, the user
+presses Ctrl+C, or the engine ends the session. Terminal state is restored even
+if the loop fails.
+
+Handlers can also mutate the document: `ctx.Render` swaps the whole view, while
+`ctx.Replace`/`ctx.Append`/`ctx.Remove` target one addressable container.
+Requests are queued and sent once the handler returns, so a handler never
+interleaves commands with the event stream it is being dispatched from.
+`RunHeadless` is the same loop with an injected command source and no painting,
+for tests.
+
+The `OnChange`/`OnToggle`/`OnClick`/`OnError` contract and these context actions
+match the Node, Rust, and Python hosts, so one view behaves the same way
+whichever language drives it — `examples/incident-handoff/view.html` is
+byte-identical to the Rust and Python example views.
+
 ## Session API
+
+For applications that need unusual control, the lower-level session is public
+and you can own the loop yourself:
 
 ```go
 session, err := engine.Spawn(engine.SpawnOptions{

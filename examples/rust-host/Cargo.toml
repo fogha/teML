@@ -8,4 +8,3 @@ publish = false
 
 [dependencies]
 teml-host = { path = "../../crates/teml-host" }
-crossterm = "0.28"

@@ -4,6 +4,32 @@ All notable changes to this project are documented in this file. Public
 versioning starts at 0.1.0; the v1.0 and v1.5 labels below are earlier internal
 development milestones, not published package versions.
 
+## Unreleased
+
+- Added a handler-style driver to the Rust, Go, and Python host libraries, so an
+  application supplies `on_change`/`on_toggle`/`on_click`/`on_error` handlers
+  instead of hand-writing the NDJSON event loop. `teml_host::run`,
+  `app.Run`, and `teml_host.run` each spawn the engine, hold raw mode, paint every
+  frame, restore the terminal even on failure, and return the final widget values;
+  a handler acts on the session through the same six context actions the Node
+  host already exposed (`exit`, `render`, `replace`, `append`, `remove`,
+  `values`). Each library also gained a headless variant with an injected input
+  source for testing.
+
+  Only Node had this ergonomic before, which meant the polyglot hosts — the
+  reason the protocol exists — were the least pleasant way to use it. Every
+  application repeated the same loop, including a subtle exit path that had to
+  keep draining events after sending `exit`. The three example applications lost
+  roughly half their code (Rust 117 → 67, Go 190 → 96, Python 204 → 49
+  non-comment lines) and no longer contain any terminal or loop plumbing, while
+  the lower-level session stays public for applications that need unusual
+  control.
+
+- `SessionOptions::for_terminal` (Rust) and `app.ForTerminal` (Go) read the
+  terminal size, so a host application no longer needs its own terminal
+  dependency just to seed the first frame; the Rust example dropped its direct
+  crossterm dependency entirely.
+
 ## v0.2.1 — Windows correctness (2026-07-29)
 
 - Fixed `teml read` on Windows, where every entry of a directory listing was

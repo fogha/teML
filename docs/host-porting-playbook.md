@@ -255,6 +255,53 @@ For each user input:
 Every command except `exit` yields zero or more semantic events followed by
 exactly one `frame`. `exit` yields a bare `exit` event.
 
+### Handler driver (the surface most apps should use)
+
+The loop above is boilerplate, and a port that stops there pushes it onto every
+application. Ship a driver that owns the loop and calls application handlers, so
+app code contains only decisions. Reference implementations:
+`crates/teml-host/src/app.rs`, `hosts/go/app/app.go`,
+`hosts/python/src/teml_host/app.py`, and `src/interactive/host.ts`
+(`runInteractiveApp`).
+
+Keep the contract identical across languages — the point is that one view
+behaves the same way whichever language drives it. Four optional handlers,
+spelled for the host language:
+
+| Handler                       | Fired on                                     |
+| ----------------------------- | -------------------------------------------- |
+| `on_change(id, value, ctx)`   | `change` — input or textarea edited          |
+| `on_toggle(id, checked, ctx)` | `toggle` — checkbox flipped                  |
+| `on_click(id, values, ctx)`   | `click` — button activated                   |
+| `on_error(message, ctx)`      | `error` — recoverable protocol error         |
+
+The context exposes exactly six actions: `exit`, `render`, `replace`, `append`,
+`remove`, and `values`. Resist adding a seventh in one language only; parity is
+the feature.
+
+Required semantics:
+
+- **Queue, don't send.** Handler requests are buffered and flushed after the
+  handler returns and before the next input is read, so a handler can never
+  interleave commands with the event stream it is being dispatched from.
+- **Values.** Maintain a map: `change`/`toggle` update one key (checkboxes as
+  `"true"`/`"false"`); a `click` payload is the engine's authoritative snapshot
+  and replaces the map wholesale. Return it when the loop ends.
+- **Exit.** `exit` produces no frame. After sending it, drain trailing events
+  until the `exit` event and treat a closed pipe as an ordinary end. Also handle
+  an `exit` event the engine raises on its own.
+- **Errors.** A transport failure mid-session is a real error, not an end of
+  session. Only the post-exit drain tolerates a closed pipe.
+- **Terminal.** Restore raw mode and mouse capture even when the loop fails.
+- **Testability.** Provide a headless variant with an injected input source and
+  no painting, plus a way to read terminal size, so applications need no separate
+  terminal dependency.
+
+Cover the driver with two tests beyond the protocol scenarios: one that a
+handler-queued `render` is actually delivered (assert the next keystroke lands in
+the replacement document's widget), and one that Ctrl+C ends the session cleanly
+with no handlers registered.
+
 ## 9. Contract tests
 
 Port the shared scenarios (see `crates/teml-host/tests/session.rs` and
@@ -282,7 +329,9 @@ Run headlessly — no TTY required for protocol tests.
 
 Ship one interactive demo (account/incident handoff) that:
 
-- loads a shared `view.html`;
+- loads a shared `view.html` — byte-identical to the other hosts' example views,
+  which is the whole thesis made checkable with `shasum`;
+- drives it through the handler driver, not a hand-written loop;
 - validates on submit in host code;
 - re-renders the same view with an inline error on failure (preserve widget ids);
 - prints collected values on success.

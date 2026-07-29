@@ -1,6 +1,11 @@
-//! An interactive terminal app with an **HTML view**, a **Rust controller**,
-//! and **TeML as the terminal runtime** — the pattern from
+//! An interactive terminal app with an **HTML view**, a **Rust controller**, and
+//! **TeML as the terminal runtime** — the pattern from
 //! docs/interactive-protocol.md with Rust as the host language.
+//!
+//! The view is [`view.html`](../view.html), shared byte-for-byte with the Go and
+//! Python examples. Nothing below draws, wraps, positions, or styles anything:
+//! [`teml_host::run`] owns the terminal and the event loop, and this file only
+//! says what happens when the operator acts.
 //!
 //! Run it from this directory:
 //!
@@ -10,118 +15,57 @@
 //!
 //! TeML engine discovery is handled by the [`teml_host`] crate; see its README.
 
-use std::io::IsTerminal;
 use std::path::PathBuf;
-use teml_host::{
-    paint_terminal,
-    terminal::{CrosstermEvents, TermGuard, TerminalInput},
-    Command, DocFormat, Event, PreferredFrame, ScreenBuffer, Session, SessionOptions,
-};
+use teml_host::{App, Context, DocFormat, SessionOptions, Values};
 
 const VIEW: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/view.html");
 
+#[derive(Default)]
+struct IncidentHandoff {
+    outcome: Option<String>,
+}
+
+impl App for IncidentHandoff {
+    fn on_click(&mut self, id: &str, values: &Values, ctx: &mut Context<'_>) {
+        match id {
+            "cancel" => {
+                self.outcome = Some("Cancelled — no incident handoff sent.".into());
+                ctx.exit();
+            }
+            "submit" => match validate(values) {
+                Ok(()) => {
+                    self.outcome = Some(handoff_summary(values));
+                    ctx.exit();
+                }
+                // Re-render the same view with an alert; widget values, focus,
+                // and scroll position survive because the engine preserves them.
+                Err(message) => ctx.render(screen_html(&message), Some(DocFormat::Html)),
+            },
+            _ => {}
+        }
+    }
+
+    fn on_error(&mut self, message: &str, _ctx: &mut Context<'_>) {
+        eprintln!("\r\n[teml] {message}\r\n");
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-        eprintln!("teml-rust-host needs a real terminal — run it directly, not piped.");
-        std::process::exit(1);
-    }
-
-    let initial_size = crossterm::terminal::size()?;
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let options = SessionOptions::new(VIEW, initial_size.0, initial_size.1)
-        .with_default_package_scripts(&manifest);
-    let mut session = Session::spawn(options)?;
-    eprintln!("{}", session.engine().diagnostics());
+    let options = SessionOptions::for_terminal(VIEW)?.with_default_package_scripts(&manifest);
 
-    let first_frame = session.initial_frame()?;
-    let supports_scroll = first_frame
-        .capabilities
-        .as_deref()
-        .is_some_and(|caps| caps.iter().any(|cap| cap == "scroll"));
-    let mut screen = ScreenBuffer::new(PreferredFrame::Ansi);
-    screen.apply(&first_frame)?;
+    let mut app = IncidentHandoff::default();
+    teml_host::run(options, &mut app)?;
 
-    let guard = TermGuard::new()?;
-    paint_terminal(&screen)?;
-
-    let mut terminal_input = TerminalInput::new(initial_size, CrosstermEvents, supports_scroll);
-    let outcome = event_loop(&mut session, &mut screen, &mut terminal_input)?;
-
-    drop(guard);
-    match outcome {
-        Some(message) => println!("{message}"),
-        None => println!("Session ended without submission."),
-    }
+    println!(
+        "{}",
+        app.outcome
+            .unwrap_or_else(|| "Session ended without submission.".into())
+    );
     Ok(())
 }
 
-fn event_loop(
-    session: &mut Session,
-    screen: &mut ScreenBuffer,
-    terminal_input: &mut TerminalInput<CrosstermEvents>,
-) -> Result<Option<String>, Box<dyn std::error::Error>> {
-    let mut done: Option<String> = None;
-
-    'input: loop {
-        let Some(command) = terminal_input.next_command()? else {
-            continue 'input;
-        };
-        session.send(&command)?;
-
-        'events: loop {
-            match session.next_event()? {
-                Event::Frame(frame) => {
-                    screen.apply(&frame)?;
-                    paint_terminal(screen)?;
-                    if done.is_none() {
-                        break 'events;
-                    }
-                }
-                Event::Click { id, values } => match id.as_str() {
-                    "cancel" => {
-                        done = Some("Cancelled — no incident handoff sent.".into());
-                        session.send(&Command::Exit)?;
-                    }
-                    "submit" => match validate(&values) {
-                        Ok(()) => {
-                            done = Some(format!(
-                                "Incident handoff sent!\n  service:  {}\n  severity: {}\n  summary:  {}\n  paged:    {}",
-                                values.get("service").map(String::as_str).unwrap_or(""),
-                                values.get("severity").map(String::as_str).unwrap_or(""),
-                                values
-                                    .get("summary")
-                                    .map(String::as_str)
-                                    .unwrap_or("")
-                                    .replace('\n', " / "),
-                                if values.get("page").map(String::as_str) == Some("true") {
-                                    "yes"
-                                } else {
-                                    "no"
-                                },
-                            ));
-                            session.send(&Command::Exit)?;
-                        }
-                        Err(message) => {
-                            session.send(&Command::Render {
-                                markup: screen_html(&message),
-                                format: Some(DocFormat::Html),
-                            })?;
-                        }
-                    },
-                    _ => {}
-                },
-                Event::Error { message } => {
-                    eprintln!("\r\n[teml] {message}\r\n");
-                }
-                Event::Exit => break 'input,
-                Event::Change { .. } | Event::Toggle { .. } | Event::Unknown => {}
-            }
-        }
-    }
-    Ok(done)
-}
-
-fn validate(values: &std::collections::HashMap<String, String>) -> Result<(), String> {
+fn validate(values: &Values) -> Result<(), String> {
     let get = |key: &str| values.get(key).map(String::as_str).unwrap_or("").trim();
     if get("service").is_empty() {
         return Err("Affected service is required.".into());
@@ -130,6 +74,17 @@ fn validate(values: &std::collections::HashMap<String, String>) -> Result<(), St
         return Err("Operator summary is required.".into());
     }
     Ok(())
+}
+
+fn handoff_summary(values: &Values) -> String {
+    let get = |key: &str| values.get(key).map(String::as_str).unwrap_or("");
+    format!(
+        "Incident handoff sent!\n  service:  {}\n  severity: {}\n  summary:  {}\n  paged:    {}",
+        get("service"),
+        get("severity"),
+        get("summary").replace('\n', " / "),
+        if get("page") == "true" { "yes" } else { "no" },
+    )
 }
 
 fn screen_html(error: &str) -> String {
@@ -143,9 +98,8 @@ fn screen_html(error: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
-    fn values(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+    fn values(pairs: &[(&str, &str)]) -> Values {
         pairs
             .iter()
             .map(|(key, value)| ((*key).into(), (*value).into()))
@@ -168,6 +122,20 @@ mod tests {
             validate(&v),
             Err("Operator summary is required.".to_string())
         );
+    }
+
+    #[test]
+    fn summarizes_a_submitted_handoff() {
+        let v = values(&[
+            ("service", "api"),
+            ("severity", "sev2"),
+            ("summary", "Rollback started\nlatency recovering"),
+            ("page", "true"),
+        ]);
+        let summary = handoff_summary(&v);
+        assert!(summary.contains("severity: sev2"));
+        assert!(summary.contains("Rollback started / latency recovering"));
+        assert!(summary.contains("paged:    yes"));
     }
 
     #[test]

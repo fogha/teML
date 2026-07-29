@@ -56,7 +56,14 @@ The subprocess boundary is intentional:
 
 Host SDKs should remain thin: typed wire messages, engine discovery/spawn,
 backpressure-safe NDJSON, frame reconstruction, terminal lifecycle helpers,
-and an example. Application event loops remain application-owned.
+and an example.
+
+Thin does not mean the event loop belongs in application code. Every host also
+ships a handler driver (`run` + `on_change`/`on_toggle`/`on_click`/`on_error`,
+specified in [docs/host-porting-playbook.md](host-porting-playbook.md)) with a
+contract identical across Node, Rust, Go, and Python, because a loop each
+application rewrites is a loop each application gets subtly wrong. The
+lower-level session stays public for applications that need unusual control.
 
 ## 4. Performance and conformance
 

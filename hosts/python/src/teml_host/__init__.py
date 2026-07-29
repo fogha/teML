@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
+from teml_host.app import Context, Values, run, run_headless
 from teml_host.engine import EngineInfo, engine_invocation, is_javascript_entry, resolve_engine
 from teml_host.paint import paint
 from teml_host.screen import PreferredFrame, ScreenBuffer, ScrollRegion, Viewport
 from teml_host.session import Session, SessionError
-from teml_host.terminal import MouseGuard, TermGuard, decode_sgr_mouse, map_scroll, require_posix_tty
+from teml_host.terminal import (
+    MouseGuard,
+    PosixStdinEvents,
+    ScriptedStdinEvents,
+    TermGuard,
+    TerminalEvents,
+    TerminalInput,
+    decode_sgr_mouse,
+    map_scroll,
+    map_terminal_bytes,
+    require_posix_tty,
+    terminal_size,
+)
 from teml_host.types import (
     AppendCommand,
     ChangeEvent,
@@ -59,8 +72,11 @@ from teml_host.protocol import (
 
 __all__ = [
     "AppendCommand",
+    "Context",
     "MAX_NDJSON_LINE_BYTES",
     "MouseGuard",
+    "PosixStdinEvents",
+    "ScriptedStdinEvents",
     "ChangeEvent",
     "CharCommand",
     "ClickEvent",
@@ -94,9 +110,12 @@ __all__ = [
     "SessionError",
     "SessionEvent",
     "TermGuard",
+    "TerminalEvents",
+    "TerminalInput",
     "ToggleEvent",
     "UnknownEvent",
     "UpdateCommand",
+    "Values",
     "Viewport",
     "ViewportMeta",
     "CAPABILITY_DOCS",
@@ -115,10 +134,14 @@ __all__ = [
     "engine_invocation",
     "is_javascript_entry",
     "map_scroll",
+    "map_terminal_bytes",
     "paint",
     "parse_event",
     "require_posix_tty",
     "resolve_engine",
+    "run",
+    "run_headless",
+    "terminal_size",
 ]
 
 __version__ = "0.1.0"

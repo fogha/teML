@@ -23,6 +23,58 @@ teml-host = { version = "0.1", default-features = false }
 
 ## Quick start
 
+Implement `App` and let the crate own the loop, the terminal, and painting:
+
+```rust
+use teml_host::{App, Context, SessionOptions, Values};
+
+#[derive(Default)]
+struct Form {
+    submitted: Option<Values>,
+}
+
+impl App for Form {
+    fn on_click(&mut self, id: &str, values: &Values, ctx: &mut Context<'_>) {
+        if id == "submit" {
+            self.submitted = Some(values.clone());
+            ctx.exit();
+        }
+    }
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut form = Form::default();
+    teml_host::run(SessionOptions::for_terminal("form.teml")?, &mut form)?;
+    println!("{:?}", form.submitted);
+    Ok(())
+}
+```
+
+`run` spawns the engine, holds raw mode for the session, paints every frame, and
+returns the final widget values once a handler calls `ctx.exit()`, the user
+presses Ctrl+C, or the engine ends the session. Terminal state is restored even
+if the loop fails.
+
+Handlers can also mutate the document: `ctx.render()` swaps the whole view,
+`ctx.replace()`/`ctx.append()`/`ctx.remove()` target one addressable container.
+Requests are queued and sent once the handler returns, so a handler never
+interleaves commands with the event stream it is being dispatched from.
+`run_headless` is the same loop with an injected event source and no painting,
+for tests.
+
+The `on_change`/`on_toggle`/`on_click`/`on_error` contract and these context
+actions match the Node, Go, and Python hosts, so one view behaves the same way
+whichever language drives it.
+
+The repository example at `examples/rust-host/` ports the incident-handoff HTML
+view this way, and shares `view.html` byte-for-byte with the Go and Python
+examples.
+
+## Manual event loop
+
+`Session` and `ScreenBuffer` are public, so an application that needs unusual
+control can own the loop instead:
+
 ```rust
 use teml_host::{
     Command, Event, PreferredFrame, ScreenBuffer, Session, SessionOptions, CAPABILITY_SCROLL,
@@ -65,9 +117,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 ```
-
-The repository example at `examples/rust-host/` ports the incident-handoff HTML
-view (`view.html`) using the same pattern.
 
 ## Live progress (`update`, protocol 1.2)
 
@@ -177,6 +226,7 @@ live `update` progress ticks, and typed document mutations.
 
 | Module | Responsibility |
 | --- | --- |
+| [`app`] *(feature)* | `run`/`run_headless` loop driver, `App` handlers, `Context` actions |
 | [`protocol`] | `Command`, `Event`, `Frame`, update/mutation variants, capability constants |
 | [`session`] | `Session::spawn`, `send`, `next_event`, `next_frame`, `close` |
 | [`screen`] | Patch-applying `ScreenBuffer` + viewport/scroll metadata |
@@ -186,7 +236,8 @@ live `update` progress ticks, and typed document mutations.
 
 ## Features
 
-- `terminal` *(default)* — crossterm raw mode, mouse capture, input translation
+- `terminal` *(default)* — crossterm raw mode, mouse capture, input translation,
+  and the `app` loop driver
 
 ## License
 

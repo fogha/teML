@@ -7,6 +7,7 @@
 //   - [github.com/fogha/teml/hosts/go/protocol]: typed wire commands and events (protocol 1.3, including document mutations)
 //   - [github.com/fogha/teml/hosts/go/ndjson]: backpressure-safe line splitting with 8 MiB cap
 //   - [github.com/fogha/teml/hosts/go/screen]: full/patch frame reconstruction
+//   - [github.com/fogha/teml/hosts/go/app]: handler-driven application loop
 //   - [github.com/fogha/teml/hosts/go/engine]: engine discovery (Node scripts and native SEA binaries) and Session I/O
 //   - [github.com/fogha/teml/hosts/go/terminal]: POSIX-first raw mode, ONLCR paint, input
 //
