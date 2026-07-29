@@ -8,7 +8,9 @@ license = "MIT"
 repository = "https://github.com/fogha/teML"
 keywords = ["terminal", "teml", "tui", "ndjson"]
 categories = ["command-line-utilities"]
-include = ["src/**/*", "README.md", "LICENSE", "tests/**/*"]
+# Integration tests need a sibling monorepo view and a built engine, so they
+# cannot pass from a published crate; keep them out of the artifact.
+include = ["src/**/*", "README.md", "LICENSE"]
 
 [features]
 default = ["terminal"]

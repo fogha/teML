@@ -25,6 +25,12 @@ classifiers = [
   "Typing :: Typed",
 ]
 
+[project.urls]
+Homepage = "https://github.com/fogha/teML"
+Repository = "https://github.com/fogha/teML"
+Documentation = "https://github.com/fogha/teML/blob/main/docs/interactive-protocol.md"
+Changelog = "https://github.com/fogha/teML/blob/main/CHANGELOG.md"
+
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 

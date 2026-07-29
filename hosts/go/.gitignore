@@ -1,0 +1,3 @@
+# `go build ./examples/incident-handoff` writes the binary here.
+/incident-handoff
+*.test

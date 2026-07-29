@@ -3,16 +3,37 @@
 Build readable terminal documents and interactive CLI interfaces from **TeML**,
 **Markdown**, or semantic **HTML**.
 
-## Install from GitHub
+## Install
 
 ```bash
-pnpm add --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+npm install --global teml     # or: pnpm add --global teml
 teml --version
 ```
 
-This downloads the small prebuilt package from the latest GitHub Release—not
-the repository or development dependencies. Requires **Node ≥ 20** and
-**pnpm ≥ 10**.
+Requires **Node ≥ 20**. To pin an exact build instead, install the small prebuilt
+package attached to any GitHub Release—not the repository or its development
+dependencies:
+
+```bash
+pnpm add --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+```
+
+### Host libraries
+
+To drive a terminal interface from your own program, add the host library for your
+language. Each one speaks the same protocol to the same engine, so the same
+document works from any of them:
+
+```bash
+cargo add teml-host                              # Rust
+go get github.com/fogha/teml/hosts/go            # Go
+pip install teml-host                            # Python
+```
+
+Node programs need no extra package: `teml/interactive` exports
+`runInteractiveApp` for in-process use. A host library locates the engine
+installed above, so install `teml` too — see
+[docs/interactive-protocol.md](docs/interactive-protocol.md).
 
 ## Quick start
 
