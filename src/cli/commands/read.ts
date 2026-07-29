@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { doc, text, type TDoc } from "../../core/ast.js";
 import { Diagnostics } from "../../core/diagnostics.js";
+import { isWindowsDrivePath } from "../../core/href.js";
 import { layoutDocumentDetailed } from "../../layout/regions.js";
 import type { LayoutOpts } from "../../layout/opts.js";
 import { ReaderSession, type ReaderEffect } from "../../reader/session.js";
@@ -90,7 +91,9 @@ function directoryDocument(directory: string, root: string): TDoc {
 
 function explicitRoot(base: string): string {
   if (base.startsWith("file:")) return realpathSync(fileURLToPath(base));
-  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(base)) {
+  // The drive letter of "C:\docs" matches the scheme pattern, so it has to be
+  // excluded here or --base cannot name an absolute Windows directory.
+  if (!isWindowsDrivePath(base) && /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(base)) {
     throw new Error("teml read currently requires a filesystem --base");
   }
   return realpathSync(path.resolve(base));

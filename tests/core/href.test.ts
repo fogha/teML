@@ -1,5 +1,22 @@
 import { test, expect } from "vitest";
-import { processHref, resolveHref } from "../../src/core/href.js";
+import { isWindowsDrivePath, processHref, resolveHref } from "../../src/core/href.js";
+
+test("isWindowsDrivePath separates drive letters from one-letter URL schemes", () => {
+  expect(isWindowsDrivePath("C:\\docs\\a.teml")).toBe(true);
+  expect(isWindowsDrivePath("c:/docs/a.teml")).toBe(true);
+  // A colon with no separator is a scheme, not a drive.
+  expect(isWindowsDrivePath("c:docs")).toBe(false);
+  expect(isWindowsDrivePath("https://example.test/")).toBe(false);
+  expect(isWindowsDrivePath("mailto:a@example.test")).toBe(false);
+  expect(isWindowsDrivePath("/docs/a.teml")).toBe(false);
+  expect(isWindowsDrivePath("a.teml")).toBe(false);
+});
+
+test("document href sanitization still refuses drive-qualified local paths", () => {
+  // The Reader may open "C:\docs\a.teml" from its own directory listing, but an
+  // untrusted document must not reach the local filesystem through one.
+  expect(processHref("C:\\Windows\\System32\\config")).toBeNull();
+});
 
 test("resolveHref resolves relative paths against file base", () => {
   const base = "/docs/page.html";

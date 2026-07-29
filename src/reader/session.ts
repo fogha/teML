@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isWindowsDrivePath } from "../core/href.js";
 import type { DetailedLayout, LinkRegion } from "../layout/regions.js";
 import { nextLink } from "../layout/regions.js";
 import { renderPlain } from "../render/plain.js";
@@ -73,6 +74,20 @@ function searchRows(lines: readonly string[], query: string): number[] {
     .filter((row) => row >= 0);
 }
 
+function absoluteUrl(href: string): URL | undefined {
+  // "C:\docs\a.teml" is a filesystem path, but a drive letter is also a valid
+  // URL scheme, so new URL() parses it as one. Left to that, every Windows link
+  // target — including every entry of a directory listing — comes back rejected
+  // as "unsupported link scheme 'c:'". Fall through to path resolution instead,
+  // which still confines the target to the document root.
+  if (isWindowsDrivePath(href)) return undefined;
+  try {
+    return new URL(href);
+  } catch {
+    return undefined;
+  }
+}
+
 function withinRoot(rootPath: string, targetPath: string): boolean {
   const relative = path.relative(rootPath, targetPath);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
@@ -97,8 +112,8 @@ export function resolveReaderTarget(
   | { kind: "external"; url: string }
   | { kind: "rejected"; reason: string } {
   if (href.startsWith("#")) return { kind: "anchor", anchor: href.slice(1) };
-  try {
-    const url = new URL(href);
+  const url = absoluteUrl(href);
+  if (url) {
     if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "mailto:") {
       return { kind: "external", url: url.href };
     }
@@ -110,24 +125,23 @@ export function resolveReaderTarget(
         : { kind: "rejected", reason: "link is outside the document root" };
     }
     return { kind: "rejected", reason: `unsupported link scheme '${url.protocol}'` };
-  } catch {
-    const hashIndex = href.indexOf("#");
-    const pathname = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
-    const anchor = hashIndex >= 0 ? href.slice(hashIndex + 1) : undefined;
-    let decodedPathname: string;
-    try {
-      decodedPathname = decodeURIComponent(pathname);
-    } catch {
-      // A stray '%' or truncated escape (e.g. "notes%.md") makes
-      // decodeURIComponent throw; one malformed link must not take down the
-      // whole Reader session, so reject just this link instead.
-      return { kind: "rejected", reason: "link target has a malformed URI escape" };
-    }
-    const target = path.resolve(path.dirname(currentPath), decodedPathname);
-    return withinRoot(rootPath, target)
-      ? { kind: "local", path: target, anchor: anchor || undefined }
-      : { kind: "rejected", reason: "link is outside the document root" };
   }
+  const hashIndex = href.indexOf("#");
+  const pathname = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
+  const anchor = hashIndex >= 0 ? href.slice(hashIndex + 1) : undefined;
+  let decodedPathname: string;
+  try {
+    decodedPathname = decodeURIComponent(pathname);
+  } catch {
+    // A stray '%' or truncated escape (e.g. "notes%.md") makes
+    // decodeURIComponent throw; one malformed link must not take down the
+    // whole Reader session, so reject just this link instead.
+    return { kind: "rejected", reason: "link target has a malformed URI escape" };
+  }
+  const target = path.resolve(path.dirname(currentPath), decodedPathname);
+  return withinRoot(rootPath, target)
+    ? { kind: "local", path: target, anchor: anchor || undefined }
+    : { kind: "rejected", reason: "link is outside the document root" };
 }
 
 export class ReaderSession {

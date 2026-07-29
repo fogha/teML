@@ -10,6 +10,21 @@ function hasScheme(href: string): boolean {
   return /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(href);
 }
 
+/**
+ * True for a drive-qualified filesystem path such as `C:\docs\a.teml`.
+ *
+ * A single-letter drive prefix is also a syntactically valid URL scheme, so both
+ * `new URL()` and {@link hasScheme} read `C:` as one. Callers that accept
+ * filesystem paths have to test this first, or every Windows absolute path looks
+ * like an unsupported scheme. Requiring a separator after the colon keeps
+ * genuine one-letter schemes distinguishable. Document href sanitization
+ * deliberately does not use this: an untrusted document must not be able to
+ * address the local filesystem.
+ */
+export function isWindowsDrivePath(value: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(value);
+}
+
 function normalizeBase(base: string): string {
   const trimmed = base.trim();
   if (hasScheme(trimmed)) {
