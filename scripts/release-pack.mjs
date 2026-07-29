@@ -24,7 +24,10 @@ if (releaseTag && releaseTag !== expectedTag) {
 const destination = join(root, "teml.tgz");
 rmSync(destination, { force: true });
 
-const output = execFileSync("pnpm", ["pack", "--json", "--out", destination], {
+// execFileSync does not go through a shell, so on Windows it has to name the
+// .cmd shim explicitly or the lookup fails with ENOENT.
+const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const output = execFileSync(pnpm, ["pack", "--json", "--out", destination], {
   cwd: root,
   encoding: "utf8",
   stdio: ["ignore", "pipe", "inherit"],

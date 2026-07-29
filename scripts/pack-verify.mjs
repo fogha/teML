@@ -8,6 +8,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+// execFileSync does not go through a shell, so on Windows it has to name the
+// .cmd shim explicitly or the lookup fails with ENOENT.
+const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 function run(cmd, cwd = root) {
   return execSync(cmd, {
@@ -30,7 +33,7 @@ mkdirSync(proj);
 try {
   console.log("pack-verify: creating tarball…");
   const packed = JSON.parse(
-    execFileSync("pnpm", ["pack", "--json", "--out", tgzPath], {
+    execFileSync(pnpm, ["pack", "--json", "--out", tgzPath], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
