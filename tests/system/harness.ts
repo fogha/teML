@@ -139,6 +139,21 @@ export function replayFrames(
 
 export { applyFrame, createFrameState, frameText };
 
+/**
+ * The text a user would see, with SGR styling and cursor control removed.
+ *
+ * Styled output splits a heading into one escape-wrapped span per word, so
+ * `expect(chunks).toContain("UPDATED ACCOUNT")` holds only where colour is
+ * disabled — it passes on a developer machine with NO_COLOR/FORCE_COLOR=0 and
+ * fails in CI. Assert on this instead of raw output whenever the claim is
+ * about words rather than about the escapes themselves.
+ */
+export function visibleText(text: string): string {
+  return text
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "")
+    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "");
+}
+
 export function assertNoForeignEsc(text: string): void {
   for (let index = 0; index < text.length; index++) {
     if (text[index] !== "\x1b") continue;

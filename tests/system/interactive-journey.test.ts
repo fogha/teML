@@ -19,6 +19,7 @@ import {
   runSession,
   semanticEvents,
   tick,
+  visibleText,
   type WireFrame,
 } from "./harness.js";
 
@@ -467,7 +468,9 @@ test("the in-process Node host handles callbacks, rerender, resize, submit, and 
   await tick();
   expect(changes).toEqual(["A", "Ad", "Ada"]);
   expect(toggles).toEqual([true]);
-  expect(chunks.join("")).toContain("UPDATED ACCOUNT");
+  // Styled output wraps each word in its own escape sequence, so the words
+  // have to be read from the visible text rather than the raw stream.
+  expect(visibleText(chunks.join(""))).toContain("UPDATED ACCOUNT");
 
   chunks.length = 0;
   Object.assign(output, { columns: 40, rows: 18 });
