@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.sea/
+.host-engine/
 *.tsbuildinfo
 .DS_Store
 coverage/

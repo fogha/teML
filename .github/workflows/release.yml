@@ -15,21 +15,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run build
-      - run: npm test
-      - run: npm run test:perf
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.4"
+          cache-dependency-path: hosts/go/go.sum
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: hosts/python/pyproject.toml
+
+      - run: pnpm install --frozen-lockfile
+      - run: python -m pip install -e "./hosts/python[dev]"
+      - run: pnpm run lint
+      - run: pnpm run format:check
+      - run: pnpm run build
+      - run: pnpm test
+      - run: cargo fmt --manifest-path crates/teml-host/Cargo.toml -- --check
+      - run: cargo fmt --manifest-path examples/rust-host/Cargo.toml -- --check
+      - run: cargo clippy --locked --all-features --manifest-path crates/teml-host/Cargo.toml --all-targets -- -D warnings
+      - run: cargo clippy --locked --manifest-path examples/rust-host/Cargo.toml --all-targets -- -D warnings
+      - run: cargo package --locked --manifest-path crates/teml-host/Cargo.toml
+      - run: test -z "$(gofmt -l .)"
+        working-directory: hosts/go
+      - run: go vet ./...
+        working-directory: hosts/go
+      - run: python -m compileall -q src tests examples
+        working-directory: hosts/python
+      - run: python -m pip wheel --no-deps ./hosts/python --wheel-dir /tmp/teml-python-dist
+      - run: pnpm run test:perf
         env:
+          TEML_LAYOUT_PERF_BUDGET_MS: "200"
           TEML_PARSE_PERF_BUDGET_MS: "200"
-      - run: npm run pack:verify
-      - run: npm run release:pack
+      - run: pnpm run pack:verify
+      - run: node scripts/release-pack.mjs
+      - run: pnpm run host:engine:prepare
+      - run: pnpm run test:hosts
 
       - name: Create GitHub Release
         env:

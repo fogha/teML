@@ -45,13 +45,15 @@ v1 registry:
 
 | Name | Attributes | Renders as |
 | --- | --- | --- |
-| `card` | `title` | Bordered panel with title bar |
-| `info`, `success`, `warning`, `error`, `note` | — | Alert panels with role styling |
+| `card` | `id`, `title` | Bordered panel with title bar |
+| `info`, `success`, `warning`, `error`, `note` | `id` | Alert panels with role styling |
 | `definition` | `term` | Definition list block |
-| `grid` | `columns`, `gap` | Responsive multi-column metric/card layout (1–4 columns; auto-reduces below 18-cell width) |
-| `details` | `summary`, `open` | Collapsible disclosure (`open="false"` hides body) |
-| `figure` | `caption` | Figure body with trailing caption line |
+| `grid` | `id`, `columns`, `gap` | Responsive multi-column metric/card layout (1–4 columns; auto-reduces below 18-cell width) |
+| `details` | `id`, `summary`, `open` | Collapsible disclosure (`open="false"` hides body) |
+| `figure` | `id`, `caption` | Figure body with trailing caption line |
 | `footnote` | `id` | Footnote definition block |
+| `radio` | `id`, `value` | One focusable single-choice group containing `::option` leaves |
+| `scroll` | `id`, `rows` | Focusable fixed-height region over cached static child content |
 
 Unknown containers are kept with a `unknown-directive` warning.
 
@@ -61,8 +63,8 @@ Unknown containers are kept with a `unknown-directive` warning.
 ::kv{Host="db-1" Port="5432"}
 ::image{src="https://…" alt="Diagram"}
 ::break
-::metric{label="CPU" value="72%" role="warning" change="+4%"}
-::progress{label="Disk" value="92" max="100" role="error"}
+::metric{id="cpu" label="CPU" value="72%" role="warning" change="+4%"}
+::progress{id="deploy" label="Disk" value="92" max="100" role="error"}
 ::event{time="09:15" title="Deploy finished" detail="production cluster" role="info"}
 ```
 
@@ -71,12 +73,26 @@ Unknown containers are kept with a `unknown-directive` warning.
 | `kv` | key/value pairs | Two-column key/value table |
 | `image` | `src`, `alt` | Alt placeholder or linked image text |
 | `break` | — | Thematic break |
-| `metric` | `label`, `value`, `role`, `change` | KPI label + bold value (+ optional delta) |
-| `progress` | `label`, `value`, `max`, `role` | Label, percent, and filled bar (`█`/`░` or `#`/`-`) |
+| `metric` | `id`, `label`, `value`, `role`, `change` | KPI label + bold value (+ optional delta); `id` enables live `update` |
+| `progress` | `id`, `label`, `value`, `max`, `role` | Label, percent, and filled bar (`█`/`░` or `#`/`-`); `id` enables live `update` |
 | `event` | `time`, `title`, `detail`, `role` | Timeline row with marker, time, title, wrapped detail |
 | `button` | `id`, `label` | `[ Label ]`; focusable, clickable under `teml run` |
 | `input` | `id`, `label`, `value`, `placeholder` | `Label: [value]`; focusable, editable under `teml run` |
 | `checkbox` | `id`, `label`, `checked` | `☑`/`☐` (or `[x]`/`[ ]`) + label; focusable, toggleable under `teml run` |
+| `textarea` | `id`, `label`, `value`, `placeholder`, `rows` | Fixed-height multiline editor with internal scrolling under `teml run` |
+| `option` | `value`, `label` | Radio option; meaningful only as a child of `:::radio` |
+
+Radio groups use structure, not comma-separated option strings:
+
+```markdown
+:::radio{id="plan" value="pro"}
+::option{value="free" label="Free"}
+::option{value="pro" label="Pro"}
+:::
+```
+
+Textarea attribute values encode line breaks as `\n`; parsing and
+serialization preserve them as real LF characters in the AST.
 
 ### Inline spans
 
@@ -136,11 +152,12 @@ When mapping HTML without a profile match, elements may declare TeML semantics v
 
 | `data-teml` | Allowed `data-*` attrs | Native HTML equivalent |
 | --- | --- | --- |
-| `grid` | `columns`, `gap` | — (layout bridge) |
-| `details` | `summary`, `open` | `<details><summary>` |
-| `figure` | `caption` | `<figure><figcaption>` |
-| `metric` | `label`, `value`, `role`, `change` | — (text content → `value` when omitted) |
-| `progress` | `label`, `value`, `max`, `role` | `<progress>`, `<meter>` |
+| `grid` | `id`, `columns`, `gap` | — (layout bridge) |
+| `details` | `id`, `summary`, `open` | `<details><summary>` |
+| `figure` | `id`, `caption` | `<figure><figcaption>` |
+| `scroll` | `id`, `rows` | — (bounded region bridge) |
+| `metric` | `id`, `label`, `value`, `role`, `change` | — (text content → `value` when omitted) |
+| `progress` | `id`, `label`, `value`, `max`, `role` | `<progress>`, `<meter>` |
 | `event` | `time`, `title`, `detail`, `role` | — (text content → `title` when omitted) |
 
 Rules:
@@ -148,11 +165,15 @@ Rules:
 1. `data-teml` takes precedence over CSS profile container rules on the same element.
 2. Only registry allowlisted `data-*` keys are copied; event handlers (`onclick`, …) and unknown keys are dropped.
 3. Unknown `data-teml` values flatten to child content with an `unknown-directive` warning.
-4. Native `<details>`, `<figure>`, `<progress>`, `<meter>`, `<mark>`, `<del>`, `<s>`, `<strike>`, and `<kbd>` map to the same AST nodes without requiring `data-teml`.
+4. Native `<details>`, `<figure>`, `<progress>`, `<meter>`, `<textarea>`,
+   `<input type="radio">`, `<mark>`, `<del>`, `<s>`, `<strike>`, and `<kbd>`
+   map to the same AST nodes without requiring `data-teml`. Radios group by
+   `name`; `<select>` is not silently converted into a vertical radio group.
 
 ## Interactivity
 
-`button`, `input`, and `checkbox` are ordinary declarative leaf directives.
+Buttons, inputs, checkboxes, textareas, radio groups, and scroll regions are
+ordinary declarative directives.
 Their behavior is determined by an explicit mode boundary:
 
 | Mode | Command | Widgets | Links | Host events |
@@ -162,9 +183,24 @@ Their behavior is determined by an explicit mode boundary:
 | App | `run` | Focus, typing, toggling, clicking | Host-defined app behavior | NDJSON |
 
 Each interactive widget needs a stable, unique `id` to participate in app-mode
-keyboard navigation. `teml run` never emits raw ANSI itself — focus is
+keyboard navigation. Display widgets (`::progress`, `::metric`) and eligible
+mutation containers (`card`, alerts, `grid`, `details`, `figure`, `scroll`)
+share that same `id` namespace for host `update` and document-mutation commands
+(see `docs/interactive-protocol.md`). An `id` is optional on non-focusable
+containers, but required before `replace`, `append`, or `remove` can target one.
+Duplicate ids across focusable, updatable, and mutation-addressable nodes keep
+the first occurrence in document order; later nodes lose their id and become
+inert for targeting.
+Mutable attributes are allowlisted per directive — structural attrs are never
+updated generically. `teml run` never emits raw ANSI itself — focus is
 rendered via the theme's `focus` role plus a fixed-width textual marker
 (`▸`/`>`), preserving the single-emitter rule.
+
+A radio group is one tab stop; arrow keys move a pending marker and
+Space/Enter confirms it. A textarea keeps a grapheme cursor across reflow,
+uses Enter for newline and Ctrl+Enter to advance focus, and contributes a
+fixed number of content rows. A scroll region contains static content only in
+this version; nested controls are diagnosed and made inert.
 
 ## Speech backend
 

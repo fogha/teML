@@ -3,8 +3,13 @@ coverage/
 .vitest/
 node_modules/
 fixtures/
+# Generated snapshots, at any depth.
 snapshots/
-tests/teml/snapshots/
-package-lock.json
+pnpm-lock.yaml
 *.md
 docs/
+examples/rust-host/target/
+crates/teml-host/target/
+hosts/python/.pytest_cache/
+.host-engine/
+.sea/

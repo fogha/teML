@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Verify npm pack contents and install smoke test in a clean temp directory.
+// Verify pnpm pack contents and install smoke test in a clean temp directory.
 
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, execSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,34 +19,48 @@ function run(cmd, cwd = root) {
 }
 
 console.log("pack-verify: building…");
-run("npm run build", root);
-
-console.log("pack-verify: dry-run…");
-const dry = run("npm pack --dry-run 2>&1");
-if (dry.includes("fixtures/") || dry.includes("tests/") || dry.includes("/src/")) {
-  console.error("pack-verify: FAIL — tarball must not include src/tests/fixtures");
-  process.exit(1);
-}
-if (!dry.includes("dist/terminal/themes/dark.json") && !dry.includes("terminal/themes/dark.json")) {
-  console.error("pack-verify: FAIL — themes missing from pack listing");
-  process.exit(1);
-}
-
-console.log("pack-verify: creating tarball…");
-const packOut = run("npm pack 2>&1");
-const tgz = packOut.trim().split("\n").pop().trim();
-const tgzPath = join(root, tgz);
+run("pnpm run build", root);
 
 const tmp = mkdtempSync(join(tmpdir(), "teml-pack-"));
 const proj = join(tmp, "consumer");
+const tgz = "teml.tgz";
+const tgzPath = join(proj, tgz);
 mkdirSync(proj);
-cpSync(tgzPath, join(proj, tgz));
 
 try {
-  run(`npm init -y`, proj);
-  run(`npm install ./${tgz}`, proj);
-  const version = run(`npx --yes teml --version`, proj).trim();
-  console.log(`pack-verify: npx teml --version → ${version}`);
+  console.log("pack-verify: creating tarball…");
+  const packed = JSON.parse(
+    execFileSync("pnpm", ["pack", "--json", "--out", tgzPath], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }),
+  );
+  if (
+    typeof packed.filename !== "string" ||
+    resolve(root, packed.filename) !== tgzPath ||
+    !Array.isArray(packed.files)
+  ) {
+    throw new Error("pnpm pack did not report the expected tarball");
+  }
+  const packedFiles = packed.files.map((file) => file.path);
+  if (
+    packedFiles.some(
+      (path) =>
+        path.startsWith("fixtures/") || path.startsWith("tests/") || path.startsWith("src/"),
+    )
+  ) {
+    throw new Error("pack-verify: FAIL — tarball must not include src/tests/fixtures");
+  }
+  if (!packedFiles.includes("dist/terminal/themes/dark.json")) {
+    throw new Error("pack-verify: FAIL — themes missing from pack listing");
+  }
+
+  writeFileSync(join(proj, "package.json"), '{"private":true,"type":"module"}\n');
+  run(`pnpm add ./${tgz}`, proj);
+  const packageSpec = `file:${tgzPath}`;
+  const version = run(`pnpx --package ${JSON.stringify(packageSpec)} teml --version`, proj).trim();
+  console.log(`pack-verify: pnpx teml --version → ${version}`);
 
   writeFileSync(
     join(proj, "verify-api.mjs"),
@@ -60,16 +74,50 @@ try {
 
   writeFileSync(
     join(proj, "verify-interactive-api.mjs"),
-    "import { runInteractiveApp } from 'teml/interactive';\n" +
-      "if (typeof runInteractiveApp !== 'function') process.exit(1);\n",
+    "import { decodeCommand, runInteractiveApp } from 'teml/interactive';\n" +
+      "if (typeof runInteractiveApp !== 'function' || !decodeCommand('{\"type\":\"exit\"}').ok) process.exit(1);\n",
   );
   run("node verify-interactive-api.mjs", proj);
   console.log("pack-verify: teml/interactive subpath export present");
 
-  const rendered = run("npx --yes teml demo --width 80 --no-color", proj);
+  const protocolFixture = join(proj, "protocol.teml");
+  writeFileSync(protocolFixture, '::input{id="name" label="Name"}\n');
+  const protocolOut = execFileSync(
+    process.execPath,
+    [
+      join(proj, "node_modules/teml/dist/cli/main.js"),
+      "run",
+      protocolFixture,
+      "--frames",
+      "plain",
+      "--mode",
+      "patches",
+      "--height",
+      "4",
+    ],
+    {
+      cwd: proj,
+      input: '{"type":"char","char":"A"}\n{"type":"exit"}\n',
+      encoding: "utf8",
+    },
+  );
+  const protocolEvents = protocolOut
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  if (
+    protocolEvents[0]?.type !== "frame" ||
+    protocolEvents[0]?.ansi !== null ||
+    !protocolEvents.some((event) => event.type === "change" && event.value === "A") ||
+    !protocolEvents.some((event) => Array.isArray(event.patches))
+  ) {
+    throw new Error("pack-verify: FAIL — installed interactive protocol smoke failed");
+  }
+  console.log("pack-verify: installed interactive protocol present");
+
+  const rendered = run("pnpm exec teml demo --width 80 --no-color", proj);
   if (!/deploy report/i.test(rendered)) {
-    console.error("pack-verify: FAIL — built-in demo render missing expected heading");
-    process.exit(1);
+    throw new Error("pack-verify: FAIL — built-in demo render missing expected heading");
   }
   console.log("pack-verify: built-in demo present");
 
@@ -78,13 +126,18 @@ try {
     readFileSync(docsSpec, "utf8");
     console.log("pack-verify: bundled docs/spec.md present");
   } catch {
-    console.error("pack-verify: FAIL — dist/assets/docs/spec.md missing from install");
-    process.exit(1);
+    throw new Error("pack-verify: FAIL — dist/assets/docs/spec.md missing from install");
   }
+
+  // Every path here must exist in the repo, or the assertion passes vacuously.
+  const packagedPlanningDocs = [join(proj, "node_modules/teml/dist/assets/docs/teml-prd.md")];
+  if (packagedPlanningDocs.some(existsSync)) {
+    throw new Error("pack-verify: FAIL — internal planning docs leaked into the package");
+  }
+  console.log("pack-verify: internal planning docs excluded");
 
   console.log("pack-verify: PASS");
 } finally {
   rmSync(tmp, { recursive: true, force: true });
-  rmSync(tgzPath, { force: true });
   console.log("pack-verify: cleaned temp dir and tarball");
 }

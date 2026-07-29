@@ -6,12 +6,13 @@ Build readable terminal documents and interactive CLI interfaces from **TeML**,
 ## Install from GitHub
 
 ```bash
-npm install --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+pnpm add --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
 teml --version
 ```
 
 This downloads the small prebuilt package from the latest GitHub Release—not
-the repository or development dependencies. Requires **Node ≥ 20**.
+the repository or development dependencies. Requires **Node ≥ 20** and
+**pnpm ≥ 10**.
 
 ## Quick start
 
@@ -30,7 +31,7 @@ behavior, options, keys, and examples. The complete reference is in
 Install the same GitHub Release locally in your application:
 
 ```bash
-npm install https://github.com/fogha/teML/releases/latest/download/teml.tgz
+pnpm add https://github.com/fogha/teML/releases/latest/download/teml.tgz
 ```
 
 ```ts
@@ -42,8 +43,9 @@ console.log(serializeTeml(document));
 
 The package root also exports Markdown/HTML frontends, the shared `TDoc` types,
 layout, renderers, capabilities, and themes. A separate `teml/interactive`
-entry point exports `runInteractiveApp` for building interactive (button/input/
-checkbox) CLI apps in Node without a subprocess — see
+entry point exports `runInteractiveApp` for building interactive
+(button/input/checkbox/radio/textarea/scroll-region) CLI apps in Node without
+a subprocess — see
 [docs/interactive-protocol.md](docs/interactive-protocol.md#in-process-node-alternative-runinteractiveapp).
 
 ## Build a CLI interface with HTML
@@ -55,10 +57,14 @@ as the terminal runtime:
 import { runInteractiveApp } from "teml/interactive";
 
 const values = await runInteractiveApp(
-  `<h2>Account</h2>
-   <label for="name">Name</label>
-   <input id="name" placeholder="Ada">
-   <button id="save">Save</button>`,
+  `<h2>Release note</h2>
+   <label for="stable">Stable</label>
+   <input id="stable" type="radio" name="channel" value="stable" checked>
+   <label for="preview">Preview</label>
+   <input id="preview" type="radio" name="channel" value="preview">
+   <label for="notes">Notes</label>
+   <textarea id="notes" rows="3"></textarea>
+   <button id="save">Save release note</button>`,
   {
     handlers: {
       onClick(id, _values, ctx) {
@@ -68,24 +74,52 @@ const values = await runInteractiveApp(
   },
 );
 
-console.log(`Saved ${values.name}`);
+console.log(`Saved ${values.channel}: ${values.notes}`);
 ```
 
-Inputs, checkboxes, buttons, validation rerenders, keyboard focus, mouse
-clicks, terminal resizing, and cleanup are handled by TeML. See
+Inputs, textareas, radio groups, checkboxes, buttons, bounded scroll regions,
+validation rerenders, contextual keyboard focus, mouse
+clicks, and terminal cleanup are handled by TeML. See
 [`examples/settings-app.mjs`](examples/settings-app.mjs) for a complete app.
+
+## Explore the examples
+
+After `pnpm run build`:
+
+```bash
+pnpm run demo:go-host       # a Go program driving a terminal form (also :python-host, :rust-host)
+pnpm run demo:chat --mock   # LLM replies rendered as cards, alerts, and metrics
+pnpm run demo:settings      # semantic HTML app with validation rerenders, in-process
+pnpm run demo:command-center # an existing HTML dashboard as a terminal document
+pnpm run demo:interactive   # widget mechanics: radio, textarea, bounded scroll
+```
+
+The Go, Python, and Rust hosts all render the *same*
+[28-line HTML view](hosts/go/examples/incident-handoff/view.html) — a labelled
+input, a radio group, a textarea, a bounded scroll region, a checkbox, and two
+buttons — with no UI code and no TeML-specific markup in any of the three. Each
+host only decides what happens when an event arrives. `demo:chat` needs no API
+key with `--mock`; set `DEEPSEEK_API_KEY` to talk to a real model.
+
+The interactive host displays negotiated protocol/version state and switches
+its key hints when a bounded scroll region has focus.
 
 ## Documentation
 
-| Doc | Contents |
-| --- | --- |
-| [docs/spec.md](docs/spec.md) | Format specification (directives, security, conformance) |
-| [docs/cli.md](docs/cli.md) | CLI reference (commands, flags, exit codes) |
-| [docs/reader.md](docs/reader.md) | Full-screen Reader keymap, navigation security, and terminal recovery |
-| [docs/theming.md](docs/theming.md) | Themes, roles, ASCII/color fallbacks |
-| [docs/tutorial.md](docs/tutorial.md) | 5-minute first conversion walkthrough |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, testing, and PR expectations |
-| [CHANGELOG.md](CHANGELOG.md) | Release history |
+| Doc                                                                                        | Contents                                                              |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| [docs/spec.md](docs/spec.md)                                                               | Format specification (directives, security, conformance)              |
+| [docs/cli.md](docs/cli.md)                                                                 | CLI reference (commands, flags, exit codes)                           |
+| [docs/reader.md](docs/reader.md)                                                           | Full-screen Reader keymap, navigation security, and terminal recovery |
+| [docs/interactive-protocol.md](docs/interactive-protocol.md)                               | App-host commands, events, frame negotiation, and patches             |
+| [docs/polyglot-hosts.md](docs/polyglot-hosts.md)                                           | Cross-language host model and measured roadmap                        |
+| [docs/host-porting-playbook.md](docs/host-porting-playbook.md)                             | Contract and conformance steps for porting a host to a new language   |
+| [docs/adr/003-host-engine-distribution.md](docs/adr/003-host-engine-distribution.md)       | Host discovery, release artifacts, and SEA outcome                    |
+| [docs/adr/004-native-engine-port-decision.md](docs/adr/004-native-engine-port-decision.md) | Native-port no-go decision and reopen triggers                        |
+| [docs/theming.md](docs/theming.md)                                                         | Themes, roles, ASCII/color fallbacks                                  |
+| [docs/tutorial.md](docs/tutorial.md)                                                       | 5-minute first conversion walkthrough                                 |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                                                         | Dev setup, testing, and PR expectations                               |
+| [CHANGELOG.md](CHANGELOG.md)                                                               | Release history                                                       |
 
 ## Pipeline
 

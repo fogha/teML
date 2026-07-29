@@ -5,10 +5,10 @@ build the repository.
 
 ## 1. Install (1 min)
 
-Requires Node 20 or newer:
+Requires Node 20 or newer and pnpm 10 or newer:
 
 ```bash
-npm install --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+pnpm add --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
 teml --version
 ```
 

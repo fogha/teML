@@ -3,11 +3,11 @@
 Install the prebuilt package from the latest GitHub Release:
 
 ```bash
-npm install --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+pnpm add --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
 ```
 
 This downloads the packaged runtime only, not the repository or development
-dependencies. Requires Node 20 or newer.
+dependencies. Requires Node 20 or newer and pnpm 10 or newer.
 
 After installation, `teml --help` gives an overview and
 `teml help <command>` gives detailed behavior and examples for one command.
@@ -71,6 +71,36 @@ file or directory path plus a controlling TTY.
 | `--tokens` | AST token stream (`heading_start level=1`) |
 | `--render-tokens` | Layout token stream after layout |
 
+## App runtime
+
+`teml run` is headless: a host process owns the TTY and exchanges NDJSON
+commands/events over standard input/output.
+
+`--frames ansi|plain|both` selects the frame payload, `--mode full|patches`
+selects delivery, and `--height N` seeds the terminal-content viewport at
+process startup. Without them, the backward-compatible defaults are `both`,
+`full`, and no viewport. Production hosts should pass all three (plus
+`--width`) so frame 1 is already bounded and needs no negotiation round trip.
+Hosts can instead send
+`{"type":"configure","frames":"ansi","mode":"patches"}` as their first
+command to negotiate one payload plus row-level patches. See
+[interactive-protocol.md](interactive-protocol.md) for the wire shapes,
+sequence checks, capability discovery, and patch application algorithm.
+
+Hosts should also forward debounced terminal size changes as
+`{"type":"resize","width":100,"height":30}`. TeML reflows at the new width,
+preserves widget state, and returns a complete resynchronization frame before
+patch delivery resumes.
+
+Interactive documents may contain buttons, single-line inputs, checkboxes,
+radio groups, fixed-height textareas, and bounded `:::scroll` regions. Hosts
+forward wheel/trackpad movement as coalesced
+`{"type":"scroll","rows":3}` commands (positive down); reference hosts fall
+back to PageUp/PageDown when an older engine does not advertise `scroll`.
+Protocol 1.3 hosts may also send capability-gated `replace`, `append`, and
+`remove` commands for addressable containers; these are document mutations,
+not row patch frames.
+
 ## Reader
 
 `teml read` owns the alternate screen and restores terminal modes on normal
@@ -102,7 +132,7 @@ teml read docs/
 # Service command-center demo (TeML + synchronized HTML)
 teml view examples/service-command-center.teml --theme dark --width 100
 teml view examples/service-command-center.html --width 100
-npm run demo:command-center
+pnpm run demo:command-center
 
 # Plain pipe-friendly output
 teml examples/demo.teml --no-color | less
@@ -127,9 +157,24 @@ curl -sL https://example.com/doc.html | teml view --from html --width 100
 cat report.teml | teml --no-color
 
 # Interactive session: NDJSON commands in, NDJSON events out (see docs/interactive-protocol.md)
-printf '%s\n' '{"type":"char","char":"hi"}' '{"type":"key","key":"tab"}' '{"type":"exit"}' \
-  | teml run form.teml --width 60
+printf '%s\n' '{"type":"char","char":"hi"}' '{"type":"resize","width":40,"height":20}' \
+  '{"type":"key","key":"end"}' '{"type":"key","key":"pageDown"}' \
+  '{"type":"key","key":"tab"}' '{"type":"exit"}' \
+  | teml run form.teml --width 60 --height 20 --frames plain --mode patches
+
+# Interactive examples (require a real TTY)
+pnpm run demo:interactive
+pnpm run demo:log-viewer
+pnpm run demo:settings
+pnpm run demo:rust-host
 ```
+
+When the document exceeds the reported height, frames carry viewport metadata
+and contain only visible rows. Pointer coordinates are frame-relative and
+column-precise. Negotiated full frames include protocol/capability metadata;
+visible nested regions include `scrollRegions` offsets. See
+[interactive-protocol.md](interactive-protocol.md) for the full routing table,
+viewport/patch invariants, and host guidance.
 
 ## Environment
 

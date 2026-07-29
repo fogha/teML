@@ -1,0 +1,75 @@
+name: SEA spike
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - "scripts/sea/**"
+      - "src/sea/**"
+      - "src/cli/demo.ts"
+      - "src/cli/run.ts"
+      - "src/cli/version.ts"
+      - "src/terminal/theme.ts"
+      - "src/html/profiles/loader.ts"
+      - ".github/workflows/sea-spike.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  pull_request:
+    paths:
+      - "scripts/sea/**"
+      - "src/sea/**"
+      - "src/cli/demo.ts"
+      - "src/cli/run.ts"
+      - "src/cli/version.ts"
+      - "src/terminal/theme.ts"
+      - "src/html/profiles/loader.ts"
+      - ".github/workflows/sea-spike.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+
+jobs:
+  sea:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-x64
+            artifact: teml-linux-x64
+            binary: .sea/teml
+          - os: macos-latest
+            label: macos-arm64
+            artifact: teml-macos-arm64
+            binary: .sea/teml
+          - os: windows-latest
+            label: win-x64
+            artifact: teml-win-x64
+            binary: .sea/teml.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run sea:build
+      - run: pnpm run sea:verify
+      - run: pnpm run sea:bench
+
+      - name: Upload SEA binary and metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.binary }}
+            .sea/bench-metrics.json
+            .sea/verify-metrics.json
+          if-no-files-found: error

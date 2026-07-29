@@ -9,7 +9,7 @@
 
 ## 1. Product summary
 
-TeML is a semantic document format and runtime for terminals. It lets anyone — a developer, a shell script, an AI agent, or a remote server — produce rich, structured, styled, and eventually interactive terminal interfaces by emitting *documents* instead of writing UI code.
+TeML is a semantic document format and runtime for terminals. It lets anyone — a developer, a shell script, an AI agent, or a remote server — produce rich, structured, styled, and eventually interactive terminal interfaces by emitting _documents_ instead of writing UI code.
 
 The product has three faces that share one core:
 
@@ -27,7 +27,7 @@ Terminals are where developers, operators, and increasingly AI agents live, but 
 
 - Plain `printf` output is unstructured and unstyled; every CLI reinvents ad-hoc formatting.
 - Rich TUI frameworks (Textual, Ink, Bubble Tea, Ratatui) produce excellent results but lock the author into one programming language and a code-first UI model. A Python service can't use Ink; a shell script can't use Ratatui; an AI model can't "write a Bubble Tea program" mid-response.
-- HTML — the world's largest corpus of structured documents and the format every developer already knows — has no faithful semantic path into the terminal. Text browsers mimic visual layout lossily; nothing converts HTML *meaning* into terminal-native components.
+- HTML — the world's largest corpus of structured documents and the format every developer already knows — has no faithful semantic path into the terminal. Text browsers mimic visual layout lossily; nothing converts HTML _meaning_ into terminal-native components.
 - There is no portable, language-agnostic way for a program to say "render this interface" to a terminal and receive "the user pressed this button" back.
 
 ### 2.2 The opportunity
@@ -35,12 +35,12 @@ Terminals are where developers, operators, and increasingly AI agents live, but 
 Three market currents converge on this gap:
 
 - **The TUI renaissance.** GPU-accelerated terminals, truecolor, hyperlinks, and image protocols have made terminals a serious application surface again; major engineering organizations are building in-house TUI frameworks because the terminal is winning on speed and portability.
-- **Agentic AI in the terminal.** AI coding agents live in the terminal and currently stream plain markdown. An agent that could stream a *checklist that ticks itself*, a *diff card with approve/reject buttons*, or a *form requesting missing parameters* needs exactly a document-plus-events protocol — which no incumbent framework provides, because they are all libraries, not wire formats.
+- **Agentic AI in the terminal.** AI coding agents live in the terminal and currently stream plain markdown. An agent that could stream a _checklist that ticks itself_, a _diff card with approve/reject buttons_, or a _form requesting missing parameters_ needs exactly a document-plus-events protocol — which no incumbent framework provides, because they are all libraries, not wire formats.
 - **Protocol vacuum.** The TUI space has frameworks per language but no shared format or protocol layer. Whoever defines a good one defines the category.
 
 ### 2.3 Why us / why this shape
 
-The differentiated position is the *combination* no one holds: a semantic document format + honest HTML conversion + a language-agnostic runtime and event protocol. Rendering polish alone loses to Glow and Rich; a new framework alone loses to Textual and Ratatui. The format-and-protocol play sidesteps both by making incumbents potential frontends and distribution channels rather than competitors.
+The differentiated position is the _combination_ no one holds: a semantic document format + honest HTML conversion + a language-agnostic runtime and event protocol. Rendering polish alone loses to Glow and Rich; a new framework alone loses to Textual and Ratatui. The format-and-protocol play sidesteps both by making incumbents potential frontends and distribution channels rather than competitors.
 
 ## 3. Vision and mission
 
@@ -48,7 +48,7 @@ The differentiated position is the *combination* no one holds: a semantic docume
 
 **Vision (3–5 years):** a "terminal web" — an ecosystem where documents, dashboards, and applications are served to terminals locally or over the network in one open format; where AI agents render live interfaces instead of prose walls; where `teml connect ops.internal` is as natural as opening a browser tab.
 
-**North-star statement:** *the terminal is the display surface; TeML is the document language; the AST is the core; the runtime is the engine.*
+**North-star statement:** _the terminal is the display surface; TeML is the document language; the AST is the core; the runtime is the engine._
 
 ## 4. Users and personas
 
@@ -60,7 +60,7 @@ The differentiated position is the *combination* no one holds: a semantic docume
 
 **P4 — Documentation & content owner ("Sam").** Maintains docs sites in HTML/Markdown. Wants the same content readable natively in the terminal (`man`-page-quality, but from existing sources) and wants TeML reports exportable to ordinary Markdown for existing publishing systems. Success looks like: `teml view https://docs.internal/page.html` produces clean, readable output with working links, and `teml convert report.teml --to markdown` produces a portable fallback.
 
-**P5 — End user / operator (implicit persona).** Never writes TeML; consumes it. Requirements they impose: output must be readable in *their* terminal (colors, width, Unicode support all vary), degrade gracefully, respect `NO_COLOR`, work in pipes and pagers, never do anything unsafe.
+**P5 — End user / operator (implicit persona).** Never writes TeML; consumes it. Requirements they impose: output must be readable in _their_ terminal (colors, width, Unicode support all vary), degrade gracefully, respect `NO_COLOR`, work in pipes and pagers, never do anything unsafe.
 
 ## 5. Product principles
 
@@ -75,16 +75,16 @@ The differentiated position is the *combination* no one holds: a semantic docume
 
 ## 6. Release map
 
-| Release | Codename | Theme | Headline capability |
-| --- | --- | --- | --- |
-| v1.0 | **Paper** | Static document engine | Render TeML/HTML beautifully; convert HTML→TeML and Markdown↔TeML |
-| v1.5 | **Reader** | Interactive viewer | Full-screen viewing, scrolling, link navigation |
-| v2.0 | **Panel** | Application runtime | Forms, buttons, events; host apps in any language |
-| v2.5 | **Session** | Stateful interfaces | Widget state, data bindings, persistence, component library |
-| v3.0 | **Stream** | AI-native / live documents | Streaming ingestion, incremental rendering, agent UX kit |
-| v4.0 | **Wire** | Remote TeML | Networked apps: one server, any terminal, zero installs |
-| v5.0 | **Commons** | Ecosystem | Package/registry, profiles marketplace, embeddings in other tools |
-| v6.0+ | **Web** | The terminal web | Browsing, identity, capability security at ecosystem scale |
+| Release | Codename    | Theme                      | Headline capability                                               |
+| ------- | ----------- | -------------------------- | ----------------------------------------------------------------- |
+| v1.0    | **Paper**   | Static document engine     | Render TeML/HTML beautifully; convert HTML→TeML and Markdown↔TeML |
+| v1.5    | **Reader**  | Interactive viewer         | Full-screen viewing, scrolling, link navigation                   |
+| v2.0    | **Panel**   | Application runtime        | Forms, buttons, events; host apps in any language                 |
+| v2.5    | **Session** | Stateful interfaces        | Widget state, data bindings, persistence, component library       |
+| v3.0    | **Stream**  | AI-native / live documents | Streaming ingestion, incremental rendering, agent UX kit          |
+| v4.0    | **Wire**    | Remote TeML                | Networked apps: one server, any terminal, zero installs           |
+| v5.0    | **Commons** | Ecosystem                  | Package/registry, profiles marketplace, embeddings in other tools |
+| v6.0+   | **Web**     | The terminal web           | Browsing, identity, capability security at ecosystem scale        |
 
 Each release below is specified with goals, requirements (P0 = must ship, P1 = should ship, P2 = stretch), explicit non-goals, acceptance criteria, and success metrics.
 
@@ -100,67 +100,67 @@ Prove the core thesis at the document level: TeML documents and converted HTML r
 
 **Format (F-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| F-1 | P0 | TeML is defined as CommonMark + GFM tables/strikethrough + generic directives (`:::container`, `::leaf`, `:inline[...]`) + flat YAML frontmatter; published as a written spec with escaping, nesting (fence-length colons), and attribute grammar pinned. |
-| F-2 | P0 | v1 directive registry: containers `card`(title), `info`, `success`, `warning`, `error`, `note`; leafs `kv`, `image`, `break`; inline `status{role}` plus shorthands `:success/:warning/:error/:info/:muted/:kbd`. |
-| F-3 | P0 | Unknown directives degrade to generic blocks/plain content with a stderr warning; they never error. |
-| F-4 | P1 | Document-defined custom roles in frontmatter (`roles:` map merging into the theme). |
-| F-5 | P2 | Raw style escape hatch `:style[text]{fg=... bold}` (stripped under fallback modes). |
+| ID  | Pri | Requirement                                                                                                                                                                                                                                               |
+| --- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F-1 | P0  | TeML is defined as CommonMark + GFM tables/strikethrough + generic directives (`:::container`, `::leaf`, `:inline[...]`) + flat YAML frontmatter; published as a written spec with escaping, nesting (fence-length colons), and attribute grammar pinned. |
+| F-2 | P0  | v1 directive registry: containers `card`(title), `info`, `success`, `warning`, `error`, `note`; leafs `kv`, `image`, `break`; inline `status{role}` plus shorthands `:success/:warning/:error/:info/:muted/:kbd`.                                         |
+| F-3 | P0  | Unknown directives degrade to generic blocks/plain content with a stderr warning; they never error.                                                                                                                                                       |
+| F-4 | P1  | Document-defined custom roles in frontmatter (`roles:` map merging into the theme).                                                                                                                                                                       |
+| F-5 | P2  | Raw style escape hatch `:style[text]{fg=... bold}` (stripped under fallback modes).                                                                                                                                                                       |
 
 **Rendering (R-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| R-1 | P0 | Line-oriented static renderer: headings, paragraphs, bold/italic/underline, inline code, links, ordered/unordered lists, blockquotes, thematic breaks, fenced code blocks, tables, all v1 directives. |
-| R-2 | P0 | Unicode borders with ASCII fallback; role glyph decorations (✓/⚠/✗) with text fallbacks ([OK]/[WARN]/[FAIL]); no VS16, safe-glyph set only in theme chrome. |
-| R-3 | P0 | Themes as JSON role→style maps; built-ins `dark`, `light`, `mono`, and a dual-background-safe `auto` default; `--theme` and frontmatter override. |
-| R-4 | P0 | Capability handling: `NO_COLOR`, non-TTY auto-plain + width 80, `--no-color/--color=always/--ascii/--width`, terminal width detection, `$COLORTERM`-based color depth. |
-| R-5 | P0 | Correct Unicode cell-width layout (grapheme clusters, CJK wide, combining marks); `--ambiguous-wide` flag; documented emoji-alignment limits. |
-| R-6 | P0 | Word wrapping with defined overflow policy (prose wraps; code truncates with marker unless `--wrap-code`; tables use min/max column algorithm). |
-| R-7 | P0 | OSC 8 hyperlinks where supported, with sanitized URIs and `--show-urls` fallback. |
-| R-8 | P1 | Plain-text backend (`--to text`) rendering styles as conventions, for snapshots and non-ANSI sinks. |
+| ID  | Pri | Requirement                                                                                                                                                                                           |
+| --- | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-1 | P0  | Line-oriented static renderer: headings, paragraphs, bold/italic/underline, inline code, links, ordered/unordered lists, blockquotes, thematic breaks, fenced code blocks, tables, all v1 directives. |
+| R-2 | P0  | Unicode borders with ASCII fallback; role glyph decorations (✓/⚠/✗) with text fallbacks ([OK]/[WARN]/[FAIL]); no VS16, safe-glyph set only in theme chrome.                                           |
+| R-3 | P0  | Themes as JSON role→style maps; built-ins `dark`, `light`, `mono`, and a dual-background-safe `auto` default; `--theme` and frontmatter override.                                                     |
+| R-4 | P0  | Capability handling: `NO_COLOR`, non-TTY auto-plain + width 80, `--no-color/--color=always/--ascii/--width`, terminal width detection, `$COLORTERM`-based color depth.                                |
+| R-5 | P0  | Correct Unicode cell-width layout (grapheme clusters, CJK wide, combining marks); `--ambiguous-wide` flag; documented emoji-alignment limits.                                                         |
+| R-6 | P0  | Word wrapping with defined overflow policy (prose wraps; code truncates with marker unless `--wrap-code`; tables use min/max column algorithm).                                                       |
+| R-7 | P0  | OSC 8 hyperlinks where supported, with sanitized URIs and `--show-urls` fallback.                                                                                                                     |
+| R-8 | P1  | Plain-text backend (`--to text`) rendering styles as conventions, for snapshots and non-ANSI sinks.                                                                                                   |
 
 **HTML conversion (H-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| H-1 | P0 | Element-level semantic mapping: h1–h6, p, a, strong/b, em/i, u, code, pre, ul/ol/li, blockquote, hr, table (colspan/rowspan flattened with warning), img→placeholder, dl→kv, title→frontmatter; script/style dropped; hidden/aria-hidden/display:none dropped. |
-| H-2 | P0 | Readability-style main-content extraction for full pages (strip nav/chrome/footers), wrapper flattening. |
-| H-3 | P0 | `teml convert page.html > page.teml` and `teml view page.html`, including stdin and URL-piped input. |
-| H-4 | P1 | Profile system: declarative JSON class-heuristic maps, `--profile`; built-in `bootstrap` profile (card/alert/badge/text-role classes). |
-| H-5 | P2 | User-supplied profile files for internal design systems. |
+| ID  | Pri | Requirement                                                                                                                                                                                                                                                    |
+| --- | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H-1 | P0  | Element-level semantic mapping: h1–h6, p, a, strong/b, em/i, u, code, pre, ul/ol/li, blockquote, hr, table (colspan/rowspan flattened with warning), img→placeholder, dl→kv, title→frontmatter; script/style dropped; hidden/aria-hidden/display:none dropped. |
+| H-2 | P0  | Readability-style main-content extraction for full pages (strip nav/chrome/footers), wrapper flattening.                                                                                                                                                       |
+| H-3 | P0  | `teml convert page.html > page.teml` and `teml view page.html`, including stdin and URL-piped input.                                                                                                                                                           |
+| H-4 | P1  | Profile system: declarative JSON class-heuristic maps, `--profile`; built-in `bootstrap` profile (card/alert/badge/text-role classes).                                                                                                                         |
+| H-5 | P2  | User-supplied profile files for internal design systems.                                                                                                                                                                                                       |
 
 **Markdown interoperability (M-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| M-1 | P0 | Markdown→TeML: `teml convert README.md --from markdown --to teml` parses CommonMark + the supported GFM subset through the same mdast→TDoc frontend used by TeML, then emits canonical `.teml`; `.md`/`.markdown` extension inference and stdin are supported. |
-| M-2 | P0 | TeML→Markdown: `teml convert report.teml --from teml --to markdown` emits portable CommonMark/GFM. Standard Markdown nodes are preserved; TeML-only semantics use the deterministic degradation mapping below. |
-| M-3 | P0 | TeML-only degradation is content-preserving and explicit: alerts/notes→blockquotes with bold labels; cards→a heading plus body; `kv`→GFM table; `image`→safe Markdown image or alt-text placeholder; `break`→thematic break; `kbd`→inline code; status/custom-role spans→plain text. Unknown or lossy constructs retain readable content and emit `markdown-lossy-conversion` diagnostics to stderr. |
-| M-4 | P0 | CommonMark/GFM fixtures are semantically stable through Markdown→TeML→Markdown. TeML→Markdown→TeML is not required to preserve terminal-only styling, but must preserve readable content, remain deterministic, and never introduce unsafe links or terminal escape bytes. |
+| ID  | Pri | Requirement                                                                                                                                                                                                                                                                                                                                                                                          |
+| --- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M-1 | P0  | Markdown→TeML: `teml convert README.md --from markdown --to teml` parses CommonMark + the supported GFM subset through the same mdast→TDoc frontend used by TeML, then emits canonical `.teml`; `.md`/`.markdown` extension inference and stdin are supported.                                                                                                                                       |
+| M-2 | P0  | TeML→Markdown: `teml convert report.teml --from teml --to markdown` emits portable CommonMark/GFM. Standard Markdown nodes are preserved; TeML-only semantics use the deterministic degradation mapping below.                                                                                                                                                                                       |
+| M-3 | P0  | TeML-only degradation is content-preserving and explicit: alerts/notes→blockquotes with bold labels; cards→a heading plus body; `kv`→GFM table; `image`→safe Markdown image or alt-text placeholder; `break`→thematic break; `kbd`→inline code; status/custom-role spans→plain text. Unknown or lossy constructs retain readable content and emit `markdown-lossy-conversion` diagnostics to stderr. |
+| M-4 | P0  | CommonMark/GFM fixtures are semantically stable through Markdown→TeML→Markdown. TeML→Markdown→TeML is not required to preserve terminal-only styling, but must preserve readable content, remain deterministic, and never introduce unsafe links or terminal escape bytes.                                                                                                                           |
 
 **CLI (C-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| C-1 | P0 | Commands: default view, `view`, `convert`, `inspect --ast/--tokens`, `render --width N` (deterministic snapshot). |
-| C-2 | P0 | stdout = output only; stderr = all diagnostics; exit codes 0/1/2; stdin supported everywhere. |
-| C-3 | P1 | `--to json` (AST dump), `--base` for relative-link roots, `--debug`. |
+| ID  | Pri | Requirement                                                                                                       |
+| --- | --- | ----------------------------------------------------------------------------------------------------------------- |
+| C-1 | P0  | Commands: default view, `view`, `convert`, `inspect --ast/--tokens`, `render --width N` (deterministic snapshot). |
+| C-2 | P0  | stdout = output only; stderr = all diagnostics; exit codes 0/1/2; stdin supported everywhere.                     |
+| C-3 | P1  | `--to json` (AST dump), `--base` for relative-link roots, `--debug`.                                              |
 
 **Security (S-series) — all P0**
 
-| ID | Requirement |
-| --- | --- |
+| ID  | Requirement                                                                                                                                                                        |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | S-1 | All text entering the AST is sanitized: C0 (except \n; \t expanded), DEL, C1 controls stripped; bidi and zero-width controls filtered (ZWJ preserved only within emoji sequences). |
-| S-2 | Single-emitter invariant: only the ANSI backend produces escape sequences; enforced by adversarial test fixtures asserting no foreign ESC bytes in output. |
-| S-3 | Href/URI sanitization: control chars rejected; scheme allowlist http/https/mailto/relative; `file:` behind `--allow-file-links`. |
-| S-4 | No execution semantics exist in the format; code blocks are display-only; nesting-depth and input-size limits prevent parser resource exhaustion. |
+| S-2 | Single-emitter invariant: only the ANSI backend produces escape sequences; enforced by adversarial test fixtures asserting no foreign ESC bytes in output.                         |
+| S-3 | Href/URI sanitization: control chars rejected; scheme allowlist http/https/mailto/relative; `file:` behind `--allow-file-links`.                                                   |
+| S-4 | No execution semantics exist in the format; code blocks are display-only; nesting-depth and input-size limits prevent parser resource exhaustion.                                  |
 
 ### 7.3 Non-functional requirements
 
 - **Performance:** render a 1,000-block document in <100 ms on commodity hardware; startup <50 ms (matters for CLI adoption); memory O(document size).
-- **Portability:** Linux, macOS, Windows Terminal; correct behavior inside tmux and over SSH; single-binary or single-`npx` install.
+- **Portability:** Linux, macOS, Windows Terminal; correct behavior inside tmux and over SSH; single-binary or single-`pnpx` install.
 - **Quality:** snapshot, security, round-trip (parse→serialize→parse), and fuzz suites in CI; width-sweep snapshots at 20/40/80/120 columns.
 - **Docs:** format spec, CLI reference, theming guide, "convert your first page" tutorial.
 
@@ -186,16 +186,16 @@ Turn rendered documents into a navigable reading experience — the `less`/`man`
 
 ### 8.2 Functional requirements
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| V-1 | P0 | `teml read FILE` full-screen viewer: alternate screen, raw mode, resize handling, and clean restore on normal exit, SIGINT, SIGTERM, SIGHUP, and catchable failures. `teml view` remains one-shot and pipe-safe. SIGKILL cannot be handled in-process; recovery is `reset`, a new terminal, or an outer tmux/screen session. |
-| V-2 | P0 | Scrolling (j/k, arrows, PgUp/PgDn, Home/End, mouse wheel where supported); position indicator in status bar. |
-| V-3 | P0 | Link focus and activation: Tab/Shift+Tab cycle, Enter follows; local `.teml`/converted links open in-viewer with history (`b`/`f` back/forward); external `http`/`https`/`mailto` links hand off to the OS opener only after an in-viewer confirmation whose default action is Cancel. |
-| V-4 | P0 | Screen buffer + damage-diff repaint (introduced here per design doc §9.3); flicker-free on scroll and resize. |
-| V-5 | P0 | Document-root confinement: runtime navigation re-resolves links against the initial file's directory or explicit `--base` and cannot escape that root (S-series continues to apply). Out-of-root targets are rejected, not opened externally. |
-| V-6 | P1 | In-document search (`/` incremental, n/N), table of contents pane from headings (`t`). |
-| V-7 | P1 | `teml read dir/` confined file browser for `.teml`, `.md`/`.markdown`, and `.html`/`.htm` collections (Glow-style discovery). |
-| V-8 | P2 | Reader preferences persisted (theme, width cap, last position per file). |
+| ID  | Pri | Requirement                                                                                                                                                                                                                                                                                                                  |
+| --- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V-1 | P0  | `teml read FILE` full-screen viewer: alternate screen, raw mode, resize handling, and clean restore on normal exit, SIGINT, SIGTERM, SIGHUP, and catchable failures. `teml view` remains one-shot and pipe-safe. SIGKILL cannot be handled in-process; recovery is `reset`, a new terminal, or an outer tmux/screen session. |
+| V-2 | P0  | Scrolling (j/k, arrows, PgUp/PgDn, Home/End, mouse wheel where supported); position indicator in status bar.                                                                                                                                                                                                                 |
+| V-3 | P0  | Link focus and activation: Tab/Shift+Tab cycle, Enter follows; local `.teml`/converted links open in-viewer with history (`b`/`f` back/forward); external `http`/`https`/`mailto` links hand off to the OS opener only after an in-viewer confirmation whose default action is Cancel.                                       |
+| V-4 | P0  | Screen buffer + damage-diff repaint (introduced here per design doc §9.3); flicker-free on scroll and resize.                                                                                                                                                                                                                |
+| V-5 | P0  | Document-root confinement: runtime navigation re-resolves links against the initial file's directory or explicit `--base` and cannot escape that root (S-series continues to apply). Out-of-root targets are rejected, not opened externally.                                                                                |
+| V-6 | P1  | In-document search (`/` incremental, n/N), table of contents pane from headings (`t`).                                                                                                                                                                                                                                       |
+| V-7 | P1  | `teml read dir/` confined file browser for `.teml`, `.md`/`.markdown`, and `.html`/`.htm` collections (Glow-style discovery).                                                                                                                                                                                                |
+| V-8 | P2  | Reader preferences persisted (theme, width cap, last position per file).                                                                                                                                                                                                                                                     |
 
 ### 8.3 Non-goals
 
@@ -222,25 +222,25 @@ Deliver the category-defining capability: documents become applications. A host 
 
 **Widget directives (W-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| W-1 | P0 | `::button{id label role submit}`; focus ring, press states, keyboard (Enter/Space) and mouse activation. |
-| W-2 | P0 | `::input{name value placeholder mask}` single-line text (mask for passwords); full cursor editing, unicode-width-correct. |
-| W-3 | P0 | `::select{name options value}` and `::checkbox{name label}`; `:::form{id}` grouping with value collection. |
-| W-4 | P1 | `::textarea`, `::radio-group`, `::progress{value label}`, `::spinner`. |
-| W-5 | P1 | HTML conversion maps `<form>/<button>/<input>/<select>/<textarea>` to these widgets (inert in document mode). |
-| W-6 | P2 | Validation attributes (`required`, `pattern`) enforced client-side with role=error feedback before submit events fire. |
+| ID  | Pri | Requirement                                                                                                                        |
+| --- | --- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| W-1 | P0  | `::button{id label role submit}`; focus ring, press states, keyboard (Enter/Space) and mouse activation.                           |
+| W-2 | P0  | `::input{name value placeholder mask}` single-line text (mask for passwords); full cursor editing, unicode-width-correct.          |
+| W-3 | P0  | `::select{name options value}` and `::checkbox{name label}`; `:::form{id}` grouping with value collection.                         |
+| W-4 | P1  | Implemented: fixed-height `::textarea`, `:::radio`/`::option`, and live `::progress{value label}` updates. Remaining: `::spinner`. |
+| W-5 | P1  | HTML conversion maps `<form>/<button>/<input>/<select>/<textarea>` to these widgets (inert in document mode).                      |
+| W-6 | P2  | Validation attributes (`required`, `pattern`) enforced client-side with role=error feedback before submit events fire.             |
 
 **Event & patch protocol (E-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| E-1 | P0 | Versioned handshake (`hello` exchange: protocol version, capabilities, viewport). NDJSON over stdio as the v2 transport; transport abstracted for v4. |
-| E-2 | P0 | Events: `press`, `submit` (with form values), `change`, `focus`, `key` (opt-in subscription), `resize`, `close`. Every interactive node carries a stable `id`. |
-| E-3 | P0 | Host→runtime ops: `document` (full swap), `replace{target}`, `append{target}`, `remove{target}`, `status{text}`; all fragments pass the full parse→sanitize→normalize pipeline (S-series applies to hosts too). |
-| E-4 | P0 | Diff-and-repaint: patches update only damaged regions; focus is preserved across patches when the focused id survives. |
-| E-5 | P1 | `error` frames with recoverable/fatal classes; runtime survives malformed host frames with visible diagnostics. |
-| E-6 | P1 | Reference SDK shims (~100 lines each) in Python, Go, TypeScript, and bash — proving the protocol, not wrapping it. |
+| ID  | Pri | Requirement                                                                                                                                                                                                                                                                                                       |
+| --- | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E-1 | P0  | Implemented: frame-first protocol 1.3 advertises a finite capability list on pre-negotiated frame 1 or the first-command `configure` acknowledgement. Major is breaking, minor is additive, package semver is independent, and NDJSON over stdio remains the transport.                                           |
+| E-2 | P0  | Shipped events are `change` (input/textarea/radio), `toggle`, `click` (with value snapshot), `error`, and `exit`; future event kinds require capability/version rules. Every addressable interactive node carries a stable `id`.                                                                                  |
+| E-3 | P0  | Implemented: `render` swaps the whole document; capability-gated `replace{target}`, `append{target}`, and `remove{target}` perform structural document mutations. Their fragments pass the full parse→sanitize→normalize pipeline. Row patch frames are only a host-delivery optimization; status chrome remains host-owned. |
+| E-4 | P0  | Diff-and-repaint: patches update only damaged regions; focus is preserved across patches when the focused id survives.                                                                                                                                                                                            |
+| E-5 | P1  | `error` frames with recoverable/fatal classes; runtime survives malformed host frames with visible diagnostics.                                                                                                                                                                                                   |
+| E-6 | P1  | Implemented, publication-gated reference host libraries in Rust, Go, and Python, plus the TypeScript wire interface and copyable shell examples—proving the protocol without hiding it behind frameworks.                                                                                                         |
 
 ### 9.4 Non-functional
 
@@ -266,24 +266,24 @@ Make v2 apps feel native, not laggy, and make them fast to build: local widget s
 
 **State layers (ST-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| ST-1 | P0 | Runtime-owned widget state: `collapsible/collapsed` cards, `:::tabs`, input drafts, scroll positions — zero host round-trips; values reported with the next host-relevant event. |
-| ST-2 | P0 | Value bindings: host op `set{id value}` updates bound widgets (gauge, progress, text slot, table cell) without re-sending markup; supports ≥10 Hz update streams without flicker. |
-| ST-3 | P0 | Session persistence: snapshot (AST + widget state + form drafts) keyed by app identity; resume after quit/crash; tmux-style detach/reattach for app-mode sessions. |
-| ST-4 | P1 | Optimistic UI hints: a button may declare `pending-label`, shown instantly while awaiting the host. |
-| ST-5 | P2 | Declared client-side derivations limited to formatting (e.g. `format=bytes|duration|percent`) — explicitly not expressions or scripting. |
+| ID   | Pri | Requirement                                                                                                                                                                      |
+| ---- | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ST-1 | P0  | Runtime-owned widget state: `collapsible/collapsed` cards, `:::tabs`, input drafts, scroll positions — zero host round-trips; values reported with the next host-relevant event. |
+| ST-2 | P0  | Value bindings: the protocol's `update{id,props}` operation updates allowlisted, addressable widgets without re-sending markup; supports ≥10 Hz update streams without flicker.  |
+| ST-3 | P0  | Session persistence: snapshot (AST + widget state + form drafts) keyed by app identity; resume after quit/crash; tmux-style detach/reattach for app-mode sessions.               |
+| ST-4 | P1  | Optimistic UI hints: a button may declare `pending-label`, shown instantly while awaiting the host.                                                                              |
+| ST-5 | P2  | Declared client-side derivations limited to formatting (e.g. `format=bytes                                                                                                       | duration | percent`) — explicitly not expressions or scripting. |
 
 **Component library (CL-series)**
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| CL-1 | P0 | Data table component: column sort, filter box, row selection as widget state; row-activate events to host. |
-| CL-2 | P0 | Wizard/stepper container with per-step validation and progress. |
-| CL-3 | P0 | Confirm dialog, toast/status notifications, list picker with fuzzy filter. |
-| CL-4 | P1 | Sparkline/gauge/bar-meter bound-value components; log-follow pane with follow/pause. |
-| CL-5 | P1 | Sprite support (`::sprite`, half-block/Braille tiers, size limits, alt fallback) per design doc; safe-glyph appendix shipped. |
-| CL-6 | P2 | Nerd Fonts icon tier behind `--nerd-fonts` with mandatory fallbacks. |
+| ID   | Pri | Requirement                                                                                                                   |
+| ---- | --- | ----------------------------------------------------------------------------------------------------------------------------- |
+| CL-1 | P0  | Data table component: column sort, filter box, row selection as widget state; row-activate events to host.                    |
+| CL-2 | P0  | Wizard/stepper container with per-step validation and progress.                                                               |
+| CL-3 | P0  | Confirm dialog, toast/status notifications, list picker with fuzzy filter.                                                    |
+| CL-4 | P1  | Sparkline/gauge/bar-meter bound-value components; log-follow pane with follow/pause.                                          |
+| CL-5 | P1  | Sprite support (`::sprite`, half-block/Braille tiers, size limits, alt fallback) per design doc; safe-glyph appendix shipped. |
+| CL-6 | P2  | Nerd Fonts icon tier behind `--nerd-fonts` with mandatory fallbacks.                                                          |
 
 ### 10.3 Non-goals
 
@@ -291,7 +291,7 @@ A general reactive expression language; arbitrary custom components via plugins 
 
 ### 10.4 Acceptance criteria & metrics
 
-A live dashboard driven at 10 Hz by a bash script using `set` ops renders flicker-free; killing and re-running a wizard resumes on the same step with drafts intact; the "afternoon app" test — a competent developer builds a real internal tool in ≤4 hours using only components. Metric: median host round-trips per session drops materially vs v2 (local state doing its job).
+A live dashboard driven at 10 Hz by a bash script using `update` ops renders flicker-free; killing and re-running a wizard resumes on the same step with drafts intact; the "afternoon app" test — a competent developer builds a real internal tool in ≤4 hours using only components. Metric: median host round-trips per session drops materially vs v2 (local state doing its job).
 
 ---
 
@@ -303,15 +303,15 @@ Make TeML the native UI layer for AI agents and live systems: documents that ren
 
 ### 11.2 Functional requirements
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| AI-1 | P0 | Streaming ingestion: the token serialization (design doc §8) promoted to a wire format with open/close balancing, partial-block rendering rules, and graceful handling of truncated streams (auto-close with visual "interrupted" marker). |
-| AI-2 | P0 | Incremental layout: appended content lays out without reflowing the completed region above; smooth reading during generation. |
-| AI-3 | P0 | Markdown-stream compatibility mode: plain streamed markdown (what models emit today) upgrades transparently, so adoption requires no model-side changes on day one. |
-| AI-4 | P0 | Agent UX kit built on v2/v2.5 primitives: plan checklist (host ticks items via `set`), diff card with approve/reject/edit events, tool-call card (collapsed args, expandable), confirmation gate, streaming code block with copy affordance. |
-| AI-5 | P1 | Interruption semantics: user events (e.g. "stop") deliverable to the host mid-stream; stream and event channels multiplexed. |
-| AI-6 | P1 | Terminal image protocols (kitty, iTerm2, sixel) behind `::image`/`::sprite render=auto`, with the full degradation chain. |
-| AI-7 | P2 | Transcript export: a completed streamed session serializes back to a static `.teml` document (session → shareable artifact). |
+| ID   | Pri | Requirement                                                                                                                                                                                                                                     |
+| ---- | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AI-1 | P0  | Streaming ingestion: the token serialization (design doc §8) promoted to a wire format with open/close balancing, partial-block rendering rules, and graceful handling of truncated streams (auto-close with visual "interrupted" marker).      |
+| AI-2 | P0  | Incremental layout: appended content lays out without reflowing the completed region above; smooth reading during generation.                                                                                                                   |
+| AI-3 | P0  | Markdown-stream compatibility mode: plain streamed markdown (what models emit today) upgrades transparently, so adoption requires no model-side changes on day one.                                                                             |
+| AI-4 | P0  | Agent UX kit built on v2/v2.5 primitives: plan checklist (host ticks items via `update`), diff card with approve/reject/edit events, tool-call card (collapsed args, expandable), confirmation gate, streaming code block with copy affordance. |
+| AI-5 | P1  | Interruption semantics: user events (e.g. "stop") deliverable to the host mid-stream; stream and event channels multiplexed.                                                                                                                    |
+| AI-6 | P1  | Terminal image protocols (kitty, iTerm2, sixel) behind `::image`/`::sprite render=auto`, with the full degradation chain.                                                                                                                       |
+| AI-7 | P2  | Transcript export: a completed streamed session serializes back to a static `.teml` document (session → shareable artifact).                                                                                                                    |
 
 ### 11.3 Non-goals
 
@@ -331,18 +331,18 @@ Detach host from terminal: serve TeML apps over the network. One deployment, eve
 
 ### 12.2 Functional requirements
 
-| ID | Pri | Requirement |
-| --- | --- | --- |
-| N-1 | P0 | `teml connect <endpoint>`: the v2 protocol over TLS (and over SSH channels via an sshd-embeddable server library), with reconnect + session resume (ST-3 extended server-side). |
-| N-2 | P0 | Trust & capability model: remote apps are untrusted by default; first-connect origin prompt with fingerprint pinning; capabilities (open external links, read local file for upload, persist session) granted per-origin, per-capability, revocable. |
-| N-3 | P0 | Server library (host-side): multiplex many client sessions; per-session document instances; auth hook points (delegating to SSH auth or bearer tokens — TeML does not invent identity in v4). |
-| N-4 | P1 | Latency adaptations: patch batching, client-side widget state (ST-1) doing more work, protocol-level compression. |
-| N-5 | P1 | `teml://` URL scheme and link-following between remote documents/apps under the same origin rules. |
-| N-6 | P2 | Read-only broadcast mode: one live document, many viewers (incident dashboards, live demos). |
+| ID  | Pri | Requirement                                                                                                                                                                                                                                          |
+| --- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| N-1 | P0  | `teml connect <endpoint>`: the v2 protocol over TLS (and over SSH channels via an sshd-embeddable server library), with reconnect + session resume (ST-3 extended server-side).                                                                      |
+| N-2 | P0  | Trust & capability model: remote apps are untrusted by default; first-connect origin prompt with fingerprint pinning; capabilities (open external links, read local file for upload, persist session) granted per-origin, per-capability, revocable. |
+| N-3 | P0  | Server library (host-side): multiplex many client sessions; per-session document instances; auth hook points (delegating to SSH auth or bearer tokens — TeML does not invent identity in v4).                                                        |
+| N-4 | P1  | Latency adaptations: patch batching, client-side widget state (ST-1) doing more work, protocol-level compression.                                                                                                                                    |
+| N-5 | P1  | `teml://` URL scheme and link-following between remote documents/apps under the same origin rules.                                                                                                                                                   |
+| N-6 | P2  | Read-only broadcast mode: one live document, many viewers (incident dashboards, live demos).                                                                                                                                                         |
 
 ### 12.3 Non-goals
 
-A public browsing ecosystem (v6); federation/discovery; TeML-native identity; running untrusted *logic* client-side (there is none — that's the point).
+A public browsing ecosystem (v6); federation/discovery; TeML-native identity; running untrusted _logic_ client-side (there is none — that's the point).
 
 ### 12.4 Acceptance criteria & metrics
 
@@ -354,7 +354,7 @@ The v2 example apps run unmodified over `teml connect` with only transport confi
 
 ### 13.1 Goals
 
-Make TeML something people build *on* and *with*: distribution, extension, and embedding.
+Make TeML something people build _on_ and _with_: distribution, extension, and embedding.
 
 ### 13.2 Requirement themes
 
@@ -367,7 +367,7 @@ Make TeML something people build *on* and *with*: distribution, extension, and e
 
 ### 13.3 Non-goals
 
-Monetized store mechanics; plugin code execution inside the runtime (extensions are data — themes, profiles, component *compositions* — never code).
+Monetized store mechanics; plugin code execution inside the runtime (extensions are data — themes, profiles, component _compositions_ — never code).
 
 ---
 
@@ -378,10 +378,10 @@ The farthest credible extent of the vision, deliberately sketched rather than sp
 - **Browsing:** history, bookmarks, an address bar in the runtime; public TeML endpoints; search/indexing of `.teml` corpora (trivially indexable — it's semantic text).
 - **Identity:** portable client identity (likely SSH-key-derived) presented to origins under user control; capability grants roaming with identity.
 - **Composition:** documents embedding regions served by other origins (the iframe problem, solved with capabilities from day one rather than retrofitted).
-- **AI symbiosis:** agents as first-class citizens — an agent browsing TeML endpoints reads *semantics*, not scraped pixels; the same interface serves humans and models. TeML becomes the machine-and-human-readable UI layer.
+- **AI symbiosis:** agents as first-class citizens — an agent browsing TeML endpoints reads _semantics_, not scraped pixels; the same interface serves humans and models. TeML becomes the machine-and-human-readable UI layer.
 - **Standardization:** the format/protocol handed to a neutral body once multiple independent implementations exist.
 
-Everything in v6 is optional to the mission; nothing before v6 depends on it. Its role in this PRD is directional: every earlier design decision (transport abstraction, capability model, semantic purity, conformance fixtures) is made so that v6 remains *possible*.
+Everything in v6 is optional to the mission; nothing before v6 depends on it. Its role in this PRD is directional: every earlier design decision (transport abstraction, capability model, semantic purity, conformance fixtures) is made so that v6 remains _possible_.
 
 ---
 
@@ -407,15 +407,15 @@ Everything in v6 is optional to the mission; nothing before v6 depends on it. It
 
 ## 17. Risks and mitigations
 
-| Risk | Severity | Mitigation |
-| --- | --- | --- |
-| "Nice renderer, so what" — v1 undifferentiated vs Glow/Rich | High | Ship HTML conversion + the format spec at v1 (the differentiators), not just rendering; keep v2 close behind. |
-| Scope creep toward a browser/Electron-of-terminals | High | Permanent non-goals (no scripting, no CSS layout engine); the pipeline principle as review gate for every feature. |
-| Protocol churn breaking early adopters | High | Version negotiation from the first handshake; conformance fixtures; protocol changes require published RFC after v2. |
-| Terminal fragmentation (emoji widths, image protocols) | Medium | Capability tiers + honest documented limits + snapshot testing per tier; never promise pixel-perfection. |
-| Incumbent response (Textual/Charm ship a format) | Medium | Move fast on the protocol layer where they're structurally unlikely to go (language-agnostic wire format cannibalizes a library business); build bridges to them early. |
-| Security incident in app/remote mode destroys trust | Critical | The mode boundary and capability model are P0 features, not hardening passes; external audit before v4 GA. |
-| Single-maintainer risk / burnout | Medium | Rust core + spec + fixtures make the project forkable and contributable; conformance program decentralizes correctness. |
+| Risk                                                        | Severity | Mitigation                                                                                                                                                              |
+| ----------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Nice renderer, so what" — v1 undifferentiated vs Glow/Rich | High     | Ship HTML conversion + the format spec at v1 (the differentiators), not just rendering; keep v2 close behind.                                                           |
+| Scope creep toward a browser/Electron-of-terminals          | High     | Permanent non-goals (no scripting, no CSS layout engine); the pipeline principle as review gate for every feature.                                                      |
+| Protocol churn breaking early adopters                      | High     | Frame-first version/capability discovery; conformance fixtures; protocol changes require published RFC after v2.                                                        |
+| Terminal fragmentation (emoji widths, image protocols)      | Medium   | Capability tiers + honest documented limits + snapshot testing per tier; never promise pixel-perfection.                                                                |
+| Incumbent response (Textual/Charm ship a format)            | Medium   | Move fast on the protocol layer where they're structurally unlikely to go (language-agnostic wire format cannibalizes a library business); build bridges to them early. |
+| Security incident in app/remote mode destroys trust         | Critical | The mode boundary and capability model are P0 features, not hardening passes; external audit before v4 GA.                                                              |
+| Single-maintainer risk / burnout                            | Medium   | Rust core + spec + fixtures make the project forkable and contributable; conformance program decentralizes correctness.                                                 |
 
 ## 18. Open questions
 
@@ -427,4 +427,4 @@ Everything in v6 is optional to the mission; nothing before v6 depends on it. It
 
 ## 19. Glossary
 
-**TeML** — the format (CommonMark profile + directives + frontmatter). **AST** — Terminal Document AST, the canonical internal model. **Directive** — container (`:::`), leaf (`::`), or inline (`:x[...]`) semantic extension. **Role** — a semantic style identity (success, warning, error, info, muted) resolved by themes. **Document mode / app mode** — inert viewing vs event-connected application operation; a security boundary. **Host** — the program (any language) that supplies documents and receives events in app mode. **Patch** — a host→runtime operation mutating the live document. **Binding** — a widget slot updatable by `set` ops without markup. **Profile** — a declarative HTML-class→semantics mapping. **Sprite** — a document-defined multi-cell composite glyph. **Capability** — a per-origin, user-granted permission in remote mode.
+**TeML** — the format (CommonMark profile + directives + frontmatter). **AST** — Terminal Document AST, the canonical internal model. **Directive** — container (`:::`), leaf (`::`), or inline (`:x[...]`) semantic extension. **Role** — a semantic style identity (success, warning, error, info, muted) resolved by themes. **Document mode / app mode** — inert viewing vs event-connected application operation; a security boundary. **Host** — the program (any language) that supplies documents and receives events in app mode. **Row patch** — a runtime→host changed screen row defined by the interactive protocol. **Document mutation** — a capability-gated host→runtime structural `replace`, `append`, or `remove` operation. **Binding** — an addressable widget slot updatable by `update` without resending markup. **Profile** — a declarative HTML-class→semantics mapping. **Sprite** — a document-defined multi-cell composite glyph. **Capability** — a versioned protocol feature, or in remote mode a separately user-granted permission.
