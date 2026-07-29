@@ -4,7 +4,22 @@ All notable changes to this project are documented in this file. Public
 versioning starts at 0.1.0; the v1.0 and v1.5 labels below are earlier internal
 development milestones, not published package versions.
 
-## Unreleased
+## v0.3.0 — Handler-driven hosts, published packages (2026-07-29)
+
+- Published the packages. `teml` was a 404 on npm and `teml-host` a 404 on both
+  crates.io and PyPI, while the Rust README told readers to depend on
+  `teml-host = "0.1"` regardless; the only installable host was Go, because Go
+  modules resolve straight from the repository. Nothing had ever published them —
+  the release workflow only created a GitHub Release. Publishing now runs on a tag
+  after every gate passes, and each package's version is independent of the tag, so
+  a job is a no-op unless that version is new.
+
+  Three packaging defects surfaced while dry-running the artifacts. The crate
+  shipped integration tests that read a view from a sibling example directory
+  outside the package and need a running engine, so `cargo test` on the published
+  crate could only fail. The Python package had no project URLs, leaving its PyPI
+  page with no link to the source, and shipped no license text while the crate
+  ships one. Building the Go example dropped an untracked binary in `hosts/go`.
 
 - Added a handler-style driver to the Rust, Go, and Python host libraries, so an
   application supplies `on_change`/`on_toggle`/`on_click`/`on_error` handlers
@@ -29,6 +44,14 @@ development milestones, not published package versions.
   terminal size, so a host application no longer needs its own terminal
   dependency just to seed the first frame; the Rust example dropped its direct
   crossterm dependency entirely.
+
+- Made the pathological-input guards' wall-clock budgets overridable with
+  `TEML_NESTING_PARSE_BUDGET_MS`, matching the performance suite. Six of them sat
+  in the invariants suite with fixed budgets, so a loaded machine could fail a
+  must-pass gate — and that gate now blocks publishing. Each guard still asserts
+  semantically that the hostile input is neutralized; only the timing canary
+  beside it moves. CI allows 5000 ms, which still fails decisively on the
+  multi-second blowups these exist to catch.
 
 ## v0.2.1 — Windows correctness (2026-07-29)
 
