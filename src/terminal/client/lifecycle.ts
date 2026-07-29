@@ -34,13 +34,6 @@ export function enterTerminal(options: TerminalLifecycleOptions): TerminalLifecy
   const canRawMode = typeof options.input.setRawMode === "function";
   let active = true;
 
-  if (alternateScreen) safeWrite(options.output, TERMINAL_CONTROL.altScreenEnter);
-  if (hideCursor) safeWrite(options.output, TERMINAL_CONTROL.hideCursor);
-  if (mouse) safeWrite(options.output, TERMINAL_CONTROL.mouseOn);
-  if (canRawMode) options.input.setRawMode!(true);
-  options.input.resume();
-  options.input.setEncoding?.("utf8");
-
   const signalHandlers = new Map<NodeJS.Signals, () => void>();
 
   const cleanup = (): void => {
@@ -59,6 +52,21 @@ export function enterTerminal(options: TerminalLifecycleOptions): TerminalLifecy
     }
     options.input.pause();
   };
+
+  try {
+    if (alternateScreen) safeWrite(options.output, TERMINAL_CONTROL.altScreenEnter);
+    if (hideCursor) safeWrite(options.output, TERMINAL_CONTROL.hideCursor);
+    if (mouse) safeWrite(options.output, TERMINAL_CONTROL.mouseOn);
+    if (canRawMode) options.input.setRawMode!(true);
+    options.input.resume();
+    options.input.setEncoding?.("utf8");
+  } catch (error) {
+    // setRawMode can reject a stream the alternate-screen and mouse writes
+    // already succeeded on. Without this the caller's terminal is left on the
+    // alternate buffer with a hidden cursor and mouse reporting still enabled.
+    cleanup();
+    throw error;
+  }
 
   if (useSignals) {
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {

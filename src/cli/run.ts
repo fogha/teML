@@ -1,6 +1,7 @@
 // cli/run.ts — shared pipeline for all commands (lazy imports, debug timings).
 
 import { readFileSync } from "node:fs";
+import { parseSeaUri, readSeaAsset } from "../sea/runtime.js";
 import { performance } from "node:perf_hooks";
 import type { TDoc } from "../core/index.js";
 import type { SanitizeOpts } from "../core/href.js";
@@ -18,6 +19,10 @@ export function readInput(file?: string): { source: string; name: string } {
   if (!file || file === "-") {
     return { source: readFileSync(0, "utf8"), name: "<stdin>" };
   }
+  const seaKey = parseSeaUri(file);
+  if (seaKey) {
+    return { source: readSeaAsset(seaKey), name: seaKey };
+  }
   return { source: readFileSync(file, "utf8"), name: file };
 }
 
@@ -27,6 +32,28 @@ export function inferFormat(source: string, name: string): "teml" | "markdown" |
   if (lower.endsWith(".md") || lower.endsWith(".markdown")) return "markdown";
   if (/^\s*(<!doctype|<html)/i.test(source)) return "html";
   return "teml";
+}
+
+/**
+ * Write a command's output. A downstream reader that exits early
+ * (`teml view doc.teml | head -c1`) closes the pipe, and the resulting EPIPE
+ * arrives either from `write` directly or as a stream `error` event. Both mean
+ * "the reader has what it wanted", not a failure, so neither may surface as an
+ * unhandled exception and a silent exit 2.
+ */
+function writeOutput(text: string): void {
+  const stream = process.stdout;
+  if (stream.listenerCount("error") === 0) {
+    stream.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "EPIPE") return;
+      process.stderr.write(`teml: error: cannot write output: ${error.message}\n`);
+    });
+  }
+  try {
+    stream.write(text);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EPIPE") throw error;
+  }
 }
 
 export function sanitizeOpts(flags: CliFlags): SanitizeOpts {
@@ -128,12 +155,12 @@ export async function execute(
   switch (command) {
     case "view": {
       const { runView } = await import("./commands/view.js");
-      process.stdout.write(runView(doc, layoutOpts));
+      writeOutput(runView(doc, layoutOpts));
       break;
     }
     case "render": {
       const { runRender } = await import("./commands/render.js");
-      process.stdout.write(
+      writeOutput(
         runRender(doc, {
           width: flags.width ?? 80,
           caps,
@@ -145,7 +172,7 @@ export async function execute(
     }
     case "convert": {
       const { runConvert } = await import("./commands/convert.js");
-      process.stdout.write(
+      writeOutput(
         runConvert(doc, {
           to: flags.to ?? "teml",
           diags,
@@ -158,7 +185,7 @@ export async function execute(
     }
     case "inspect": {
       const { runInspect } = await import("./commands/inspect.js");
-      process.stdout.write(
+      writeOutput(
         runInspect(doc, {
           ast: flags.ast,
           tokens: flags.tokens,

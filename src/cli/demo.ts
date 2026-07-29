@@ -2,10 +2,16 @@
 
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { bundledFileExists, isSeaRuntime, seaUriForAsset } from "../sea/runtime.js";
+
+const DEMO_ASSET = "assets/demo.teml";
 
 export function bundledDemoPath(moduleUrl: string = import.meta.url): string {
   const packaged = fileURLToPath(new URL("../assets/demo.teml", moduleUrl));
-  if (existsSync(packaged)) return packaged;
+  if (isSeaRuntime() || bundledFileExists(DEMO_ASSET, packaged)) {
+    if (isSeaRuntime()) return seaUriForAsset(DEMO_ASSET);
+    if (existsSync(packaged)) return packaged;
+  }
 
   const source = fileURLToPath(new URL("../../examples/demo.teml", moduleUrl));
   if (existsSync(source)) return source;

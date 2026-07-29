@@ -1,8 +1,11 @@
 // html/profiles/loader.ts — validated declarative profile loader (Milestone 5).
 
 import { existsSync, readFileSync } from "node:fs";
+import { bundledFileExists, readBundledFile } from "../../sea/runtime.js";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Diagnostics } from "../../core/diagnostics.js";
+import { isKnownContainer } from "../../teml/directives.js";
 
 export type ProfileMatch = {
   class?: string;
@@ -66,6 +69,12 @@ export function validateProfile(raw: unknown): Profile {
     if (!isRecord(item)) throw new Error(`profile.containers[${i}] must be an object`);
     if (typeof item.directive !== "string" || !item.directive.trim())
       throw new Error(`profile.containers[${i}].directive must be a non-empty string`);
+    // Caught here rather than at conversion time, where an unknown name would
+    // silently produce a container the normalizer then drops.
+    if (!isKnownContainer(item.directive.trim()))
+      throw new Error(
+        `profile.containers[${i}].directive '${item.directive.trim()}' is not a known TeML container directive`,
+      );
     const titleFrom =
       item.titleFrom == null
         ? undefined
@@ -104,7 +113,8 @@ function resolveProfilePath(nameOrPath: string): string {
   if (isAbsolute(nameOrPath)) return nameOrPath;
   if (nameOrPath.endsWith(".json")) return join(process.cwd(), nameOrPath);
   const bundled = join(profilesDir, `${nameOrPath}.json`);
-  if (existsSync(bundled)) return bundled;
+  const assetKey = `html/profiles/${nameOrPath}.json`;
+  if (bundledFileExists(assetKey, bundled)) return bundled;
   const cwdCandidate = join(process.cwd(), nameOrPath);
   if (existsSync(cwdCandidate)) return cwdCandidate;
   const cwdJson = join(process.cwd(), `${nameOrPath}.json`);
@@ -112,9 +122,21 @@ function resolveProfilePath(nameOrPath: string): string {
   throw new Error(`profile not found: ${nameOrPath}`);
 }
 
+function readProfileSource(path: string, nameOrPath: string): string {
+  if (isAbsolute(nameOrPath) || nameOrPath.endsWith(".json")) {
+    return readFileSync(path, "utf8");
+  }
+  const assetKey = `html/profiles/${nameOrPath}.json`;
+  const bundled = join(profilesDir, `${nameOrPath}.json`);
+  if (path === bundled && bundledFileExists(assetKey, bundled)) {
+    return readBundledFile(assetKey, bundled);
+  }
+  return readFileSync(path, "utf8");
+}
+
 export function loadProfile(nameOrPath: string): Profile {
   const path = resolveProfilePath(nameOrPath);
-  const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  const raw = JSON.parse(readProfileSource(path, nameOrPath)) as unknown;
   return validateProfile(raw);
 }
 
@@ -144,11 +166,26 @@ export function findSpanRole(el: Element, profile?: Profile): string | undefined
   return undefined;
 }
 
-export function titleFromSelectors(el: Element, selectors: string): string | undefined {
+export function titleFromSelectors(
+  el: Element,
+  selectors: string,
+  diags?: Diagnostics,
+): string | undefined {
   for (const sel of selectors.split(",")) {
     const trimmed = sel.trim();
     if (!trimmed) continue;
-    const found = el.querySelector(trimmed);
+    let found: Element | null;
+    try {
+      found = el.querySelector(trimmed);
+    } catch {
+      // querySelector throws on a malformed selector. One bad profile rule must
+      // not abort the conversion of an otherwise valid document.
+      diags?.warn(
+        "profile-invalid-selector",
+        `profile titleFrom selector '${trimmed}' is not a valid CSS selector; ignored`,
+      );
+      continue;
+    }
     if (found) {
       const text = found.textContent?.replace(/\s+/g, " ").trim();
       if (text) return text;

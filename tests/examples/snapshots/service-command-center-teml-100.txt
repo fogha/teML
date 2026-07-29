@@ -24,7 +24,7 @@ Disk on db-03 92%
 
 ┌─ Ingress ─────────────────────────────────────┐  ┌─ Data plane ──────────────────────────────────┐
 │ Edge traffic is stable. TLS handshakes remain │  │ Replication lag is within SLO on every shard. │
-│ under budget. ✓ All six ingress nodes pass    │  │ Shard s-07 compaction is slower than          │
+│ under budget. ✓ All six ingress nodes pass    │  │ ⚠ Shard s-07 compaction is slower than       │
 │ synthetic checks.                             │  │ baseline.                                     │
 └───────────────────────────────────────────────┘  └───────────────────────────────────────────────┘
 

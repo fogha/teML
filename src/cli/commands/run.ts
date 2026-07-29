@@ -5,6 +5,7 @@
 // deciding how to redraw each frame).
 
 import type { Readable, Writable } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
 import type { TDoc } from "../../core/index.js";
 import { decodeCommand, encodeEvent, NdjsonSplitter } from "../../interactive/protocol.js";
 import { InteractiveSession, type SessionOptions } from "../../interactive/session.js";
@@ -17,64 +18,113 @@ export type RunOpts = SessionOptions;
  * Drive one interactive session end-to-end over the given streams: emit the
  * first frame immediately, then decode NDJSON commands from `stdin` and
  * write NDJSON events to `stdout` until the host sends `exit` or closes
- * stdin. Resolves with a process exit code. Pure stream plumbing — no
- * process.* globals — so this is directly unit-testable without spawning a
- * subprocess.
+ * stdin. Resolves with a process exit code. Every stream is injected, so this
+ * is directly unit-testable without spawning a subprocess; `stderr` only falls
+ * back to the process global when a caller does not supply one.
  */
-export function runInteractive(
+export async function runInteractive(
   doc: TDoc,
   opts: RunOpts,
   stdin: Readable,
   stdout: Writable,
+  stderr: Writable = process.stderr,
 ): Promise<number> {
   const session = new InteractiveSession(doc, opts);
   const splitter = new NdjsonSplitter();
-  const write = (line: string): void => {
-    stdout.write(line);
+  const utf8 = new StringDecoder("utf8");
+  let outputFailed = false;
+  const onOutputError = (): void => {
+    outputFailed = true;
+    if (!stdin.destroyed) stdin.destroy();
+  };
+  stdout.on("error", onOutputError);
+
+  const write = async (line: string): Promise<boolean> => {
+    if (outputFailed) return false;
+    try {
+      if (stdout.write(line)) return true;
+    } catch {
+      outputFailed = true;
+      return false;
+    }
+    return new Promise<boolean>((resolve) => {
+      const cleanup = (): void => {
+        stdout.removeListener("drain", onDrain);
+        stdout.removeListener("error", onError);
+      };
+      const onDrain = (): void => {
+        cleanup();
+        resolve(true);
+      };
+      const onError = (): void => {
+        cleanup();
+        outputFailed = true;
+        resolve(false);
+      };
+      stdout.once("drain", onDrain);
+      stdout.once("error", onError);
+    });
   };
 
-  for (const event of session.start()) write(encodeEvent(event));
+  const writeEvents = async (events: ReturnType<InteractiveSession["start"]>): Promise<boolean> => {
+    for (const event of events) {
+      if (!(await write(encodeEvent(event)))) return false;
+    }
+    return true;
+  };
 
-  return new Promise((resolve) => {
-    let resolved = false;
-    const finish = (code: number): void => {
-      if (resolved) return;
-      resolved = true;
-      stdin.removeListener("data", onData);
-      stdin.removeListener("end", onEnd);
-      resolve(code);
-    };
+  const processLine = async (line: string): Promise<boolean> => {
+    const decoded = decodeCommand(line);
+    if (!decoded.ok) {
+      return writeEvents([{ type: "error", message: decoded.error }]);
+    }
+    return writeEvents(session.handle(decoded.command));
+  };
 
-    const processLine = (line: string): void => {
-      const decoded = decodeCommand(line);
-      if (!decoded.ok) {
-        write(encodeEvent({ type: "error", message: decoded.error }));
-        return;
+  try {
+    if (!(await writeEvents(session.start()))) return 1;
+    for await (const chunk of stdin) {
+      const text = typeof chunk === "string" ? chunk : utf8.write(chunk as Buffer);
+      for (const input of splitter.push(text)) {
+        const written = input.ok
+          ? await processLine(input.line)
+          : await writeEvents([{ type: "error", message: input.error }]);
+        if (!written) return 1;
+        if (session.isDone()) return 0;
       }
-      for (const event of session.handle(decoded.command)) write(encodeEvent(event));
-      if (session.isDone()) finish(0);
-    };
-
-    const onData = (chunk: Buffer | string): void => {
-      const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
-      for (const line of splitter.push(text)) {
-        processLine(line);
-        if (resolved) return;
+    }
+    const trailingText = utf8.end();
+    for (const input of splitter.push(trailingText)) {
+      const written = input.ok
+        ? await processLine(input.line)
+        : await writeEvents([{ type: "error", message: input.error }]);
+      if (!written) return 1;
+      if (session.isDone()) return 0;
+    }
+    for (const input of splitter.flush()) {
+      const written = input.ok
+        ? await processLine(input.line)
+        : await writeEvents([{ type: "error", message: input.error }]);
+      if (!written) return 1;
+      if (session.isDone()) return 0;
+    }
+    return outputFailed ? 1 : 0;
+  } catch (error) {
+    // Failing silently here left a host with a closed stream and no reason,
+    // and an operator with an exit code and nothing on stderr.
+    const message = error instanceof Error ? error.message : String(error);
+    stderr.write(`teml: error: interactive session failed: ${message}\n`);
+    if (!outputFailed) {
+      try {
+        stdout.write(encodeEvent({ type: "error", message }));
+      } catch {
+        // The channel is already gone; the stderr line is the only record.
       }
-    };
-
-    const onEnd = (): void => {
-      for (const line of splitter.flush()) {
-        processLine(line);
-        if (resolved) return;
-      }
-      finish(0);
-    };
-
-    stdin.on("data", onData);
-    stdin.on("end", onEnd);
-    stdin.resume();
-  });
+    }
+    return 1;
+  } finally {
+    stdout.removeListener("error", onOutputError);
+  }
 }
 
 /** CLI entry point: load the initial document, then hand off to runInteractive on real stdio. */
@@ -98,7 +148,8 @@ export async function executeRun(file: string | undefined, flags: CliFlags): Pro
     return 1;
   }
 
-  const { detectCapabilities } = await import("../../terminal/capabilities.js");
+  const { clampTerminalHeight, detectCapabilities } =
+    await import("../../terminal/capabilities.js");
   const { loadTheme, loadDocumentTheme, applyMetaRoles } = await import("../../terminal/theme.js");
   // `run`'s own stdout is always a pipe (the NDJSON protocol channel), never
   // the terminal a human is looking at, so isTTY-based auto-detection would
@@ -127,12 +178,15 @@ export async function executeRun(file: string | undefined, flags: CliFlags): Pro
       diags,
       layout: {
         width: caps.width,
+        height: flags.height === undefined ? undefined : clampTerminalHeight(flags.height),
         theme,
         caps,
         wrapCode: flags.wrapCode,
         showUrls: flags.showUrls,
       },
       sanitize: sanitizeOpts(flags),
+      frames: flags.frames,
+      mode: flags.frameMode,
     },
     process.stdin,
     process.stdout,

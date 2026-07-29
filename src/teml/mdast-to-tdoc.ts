@@ -37,12 +37,36 @@ function mdAlign(a: "left" | "right" | "center" | null | undefined): Align {
   return a ?? null;
 }
 
+/** Footnote refs and definitions are matched by exact id, so both sides have to
+ * be normalized identically at ingestion or a padded id silently fails to link. */
+function footnoteId(raw: string): string {
+  return sanitizeText(raw).trim();
+}
+
 export type ParseContext = {
   sanitize?: SanitizeOpts;
 };
 
 function hrefOpts(ctx: ParseContext): SanitizeOpts {
   return ctx.sanitize ?? {};
+}
+
+/** Directive attributes cannot contain literal newlines. Textarea values use
+ * JSON-like \n/\r/\\ escapes so TeML serialization remains one physical line. */
+function decodeTextareaValue(value: string): string {
+  let out = "";
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index]!;
+    if (char !== "\\" || index + 1 >= value.length) {
+      out += char;
+      continue;
+    }
+    const next = value[++index]!;
+    if (next === "n" || next === "r") out += "\n";
+    else if (next === "\\") out += "\\";
+    else out += `\\${next}`;
+  }
+  return sanitizeText(out.replace(/\r\n?/g, "\n"));
 }
 
 function mdToInlines(nodes: PhrasingContent[], diags: Diagnostics, ctx: ParseContext): Inline[] {
@@ -103,7 +127,7 @@ function mdToInline(
         return children;
       }
       if (name === "fn") {
-        const id = attrs.id;
+        const id = attrs.id ? footnoteId(attrs.id) : "";
         if (!id) {
           diags.warn("footnote-missing", "footnote inline directive missing id attribute", line);
           return children;
@@ -120,7 +144,7 @@ function mdToInline(
       return children;
     }
     case "footnoteReference":
-      return { type: "footnoteRef", id: sanitizeText(node.identifier) };
+      return { type: "footnoteRef", id: footnoteId(node.identifier) };
     case "html":
       diags.warn("raw-html-ignored", "raw HTML ignored in restricted profile", line);
       return null;
@@ -214,7 +238,7 @@ function mdToBlock(node: Content, diags: Diagnostics, ctx: ParseContext): Block 
     case "footnoteDefinition":
       return {
         type: "footnoteDefinition",
-        id: sanitizeText(node.identifier),
+        id: footnoteId(node.identifier),
         children: mdToBlocks(node.children as RootContent[], diags, ctx),
       };
     case "blockquote":
@@ -225,7 +249,7 @@ function mdToBlock(node: Content, diags: Diagnostics, ctx: ParseContext): Block 
     case "code":
       return {
         type: "codeBlock",
-        language: node.lang || undefined,
+        language: node.lang ? sanitizeText(node.lang).trim() || undefined : undefined,
         value: sanitizeText(node.value, "code"),
       };
     case "thematicBreak":
@@ -254,7 +278,7 @@ function mdToBlock(node: Content, diags: Diagnostics, ctx: ParseContext): Block 
       if (name === "footnote" && attrs.id) {
         return {
           type: "footnoteDefinition",
-          id: attrs.id,
+          id: footnoteId(attrs.id),
           children: mdToBlocks(node.children as RootContent[], diags, ctx),
         };
       }
@@ -268,6 +292,9 @@ function mdToBlock(node: Content, diags: Diagnostics, ctx: ParseContext): Block 
     case "leafDirective": {
       const name = node.name;
       const attrs = sanitizeDirectiveAttrs(node.attributes);
+      if (name === "textarea" && attrs.value !== undefined) {
+        attrs.value = decodeTextareaValue(attrs.value);
+      }
       if (!isKnownLeaf(name)) {
         diags.warn("unknown-directive", `unknown leaf ::${name}`, line);
       }

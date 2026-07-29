@@ -1,0 +1,9 @@
+# Live deploy
+
+::progress{id="deploy" label="Deploy" value="0" max="100" role="info"}
+
+::metric{id="cpu" label="CPU" value="12%" change="+1%" role="warning"}
+
+::input{id="note" label="Release note" placeholder="optional"}
+
+::button{id="pause" label="Pause updates"}

@@ -47,10 +47,25 @@ function serializeInline(nodes: Inline[], ctx: "prose" | "link" | "tableCell" = 
   return out;
 }
 
-function attrStr(attrs: Record<string, string>): string {
+function attrStr(attrs: Record<string, string>, multilineValue = false): string {
   const entries = Object.entries(attrs).sort(([a], [b]) => a.localeCompare(b));
   if (!entries.length) return "";
-  return "{" + entries.map(([k, v]) => `${k}="${escapeTemlText(v, "attr")}"`).join(" ") + "}";
+  return (
+    "{" +
+    entries
+      .map(([k, v]) => {
+        const escaped =
+          multilineValue && k === "value"
+            ? v
+                .replace(/\\/g, "\\\\")
+                .replace(/\r\n?|\n/g, "\\n")
+                .replace(/"/g, '\\"')
+            : escapeTemlText(v, "attr");
+        return `${k}="${escaped}"`;
+      })
+      .join(" ") +
+    "}"
+  );
 }
 
 function childDirectiveDepth(b: Block): number {
@@ -178,7 +193,7 @@ function serializeBlock(b: Block): string {
       return `${colons}${b.name}${attrStr(b.attrs)}\n${body}\n${colons}`;
     }
     case "leaf":
-      return `::${b.name}${attrStr(b.attrs)}`;
+      return `::${b.name}${attrStr(b.attrs, b.name === "textarea")}`;
   }
 }
 

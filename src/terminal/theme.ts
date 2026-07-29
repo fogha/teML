@@ -2,6 +2,7 @@
 // file decides what success looks like, per theme, per capability tier.
 
 import { readFileSync, existsSync } from "node:fs";
+import { bundledFileExists, readBundledFile } from "../sea/runtime.js";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ColorValue, Meta, RoleStyle } from "../core/ast.js";
@@ -35,6 +36,13 @@ export type Style = {
   underline?: boolean;
   strike?: boolean;
   href?: string; // carried through for OSC 8 emission
+  /** Internal layout metadata used to derive interactive hit regions.
+   * Renderers deliberately ignore it. */
+  widgetId?: string;
+  /** Generalized focus target metadata for container and composite widgets. */
+  interactiveId?: string;
+  interactiveKind?: "widget" | "radioOption" | "textareaContent" | "scroll";
+  interactiveValue?: string;
 };
 
 export type Decoration = {
@@ -264,9 +272,11 @@ export function validateThemeShape(raw: unknown, diags?: Diagnostics): Theme | n
   return { name: obj.name, roles, decorations };
 }
 
-function readThemeFile(path: string, diags?: Diagnostics): Theme | null {
+function readThemeFile(path: string, diags?: Diagnostics, assetKey?: string): Theme | null {
   try {
-    const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+    const raw = JSON.parse(
+      assetKey ? readBundledFile(assetKey, path) : readFileSync(path, "utf8"),
+    ) as unknown;
     return validateThemeShape(raw, diags);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -276,12 +286,13 @@ function readThemeFile(path: string, diags?: Diagnostics): Theme | null {
 }
 
 function loadBuiltinTheme(name: string, diags?: Diagnostics): Theme | null {
+  const assetKey = `terminal/themes/${name}.json`;
   const path = join(themesDir(), `${name}.json`);
-  if (!existsSync(path)) {
+  if (!bundledFileExists(assetKey, path)) {
     diags?.warn("theme-not-found", `built-in theme '${name}' not found`);
     return null;
   }
-  return readThemeFile(path, diags);
+  return readThemeFile(path, diags, assetKey);
 }
 
 /** Built-in theme by name, otherwise read a custom JSON file path. */

@@ -1,15 +1,24 @@
 ---
-title: Sign up
+title: Release handoff
 theme: dark
 ---
 
-# Sign up
+# Release handoff
 
-Try it: **Tab**/**Shift+Tab** to move focus, type into the inputs,
-**Space**/**Enter** to toggle the checkbox or click the button. Name below
-starts with a suggested default — type or press Backspace to replace it.
+This compact screen exercises the complete widget model. Use **Tab** to move
+between controls; arrows choose a channel, **Enter** confirms it, and
+**Ctrl+Enter** leaves the multiline field.
 
-::input{id="name" label="Name" value="Jane Doe"}
-::input{id="email" label="Email" placeholder="you@example.com"}
-::checkbox{id="agree" label="I agree to the terms"}
-::button{id="submit" label="Submit"}
+:::radio{id="channel" value="staging"}
+::option{value="canary" label="Canary · 5% traffic"}
+::option{value="staging" label="Staging · internal verification"}
+::option{value="production" label="Production · full rollout"}
+:::
+
+::input{id="owner" label="Release owner" value="Ada"}
+
+::textarea{id="notes" label="Release notes" placeholder="Risks, checks, and rollback plan…" rows="3"}
+
+::checkbox{id="approved" label="All pre-flight checks passed"}
+
+::button{id="deploy" label="Queue deployment"}

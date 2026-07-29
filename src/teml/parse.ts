@@ -10,7 +10,15 @@ import type { Root } from "mdast";
 import type { Inline } from "../core/ast.js";
 import { Diagnostics } from "../core/index.js";
 import type { TDoc } from "../core/index.js";
-import { hasPathologicalNesting, pathologicalNestingFallback } from "../core/limits.js";
+import {
+  delimiterRunFallback,
+  hasPathologicalDelimiterRun,
+  hasPathologicalNesting,
+  isStackOverflow,
+  parserOverflowFallback,
+  pathologicalNestingFallback,
+} from "../core/limits.js";
+import { sanitizeText } from "../core/sanitize.js";
 import { mdastInlinesFromFragment, mdastToTDoc, type ParseContext } from "./mdast-to-tdoc.js";
 
 export { parseAttrs } from "./directives.js";
@@ -61,9 +69,29 @@ export function maxContainerNesting(source: string): number {
   return max;
 }
 
-/** Parse TeML/Markdown source to an mdast Root (exploratory / shared seam). */
+/**
+ * Parse TeML/Markdown source to an mdast Root (exploratory / shared seam).
+ * Applies the same input guards as `parseTeml`: this is a public entry point,
+ * so it cannot assume a caller has already vetted the source. Hostile shapes
+ * degrade to a literal code node rather than being parsed.
+ */
 export function parseToMdast(source: string): Root {
-  return processor.parse(source.replace(/\r\n?/g, "\n")) as Root;
+  const normalized = source.replace(/\r\n?/g, "\n");
+  if (hasPathologicalNesting(normalized) || hasPathologicalDelimiterRun(normalized)) {
+    return literalRoot(normalized);
+  }
+  const chosen =
+    maxContainerNesting(normalized) > MAX_CONTAINER_NESTING ? safeProcessor : processor;
+  try {
+    return chosen.parse(normalized) as Root;
+  } catch (error) {
+    if (!isStackOverflow(error)) throw error;
+    return literalRoot(normalized);
+  }
+}
+
+function literalRoot(source: string): Root {
+  return { type: "root", children: [{ type: "code", lang: null, meta: null, value: source }] };
 }
 
 export function parseTeml(
@@ -76,6 +104,7 @@ export function parseTeml(
   // trigger, format-agnostic) blockquote/list chaining attack that doesn't
   // involve `:::` fences at all — see core/limits.ts.
   if (hasPathologicalNesting(normalized)) return pathologicalNestingFallback(normalized, diags);
+  if (hasPathologicalDelimiterRun(normalized)) return delimiterRunFallback(normalized, diags);
   if (maxContainerNesting(normalized) > MAX_CONTAINER_NESTING) {
     diags.warn(
       "container-nesting-too-deep",
@@ -83,7 +112,14 @@ export function parseTeml(
     );
     return mdastToTDoc(safeProcessor.parse(normalized) as Root, diags, ctx);
   }
-  return mdastToTDoc(parseToMdast(normalized), diags, ctx);
+  try {
+    return mdastToTDoc(processor.parse(normalized) as Root, diags, ctx);
+  } catch (error) {
+    // The pre-scans above cover the shapes that are cheap to trigger, but the
+    // parser's own recursion is the backstop for anything they miss.
+    if (!isStackOverflow(error)) throw error;
+    return parserOverflowFallback(normalized, diags);
+  }
 }
 
 /** Parse an inline fragment (used by tests and legacy call sites). */
@@ -93,5 +129,21 @@ export function parseInline(
   _line?: number,
   ctx: ParseContext = {},
 ): Inline[] {
-  return mdastInlinesFromFragment(src, diags, ctx);
+  if (hasPathologicalNesting(src) || hasPathologicalDelimiterRun(src)) {
+    diags.warn(
+      "pathological-inline-rejected",
+      "inline fragment nests markup implausibly deeply; kept as literal text",
+    );
+    return [{ type: "text", value: sanitizeText(src) }];
+  }
+  try {
+    return mdastInlinesFromFragment(src, diags, ctx);
+  } catch (error) {
+    if (!isStackOverflow(error)) throw error;
+    diags.warn(
+      "parse-overflow-rejected",
+      "inline fragment nests markup too deeply for the parser; kept as literal text",
+    );
+    return [{ type: "text", value: sanitizeText(src) }];
+  }
 }

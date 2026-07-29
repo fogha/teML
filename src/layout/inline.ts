@@ -15,6 +15,18 @@ export type InlineOpts = {
   showUrls?: boolean;
 };
 
+/**
+ * Prefix that carries a status role when colour cannot. The unicode branch in
+ * `inlineToSpans` already glyphs `success` and `error`, so `warning` is the one
+ * role that would otherwise reach a NO_COLOR terminal with no marker at all —
+ * indistinguishable from plain text.
+ */
+function statusPrefix(role: "success" | "error" | "warning", opts: InlineOpts): string {
+  if (opts.caps.unicode) return role === "warning" ? "⚠ " : "";
+  const dec = decoration(opts.theme, role);
+  return dec ? `${dec.labelAscii} ` : "";
+}
+
 export function inlineToSpans(nodes: Inline[], opts: InlineOpts, inherited: Style = {}): Span[] {
   const t = opts.theme;
   const out: Span[] = [];
@@ -71,9 +83,7 @@ export function inlineToSpans(nodes: Inline[], opts: InlineOpts, inherited: Styl
           (n.role === "success" || n.role === "error" || n.role === "warning") &&
           !colorsEnabled(opts.caps)
         ) {
-          const dec = decoration(opts.theme, n.role);
-          const tag = dec ? (opts.caps.unicode ? "" : dec.labelAscii + " ") : "";
-          out.push({ text: tag, style: roleStyle }, ...inner);
+          out.push({ text: statusPrefix(n.role, opts), style: roleStyle }, ...inner);
         } else {
           out.push(...inner);
         }

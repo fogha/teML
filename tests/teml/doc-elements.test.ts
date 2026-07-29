@@ -137,6 +137,27 @@ test("footnotes: duplicate and missing diagnostics", () => {
   expect(d2.all().some((w) => w.code === "footnote-missing")).toBe(true);
 });
 
+test("footnotes: padded ids on either side still link to each other", () => {
+  const d = new Diagnostics();
+  const doc = normalize(
+    parseTeml('Ref :fn{id=" note "}\n\n:::footnote{id="note "}\nBody\n:::\n', d),
+    d,
+  );
+  expect(d.all().some((w) => w.code === "footnote-missing")).toBe(false);
+  expect(d.all().some((w) => w.code === "footnote-unreferenced")).toBe(false);
+  const paragraph = doc.blocks.find((b) => b.type === "paragraph");
+  expect(paragraph?.type === "paragraph" && paragraph.children).toEqual(
+    expect.arrayContaining([{ type: "footnoteRef", id: "note" }]),
+  );
+});
+
+test("code block language is sanitized like every other ingested value", () => {
+  const doc = normalize(parseTeml("```js\x1b[31m \ncode\n```\n", new Diagnostics()));
+  const block = doc.blocks[0];
+  expect(block?.type).toBe("codeBlock");
+  if (block?.type === "codeBlock") expect(block.language).toBe("js[31m");
+});
+
 test("Markdown footnote GFM round-trip", () => {
   const src = "Note[^note].\n\n[^note]: Big footnote.\n";
   const d = new Diagnostics();

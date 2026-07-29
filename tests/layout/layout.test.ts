@@ -2,6 +2,7 @@ import { test, expect } from "vitest";
 import { doc, text } from "../../src/core/ast.js";
 import { Diagnostics } from "../../src/core/diagnostics.js";
 import { layoutDocument } from "../../src/layout/layout.js";
+import { cellWidth } from "../../src/layout/measure.js";
 import { lineWidth } from "../../src/render/styledLine.js";
 import { renderPlain } from "../../src/render/plain.js";
 import { loadTheme } from "../../src/terminal/theme.js";
@@ -104,6 +105,24 @@ test("card title too long for the width is truncated, not overflowed", () => {
   expect(widths.every((w) => w === width)).toBe(true);
   const top = renderPlain([lines[0] ?? []]);
   expect(top).toContain("…");
+});
+
+test("kv aligns values by terminal cells, not UTF-16 length", () => {
+  const d = doc([{ type: "leaf", name: "kv", attrs: { 名前: "wide", ab: "narrow" } }]);
+  const out = renderPlain(
+    layoutDocument(d, {
+      width: 40,
+      theme: loadTheme("mono"),
+      caps: caps({ width: 40 }),
+      diags: new Diagnostics(),
+    }),
+  );
+  const [first, second] = out.split("\n");
+  // "名前" is 2 UTF-16 units but 4 terminal cells, so the values only line up
+  // when the padding is measured in cells. Compare columns, not string offsets.
+  const columnOf = (line: string | undefined, value: string) =>
+    cellWidth((line ?? "").slice(0, (line ?? "").indexOf(value)), { ambiguousWide: false });
+  expect(columnOf(first, "wide")).toBe(columnOf(second, "narrow"));
 });
 
 test("ascii fallback uses + borders", () => {

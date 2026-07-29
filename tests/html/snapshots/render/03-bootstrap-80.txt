@@ -1,7 +1,7 @@
 SERVICE OVERVIEW
 ════════════════════════════════════════════════════════════════════════════════
 
-Status is ✓ healthy with minor alerts.
+Status is ✓ healthy with ⚠ minor alerts.
 
 ┌─ Payments API ───────────────────────────────────────────────────────────────┐
 │ Latency 42ms across 12 pods.                                                 │

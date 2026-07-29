@@ -11,8 +11,10 @@ import type { Block } from "../core/index.js";
 import type { Line, Span } from "../render/styledLine.js";
 import { lineWidth } from "../render/styledLine.js";
 import { resolveRole } from "../terminal/theme.js";
+import { radioOptions } from "../interactive/radio.js";
 import type { LayoutOpts } from "./opts.js";
 import { cellWidth, graphemes, truncateToWidth, type MeasureOpts } from "./measure.js";
+import { graphemeToTextareaVisual, textareaRows, textareaVisualLines } from "./textarea.js";
 import { wrapSpans } from "./wrap.js";
 
 function measureOpts(opts: LayoutOpts): MeasureOpts {
@@ -28,7 +30,7 @@ function clampLine(line: Line, maxW: number, m: MeasureOpts): Line {
 }
 
 function isFocused(id: string | undefined, opts: LayoutOpts): boolean {
-  return !!id && opts.focusedId === id;
+  return !opts.interactiveDisabled && !!id && opts.focusedId === id;
 }
 
 /** Textual focus marker: the only signal that survives renderPlain. Fixed
@@ -38,15 +40,36 @@ function focusMarker(focused: boolean, unicode: boolean): string {
   return unicode ? "▸ " : "> ";
 }
 
-function widgetLine(marker: string, content: Span[], opts: LayoutOpts, indent: number): Line[] {
+function widgetLine(
+  id: string | undefined,
+  marker: string,
+  content: Span[],
+  opts: LayoutOpts,
+  indent: number,
+  kind?: "radioOption",
+  value?: string,
+): Line[] {
   const m = measureOpts(opts);
   const markerW = cellWidth(marker, m);
   const innerW = Math.max(1, opts.width - indent - markerW);
   const pad = " ".repeat(indent);
-  const wrapped = wrapSpans(content, innerW, m);
+  const interactiveId = opts.interactiveDisabled ? undefined : id;
+  const metadata = interactiveId
+    ? kind
+      ? {
+          interactiveId,
+          interactiveKind: kind,
+          ...(value !== undefined ? { interactiveValue: value } : {}),
+        }
+      : { widgetId: interactiveId }
+    : {};
+  const tagged = interactiveId
+    ? content.map((span) => ({ ...span, style: { ...span.style, ...metadata } }))
+    : content;
+  const wrapped = wrapSpans(tagged, innerW, m);
   return wrapped.map((line, i) => [
-    { text: pad, style: {} },
-    { text: i === 0 ? marker : " ".repeat(markerW), style: {} },
+    { text: pad, style: metadata },
+    { text: i === 0 ? marker : " ".repeat(markerW), style: metadata },
     ...clampLine(line, innerW, m),
   ]);
 }
@@ -62,6 +85,7 @@ export function layoutButton(
   const style = focused ? resolveRole(theme, "focus", diags) : {};
 
   return widgetLine(
+    b.attrs.id?.trim(),
     focusMarker(focused, caps.unicode),
     [{ text: `[ ${label} ]`, style }],
     opts,
@@ -114,7 +138,7 @@ export function layoutInput(
   }
   spans.push({ text: "]", style: {} });
 
-  return widgetLine(focusMarker(focused, caps.unicode), spans, opts, indent);
+  return widgetLine(b.attrs.id?.trim(), focusMarker(focused, caps.unicode), spans, opts, indent);
 }
 
 export function layoutCheckbox(
@@ -130,6 +154,7 @@ export function layoutCheckbox(
   const style = focused ? resolveRole(theme, "focus", diags) : {};
 
   return widgetLine(
+    b.attrs.id?.trim(),
     focusMarker(focused, caps.unicode),
     [
       { text: box, style },
@@ -138,4 +163,140 @@ export function layoutCheckbox(
     opts,
     indent,
   );
+}
+
+export function layoutRadio(
+  b: Extract<Block, { type: "container" }>,
+  opts: LayoutOpts,
+  indent: number,
+): Line[] {
+  const id = b.attrs.id?.trim();
+  const focused = isFocused(id, opts);
+  const options = radioOptions(b);
+  const confirmed = b.attrs.value;
+  const confirmedIndex = options.findIndex((option) => option.value === confirmed);
+  const pending = focused
+    ? Math.max(
+        0,
+        Math.min(
+          options.length - 1,
+          opts.radioPending?.get(id ?? "") ?? (confirmedIndex >= 0 ? confirmedIndex : 0),
+        ),
+      )
+    : -1;
+  const focusedStyle = resolveRole(opts.theme, "focus", opts.diags);
+  const lines: Line[] = [];
+  for (let index = 0; index < options.length; index++) {
+    const option = options[index]!;
+    const selected = option.value === confirmed;
+    const style = focused && index === pending ? focusedStyle : {};
+    lines.push(
+      ...widgetLine(
+        id,
+        focusMarker(focused && index === pending, opts.caps.unicode),
+        [
+          { text: selected ? "(*)" : "( )", style },
+          { text: ` ${option.label}`, style },
+        ],
+        opts,
+        indent,
+        "radioOption",
+        option.value,
+      ),
+    );
+  }
+  if (lines.length > 0) return lines;
+  return widgetLine(
+    undefined,
+    focusMarker(false, opts.caps.unicode),
+    [{ text: "(empty radio group)", style: resolveRole(opts.theme, "muted", opts.diags) }],
+    opts,
+    indent,
+  );
+}
+
+export function layoutTextarea(
+  b: Extract<Block, { type: "leaf" }>,
+  opts: LayoutOpts,
+  indent: number,
+): Line[] {
+  const id = b.attrs.id?.trim();
+  const interactiveId = opts.interactiveDisabled ? undefined : id;
+  const focused = isFocused(id, opts);
+  const rows = textareaRows(b.attrs.rows);
+  const m = measureOpts(opts);
+  const available = Math.max(1, opts.width - indent);
+  const marker = available >= 5 ? focusMarker(focused, opts.caps.unicode) : "";
+  const markerW = cellWidth(marker, m);
+  const fieldWidth = Math.max(1, available - markerW);
+  const bracketed = fieldWidth >= 3;
+  const contentWidth = Math.max(1, fieldWidth - (bracketed ? 2 : 0));
+  const value = b.attrs.value ?? "";
+  const visual = textareaVisualLines(value, contentWidth, m);
+  const cursor =
+    focused && !opts.selectionActive
+      ? graphemeToTextareaVisual(value, opts.cursorPos ?? graphemes(value).length, visual, m)
+      : undefined;
+  const maxOffset = Math.max(0, visual.length - rows);
+  const offset = Math.max(0, Math.min(maxOffset, opts.textareaScrollOffsets?.get(id ?? "") ?? 0));
+  const chars = graphemes(value);
+  const fieldStyle = focused ? resolveRole(opts.theme, "focus", opts.diags) : {};
+  const muted = resolveRole(opts.theme, "muted", opts.diags);
+  const genericMetadata = interactiveId
+    ? { interactiveId, interactiveKind: "widget" as const }
+    : {};
+  const lines: Line[] = [];
+  const label = b.attrs.label?.trim();
+  if (label) {
+    lines.push([
+      { text: " ".repeat(indent), style: genericMetadata },
+      { text: marker, style: genericMetadata },
+      {
+        text: truncateToWidth(label, Math.max(1, available - markerW), "…", m),
+        style: { ...muted, ...genericMetadata },
+      },
+    ]);
+  }
+
+  for (let row = 0; row < rows; row++) {
+    const visualIndex = offset + row;
+    const line = visual[visualIndex];
+    let display = line ? chars.slice(line.start, line.end).join("") : "";
+    let style = fieldStyle;
+    if (!value && row === 0 && b.attrs.placeholder) {
+      display = b.attrs.placeholder;
+      style = muted;
+    } else if (cursor?.line === visualIndex) {
+      const before = truncateToWidth(display, Math.max(0, cursor.col), "", m);
+      const beforeGraphemes = graphemes(before).length;
+      const source = graphemes(display);
+      display = [
+        ...source.slice(0, beforeGraphemes),
+        opts.caps.unicode ? "▏" : "|",
+        ...source.slice(beforeGraphemes),
+      ].join("");
+    }
+    display = truncateToWidth(display, contentWidth, "", m);
+    const used = cellWidth(display, m);
+    const contentMetadata = interactiveId
+      ? {
+          interactiveId,
+          interactiveKind: "textareaContent" as const,
+          interactiveValue: String(visualIndex),
+        }
+      : {};
+    const rowMarker = !label && row === 0 ? marker : " ".repeat(markerW);
+    lines.push([
+      { text: " ".repeat(indent), style: genericMetadata },
+      { text: rowMarker, style: genericMetadata },
+      { text: bracketed ? "[" : "", style: genericMetadata },
+      { text: display, style: { ...style, ...contentMetadata } },
+      {
+        text: " ".repeat(Math.max(0, contentWidth - used)),
+        style: contentMetadata,
+      },
+      { text: bracketed ? "]" : "", style: genericMetadata },
+    ]);
+  }
+  return lines;
 }

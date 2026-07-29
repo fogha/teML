@@ -14,14 +14,45 @@ describe("terminal input decoder", () => {
 
   test("decodes navigation keys and a standalone escape", () => {
     const decoder = createInputDecoder();
-    expect(decoder.push("\x1b[5~\x1b[6~\x1b[H\x1b[F")).toEqual([
+    expect(decoder.push("\x1b[5~\x1b[6~\x1b[H\x1b[F\x1b[3~")).toEqual([
       { type: "key", key: "pageUp" },
       { type: "key", key: "pageDown" },
       { type: "key", key: "home" },
       { type: "key", key: "end" },
+      { type: "key", key: "delete" },
     ]);
     expect(decoder.push("\x1b")).toEqual([]);
     expect(decoder.flush()).toEqual([{ type: "key", key: "escape" }]);
+  });
+
+  test("decodes function keys and xterm modifiers across fragmented chunks", () => {
+    const decoder = createInputDecoder();
+    expect(decoder.push("\x1b[1")).toEqual([]);
+    expect(decoder.push(";5A\x1b[3;3~\x1bOP\x1b[24~\x1b[13;5u")).toEqual([
+      { type: "key", key: "up", modifiers: { ctrl: true } },
+      { type: "key", key: "delete", modifiers: { alt: true } },
+      { type: "key", key: "f1" },
+      { type: "key", key: "f12" },
+      { type: "key", key: "enter", modifiers: { ctrl: true } },
+    ]);
+  });
+
+  test("decodes SS3 application-mode navigation and Alt+Arrow", () => {
+    const decoder = createInputDecoder();
+    expect(decoder.push("\x1bOA\x1bOB\x1bOC\x1bOD\x1bOH\x1bOF\x1b[1;3D")).toEqual([
+      { type: "key", key: "up" },
+      { type: "key", key: "down" },
+      { type: "key", key: "right" },
+      { type: "key", key: "left" },
+      { type: "key", key: "home" },
+      { type: "key", key: "end" },
+      { type: "key", key: "left", modifiers: { alt: true } },
+    ]);
+  });
+
+  test("drops complete unknown escape sequences instead of leaking literal input", () => {
+    const decoder = createInputDecoder();
+    expect(decoder.push("\x1b[99~x")).toEqual([{ type: "char", char: "x" }]);
   });
 
   test("decodes SGR pointer and wheel events across chunks", () => {

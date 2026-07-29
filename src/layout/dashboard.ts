@@ -6,7 +6,6 @@ import { lineWidth, padLine } from "../render/styledLine.js";
 import { mergeStyle, resolveRole } from "../terminal/theme.js";
 import type { LayoutOpts } from "./opts.js";
 import { cellWidth, truncateToWidth, type MeasureOpts } from "./measure.js";
-import { shiftHits, visualHeight } from "./hits.js";
 import { wrapSpans } from "./wrap.js";
 
 export type LayoutBlockFn = (b: Block, opts: LayoutOpts, indent: number) => Line[];
@@ -120,22 +119,16 @@ export function layoutGrid(
   if (!children.length) return [];
 
   const out: Line[] = [];
-  let visualRow = 0;
   for (let i = 0; i < children.length; i += cols) {
     const rowBlocks = children.slice(i, i + cols);
     const rowWidths = colWidths.slice(0, rowBlocks.length);
-    const hitStart = opts.hits?.length ?? 0;
     const cellLines = rowBlocks.map((child, ci) => {
       const cellW = rowWidths[ci]!;
       const cellOpts: LayoutOpts = { ...opts, width: cellW };
       return layoutBlockFn(child, cellOpts, 0);
     });
-    // Hit-testing doesn't disambiguate columns (v1): widgets in different
-    // cells of the same row-group land on the same recorded row.
-    shiftHits(opts, hitStart, visualRow);
     const rowLines = joinGridRow(cellLines, rowWidths, gap, m);
     out.push(...rowLines);
-    visualRow += visualHeight(rowLines);
   }
 
   return clampPhysicalLines(out, opts.width, indent, m);
@@ -301,14 +294,12 @@ export function layoutDetails(
 
   if (open) {
     const bodyIndent = indent + 2;
-    const hitStart = opts.hits?.length ?? 0;
     const body = layoutBlocksFn(
       b.children,
       { ...opts, width: Math.max(1, opts.width - 2) },
       true,
       bodyIndent,
     );
-    shiftHits(opts, hitStart, 1); // account for the summary/header line above the body
     lines.push(...body);
   }
 

@@ -10,28 +10,32 @@ export const ALERT_CONTAINERS = ["info", "success", "warning", "error", "note"] 
 
 export const DIRECTIVE_REGISTRY = {
   containers: {
-    card: { attrs: ["title"] },
-    info: { attrs: ["title"] },
-    success: { attrs: ["title"] },
-    warning: { attrs: ["title"] },
-    error: { attrs: ["title"] },
-    note: { attrs: ["title"] },
+    card: { attrs: ["id", "title"] },
+    info: { attrs: ["id", "title"] },
+    success: { attrs: ["id", "title"] },
+    warning: { attrs: ["id", "title"] },
+    error: { attrs: ["id", "title"] },
+    note: { attrs: ["id", "title"] },
     definition: { attrs: ["term"] },
     footnote: { attrs: ["id"] },
-    grid: { attrs: ["columns", "gap"] },
-    details: { attrs: ["summary", "open"] },
-    figure: { attrs: ["caption"] },
+    grid: { attrs: ["id", "columns", "gap"] },
+    details: { attrs: ["id", "summary", "open"] },
+    figure: { attrs: ["id", "caption"] },
+    radio: { attrs: ["id", "value"] },
+    scroll: { attrs: ["id", "rows"] },
   },
   leafs: {
     kv: {},
     image: { attrs: ["src", "alt"] },
     break: {},
-    metric: { attrs: ["label", "value", "role", "change"] },
-    progress: { attrs: ["label", "value", "max", "role"] },
+    metric: { attrs: ["id", "label", "value", "role", "change"] },
+    progress: { attrs: ["id", "label", "value", "max", "role"] },
     event: { attrs: ["time", "title", "detail", "role"] },
     button: { attrs: ["id", "label"] },
     input: { attrs: ["id", "label", "placeholder", "value"] },
     checkbox: { attrs: ["id", "label", "checked"] },
+    textarea: { attrs: ["id", "label", "placeholder", "value", "rows"] },
+    option: { attrs: ["value", "label"] },
   },
   inline: {
     success: {},
@@ -55,10 +59,42 @@ export const LEAF_DIRECTIVES = new Set(Object.keys(DIRECTIVE_REGISTRY.leafs));
 export const INLINE_DIRECTIVES = new Set(Object.keys(DIRECTIVE_REGISTRY.inline));
 
 /** Leaf directives that can hold keyboard focus in an interactive session. */
-export const FOCUSABLE_LEAFS = new Set(["button", "input", "checkbox"]);
+export const FOCUSABLE_LEAFS = new Set(["button", "input", "checkbox", "textarea"]);
+export const FOCUSABLE_CONTAINERS = new Set(["radio", "scroll"]);
+
+/** Display leafs addressable by the interactive `update` command. */
+export const UPDATABLE_LEAFS = new Set(["progress", "metric"]);
+
+/** Containers that may be addressed by structural mutation commands. */
+export const MUTATION_CONTAINERS = new Set([
+  "card",
+  ...ALERT_CONTAINERS,
+  "grid",
+  "details",
+  "figure",
+  "scroll",
+]);
+
+/** Mutable attribute allowlist per updatable leaf (sanitized at apply time). */
+export const UPDATABLE_MUTABLE_ATTRS: Readonly<Record<string, readonly string[]>> = {
+  progress: ["label", "value", "max"],
+  metric: ["label", "value", "change"],
+};
 
 export function isFocusableLeaf(name: string): boolean {
   return FOCUSABLE_LEAFS.has(name);
+}
+
+export function isFocusableContainer(name: string): boolean {
+  return FOCUSABLE_CONTAINERS.has(name);
+}
+
+export function isUpdatableLeaf(name: string): boolean {
+  return UPDATABLE_LEAFS.has(name);
+}
+
+export function isMutationContainer(name: string): boolean {
+  return MUTATION_CONTAINERS.has(name);
 }
 
 const INLINE_ROLE_NAMES = new Set(

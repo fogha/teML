@@ -62,4 +62,36 @@ describe("speech renderer", () => {
     expect(output).toContain("Checkbox: Ready. Checked. Inactive in document mode.");
     expect(output).not.toContain("\x1b");
   });
+
+  test("linearizes composite interactive widgets in document mode", () => {
+    const output = renderSpeech(
+      doc([
+        {
+          type: "container",
+          name: "radio",
+          attrs: { id: "size", value: "large" },
+          children: [
+            { type: "leaf", name: "option", attrs: { value: "small", label: "Small" } },
+            { type: "leaf", name: "option", attrs: { value: "large", label: "Large" } },
+          ],
+        },
+        {
+          type: "leaf",
+          name: "textarea",
+          attrs: { id: "notes", label: "Notes", value: "one\ntwo", rows: "2" },
+        },
+        {
+          type: "container",
+          name: "scroll",
+          attrs: { id: "logs", rows: "3" },
+          children: [{ type: "paragraph", children: [text("Log line")] }],
+        },
+      ]),
+    );
+    expect(output).toContain(
+      "Radio group: size. Options: Small, Large (selected). Inactive in document mode.",
+    );
+    expect(output).toContain("Textarea: Notes. Value:\none\ntwo Inactive in document mode.");
+    expect(output).toContain("Scroll region: logs. Inactive in document mode.\nLog line");
+  });
 });

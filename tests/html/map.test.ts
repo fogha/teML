@@ -62,3 +62,46 @@ test("map: table spans warn once", async () => {
   htmlToDocFromRoot(root, {}, diags, doc);
   expect(diags.has("table-span-flattened")).toBe(true);
 });
+
+test("map: native radios and textarea become equivalent interactive widgets", () => {
+  const source = `
+    <html><body><form>
+      <label for="free">Free</label>
+      <input id="free" type="radio" name="plan" value="free">
+      <label for="pro">Pro</label>
+      <input id="pro" type="radio" name="plan" value="pro" checked>
+      <label for="bio">Bio</label>
+      <textarea id="bio" rows="3">line one
+line two</textarea>
+    </form></body></html>`;
+  const diags = new Diagnostics();
+  const document = parseHtml(source);
+  const mapped = normalize(htmlToDocFromRoot(document.body, {}, diags, document), diags);
+  const radio = mapped.blocks.find((block) => block.type === "container" && block.name === "radio");
+  expect(radio).toMatchObject({
+    type: "container",
+    attrs: { id: "plan", value: "pro" },
+    children: [
+      { type: "leaf", name: "option", attrs: { value: "free", label: "Free" } },
+      { type: "leaf", name: "option", attrs: { value: "pro", label: "Pro" } },
+    ],
+  });
+  expect(mapped.blocks).toContainEqual({
+    type: "leaf",
+    name: "textarea",
+    attrs: { id: "bio", label: "Bio", rows: "3", value: "line one\nline two" },
+  });
+});
+
+test("map: data-teml scroll keeps id and fixed rows", () => {
+  const document = parseHtml(
+    '<html><body><div data-teml="scroll" data-id="logs" data-rows="4"><p>Log</p></div></body></html>',
+  );
+  const diags = new Diagnostics();
+  const mapped = normalize(htmlToDocFromRoot(document.body, {}, diags, document), diags);
+  expect(mapped.blocks[0]).toMatchObject({
+    type: "container",
+    name: "scroll",
+    attrs: { id: "logs", rows: "4" },
+  });
+});

@@ -11,11 +11,11 @@ export default tseslint.config(
   {
     ignores: [
       "dist/**",
+      ".sea/**",
       "coverage/**",
       ".vitest/**",
       "node_modules/**",
       "fixtures/**",
-      "snapshots/**",
       "tests/teml/snapshots/**",
       "tests/**/__snapshots__/**",
     ],

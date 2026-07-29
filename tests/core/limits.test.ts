@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { Diagnostics } from "../../src/core/diagnostics.js";
-import { hasPathologicalNesting, pathologicalNestingFallback } from "../../src/core/limits.js";
+import {
+  hasPathologicalDelimiterRun,
+  hasPathologicalNesting,
+  isStackOverflow,
+  pathologicalNestingFallback,
+} from "../../src/core/limits.js";
 
 describe("hasPathologicalNesting", () => {
   test("is false for ordinary prose, tables, and shallow nesting", () => {
@@ -23,6 +28,36 @@ describe("hasPathologicalNesting", () => {
     let src = "";
     for (let i = 0; i < 100; i++) src += "> ".repeat(i) + "- x\n";
     expect(hasPathologicalNesting(src)).toBe(true);
+  });
+});
+
+describe("hasPathologicalDelimiterRun", () => {
+  test("is false for every delimiter run with a legitimate reading", () => {
+    expect(hasPathologicalDelimiterRun("**bold** *italic* ~~strike~~ ***combo***")).toBe(false);
+    expect(hasPathologicalDelimiterRun("~~~\ncode fence\n~~~\n")).toBe(false);
+    expect(hasPathologicalDelimiterRun("___\n")).toBe(false);
+    expect(hasPathologicalDelimiterRun("---\n***\n")).toBe(false);
+    // Delimiter-dense but shallow: a long table of bold cells must not trip it.
+    expect(
+      hasPathologicalDelimiterRun(
+        Array.from({ length: 500 }, (_, i) => `| **a${i}** | **b${i}** |`).join("\n"),
+      ),
+    ).toBe(false);
+  });
+
+  test("is true for an unbroken run long enough to overflow the parser", () => {
+    expect(hasPathologicalDelimiterRun("**".repeat(5000))).toBe(true);
+    expect(hasPathologicalDelimiterRun(`text ${"_".repeat(64)} more`)).toBe(true);
+    expect(hasPathologicalDelimiterRun("~".repeat(200))).toBe(true);
+  });
+});
+
+describe("isStackOverflow", () => {
+  test("matches parser stack exhaustion and nothing else", () => {
+    expect(isStackOverflow(new RangeError("Maximum call stack size exceeded"))).toBe(true);
+    expect(isStackOverflow(new RangeError("Invalid array length"))).toBe(false);
+    expect(isStackOverflow(new TypeError("x is not a function"))).toBe(false);
+    expect(isStackOverflow("Maximum call stack size exceeded")).toBe(false);
   });
 });
 

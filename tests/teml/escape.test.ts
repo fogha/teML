@@ -4,6 +4,7 @@ import { escapeTemlText, codeFenceLength } from "../../src/teml/escape.js";
 test("escapeTemlText: prose specials and role prefix", () => {
   expect(escapeTemlText("*bold `_[]{}_#|", "prose")).toBe("\\*bold \\`\\_\\[\\]\\{\\}\\_\\#\\|");
   expect(escapeTemlText("see :success[ok]", "prose")).toBe("see \\:success\\[ok\\]");
+  expect(escapeTemlText("alerted at 17:41", "prose")).toBe("alerted at 17\\:41");
   expect(escapeTemlText("already\\:escaped", "prose")).toBe("already\\\\:escaped");
 });
 

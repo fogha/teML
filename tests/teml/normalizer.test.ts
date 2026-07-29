@@ -1,5 +1,6 @@
 import { test, expect } from "vitest";
 import { normalize } from "../../src/core/index.js";
+import { Diagnostics } from "../../src/core/diagnostics.js";
 import { parseTeml } from "../../src/teml/parse.js";
 
 test("normalize: merges adjacent text nodes", () => {
@@ -42,4 +43,54 @@ test("normalize: keeps known directive even with single child", () => {
   const doc = normalize(parseTeml(`:::warning\n\nOnly one block.\n\n:::\n`));
   expect(doc.blocks[0].type).toBe("container");
   if (doc.blocks[0].type === "container") expect(doc.blocks[0].name).toBe("warning");
+});
+
+test("normalize: radio options and defaults are deterministic", () => {
+  const diags = new Diagnostics();
+  const doc = normalize(
+    parseTeml(
+      `:::radio{id="plan" value="missing"}
+::option{value="free" label="Free"}
+::option{value="free" label="Duplicate"}
+::option{label="Missing"}
+:::
+`,
+      diags,
+    ),
+    diags,
+  );
+  const radio = doc.blocks[0];
+  expect(radio).toMatchObject({
+    type: "container",
+    attrs: { id: "plan" },
+    children: [{ type: "leaf", attrs: { value: "free", label: "Free" } }],
+  });
+  expect(diags.has("radio-duplicate-value")).toBe(true);
+  expect(diags.has("radio-option-missing-value")).toBe(true);
+  expect(diags.has("radio-invalid-default")).toBe(true);
+});
+
+test("normalize: nested controls in scroll regions become static", () => {
+  const diags = new Diagnostics();
+  const doc = normalize(
+    parseTeml(
+      `:::scroll{id="logs" rows=3}
+::button{id="nested" label="Nested"}
+:::
+`,
+      diags,
+    ),
+    diags,
+  );
+  const scroll = doc.blocks[0];
+  expect(scroll.type).toBe("container");
+  if (scroll.type !== "container") return;
+  expect(scroll.children[0]).toMatchObject({
+    type: "leaf",
+    attrs: { label: "Nested" },
+  });
+  if (scroll.children[0]?.type === "leaf") {
+    expect(scroll.children[0].attrs.id).toBeUndefined();
+  }
+  expect(diags.has("scroll-nested-widget")).toBe(true);
 });

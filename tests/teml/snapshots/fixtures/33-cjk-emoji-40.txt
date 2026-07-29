@@ -19,7 +19,7 @@ vs cafe\u0301.
 ▎ 絵文字と CJK：🚨 警告メッセージ with
 ▎ bold 强调
 
-リージョン       eu-west-1
-ステータス       正常
+リージョン  eu-west-1
+ステータス  正常
 
 Paragraph ending with 🎉.

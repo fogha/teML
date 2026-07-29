@@ -23,8 +23,8 @@ vs cafe\u0301.
 ▎ 警告メッセージ
 ▎ with bold 强调
 
-リージョン       eu…
-ステータス       正…
+リージョン  eu-west…
+ステータス  正常
 
 Paragraph ending
 with 🎉.

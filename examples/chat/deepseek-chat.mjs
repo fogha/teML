@@ -12,7 +12,7 @@
 // Usage:
 //   export DEEPSEEK_API_KEY=sk-...
 //   node examples/chat/deepseek-chat.mjs
-//   npm run demo:chat
+//   pnpm run demo:chat
 //
 // Flags:
 //   --model <name>   DeepSeek model id (default: deepseek-v4-flash, or $DEEPSEEK_MODEL)
@@ -117,6 +117,9 @@ function parseArgs(argv) {
         break;
       case "--mock":
         opts.mock = true;
+        break;
+      // `pnpm run demo:chat -- --mock` forwards the separator itself.
+      case "--":
         break;
       case "--help":
       case "-h":

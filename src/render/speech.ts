@@ -56,6 +56,14 @@ function speakLeaf(block: Extract<Block, { type: "leaf" }>): string[] {
             : "";
       return [`Input: ${attrLabel(attrs, "unlabelled")}.${value} Inactive in document mode.`];
     }
+    case "textarea": {
+      const value = attrs.value
+        ? ` Value:\n${attrs.value}`
+        : attrs.placeholder
+          ? ` Placeholder: ${attrs.placeholder}.`
+          : "";
+      return [`Textarea: ${attrLabel(attrs, "unlabelled")}.${value} Inactive in document mode.`];
+    }
     case "checkbox":
       return [
         `Checkbox: ${attrLabel(attrs, "unlabelled")}. ${attrs.checked === "true" ? "Checked" : "Not checked"}. Inactive in document mode.`,
@@ -127,6 +135,19 @@ function speakBlocks(blocks: readonly Block[], depth = 0): string[] {
         });
         break;
       case "container": {
+        if (block.name === "radio") {
+          const options = block.children
+            .filter((child) => child.type === "leaf" && child.name === "option")
+            .map((child) =>
+              child.type === "leaf"
+                ? `${child.attrs.label ?? child.attrs.value ?? "unlabelled"}${child.attrs.value === block.attrs.value ? " (selected)" : ""}`
+                : "",
+            );
+          output.push(
+            `Radio group: ${block.attrs.id ?? "unlabelled"}. Options: ${options.join(", ")}. Inactive in document mode.`,
+          );
+          break;
+        }
         const label = ["warning", "error", "success", "info"].includes(block.name)
           ? `${block.name}${block.attrs.title ? `, ${block.attrs.title}` : ""}:`
           : block.name === "card" && block.attrs.title
@@ -135,7 +156,9 @@ function speakBlocks(blocks: readonly Block[], depth = 0): string[] {
               ? `Details, ${block.attrs.open === "false" ? "closed" : "open"}: ${block.attrs.summary ?? ""}`
               : block.name === "figure"
                 ? `Figure${block.attrs.caption ? `: ${block.attrs.caption}` : ""}`
-                : `${block.name}:`;
+                : block.name === "scroll"
+                  ? `Scroll region: ${block.attrs.id ?? "unlabelled"}. Inactive in document mode.`
+                  : `${block.name}:`;
         output.push(label);
         output.push(...speakBlocks(block.children, depth + 1));
         break;

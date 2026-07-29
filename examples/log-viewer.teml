@@ -1,0 +1,43 @@
+---
+title: Deployment log viewer
+theme: dark
+---
+
+# Deployment logs
+
+Focus the log pane, then use the wheel or **PageUp**/**PageDown**. The pane
+consumes movement until it reaches a boundary; remaining rows scroll this
+document so the runbook below comes into view.
+
+::input{id="filter" label="Filter" placeholder="service or message"}
+
+:::scroll{id="logs" rows="9"}
+```text
+14:02:01 api      release 2026.07.27 queued
+14:02:02 worker   draining 42 jobs
+14:02:03 api      artifact signature verified
+14:02:04 web      health check passed
+14:02:05 worker   queue drained
+14:02:06 api      migrating session cache
+14:02:07 web      warming edge cache
+14:02:08 api      canary receiving 5% traffic
+14:02:09 metrics  p95 latency 84ms
+14:02:10 metrics  error rate 0.02%
+14:02:11 api      canary promoted to 50%
+14:02:12 worker   resumed jobs
+14:02:13 web      cache hit ratio 96%
+14:02:14 api      deployment complete
+14:02:15 audit    rollout approved by Ada
+```
+:::
+
+::checkbox{id="follow" label="Follow new entries" checked="true"}
+
+::button{id="close" label="Close"}
+
+## Rollout runbook
+
+1. Confirm latency and error-rate budgets.
+2. Compare canary and baseline traffic.
+3. Verify workers have resumed.
+4. Record the release owner and approval.

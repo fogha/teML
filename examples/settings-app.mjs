@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // examples/settings-app.mjs — a small "nice CLI interface built from HTML"
-// reference app: a single-screen settings form driven by
+// reference app: a workspace-profile form driven by
 // interactive/host.ts's runInteractiveApp, with no NDJSON/subprocess in the
 // loop at all — this app talks to the InteractiveSession engine in-process.
 //
 // It demonstrates:
-//   - authoring a screen entirely as HTML (inputs, a checkbox, buttons)
+//   - authoring a screen entirely as semantic HTML, including a native radio
+//     group and textarea that TeML coalesces into composite widgets
 //   - live validation that re-renders the *same* screen with an inline
 //     error, preserving whatever the user already typed (ctx.render())
 //   - ending the interactive loop from a button handler (ctx.exit())
@@ -14,7 +15,7 @@
 //
 // Usage:
 //   node examples/settings-app.mjs
-//   npm run demo:settings
+//   pnpm run demo:settings
 
 import {
   Diagnostics,
@@ -37,23 +38,30 @@ function escapeHtml(s) {
 function screen({ error } = {}) {
   return `
 ${error ? `<div class="alert alert-danger">${escapeHtml(error)}</div>` : ""}
-<h2>Account Settings</h2>
-<label for="name">Name</label>
-<input id="name" placeholder="Your name">
-<label for="email">Email</label>
-<input id="email" placeholder="you@example.com">
-<label for="notify">Enable email notifications</label>
+<h2>Workspace profile</h2>
+<p>Choose how this CLI receives updates, then leave a note for collaborators.</p>
+<label for="name">Display name</label>
+<input id="name" value="Ada">
+<label for="stable">Stable · recommended</label>
+<input id="stable" type="radio" name="channel" value="stable" checked>
+<label for="preview">Preview · early features</label>
+<input id="preview" type="radio" name="channel" value="preview">
+<label for="nightly">Nightly · newest builds</label>
+<input id="nightly" type="radio" name="channel" value="nightly">
+<label for="notes">Workspace note</label>
+<textarea id="notes" rows="3" placeholder="What should teammates know?"></textarea>
+<label for="notify">Notify me when the channel updates</label>
 <input id="notify" type="checkbox">
-<button id="save">Save</button>
+<button id="save">Save profile</button>
 <button id="cancel">Cancel</button>`;
 }
 
 const FOOTER =
-  "\x1b[2m(Tab/\u2191\u2193 focus \u00b7 \u2190\u2192 edit \u00b7 Enter/Space activate \u00b7 Ctrl+C cancel)\x1b[0m";
+  "\x1b[2m(Tab focus · radio ←→ then Enter · textarea Enter newline/Ctrl+Enter next · Ctrl+C cancel)\x1b[0m";
 
 function validate(values) {
-  if (!values.name.trim()) return "Name is required.";
-  if (values.email.trim() && !values.email.includes("@")) return "Email looks invalid.";
+  if (!values.name.trim()) return "Display name is required.";
+  if (values.notes.length > 240) return "Workspace note must be 240 characters or fewer.";
   return null;
 }
 
@@ -103,14 +111,15 @@ async function main() {
 
   process.stdout.write("\x1b[2J\x1b[H"); // final repaint: same clear the interactive loop used
   if (outcome?.type === "saved") {
-    const { name, email, notify } = outcome.values;
+    const { name, channel, notes, notify } = outcome.values;
     const summary = `
-<div class="alert alert-success"><strong>Settings saved.</strong></div>
+<div class="alert alert-success"><strong>Workspace profile saved.</strong></div>
 <ul>
   <li>Name: <strong>${escapeHtml(name)}</strong></li>
-  <li>Email: ${email ? escapeHtml(email) : '<span class="text-muted">(none)</span>'}</li>
+  <li>Update channel: <strong>${escapeHtml(channel)}</strong></li>
   <li>Notifications: ${notify === "true" ? '<span class="text-success">on</span>' : '<span class="text-muted">off</span>'}</li>
-</ul>`;
+</ul>
+<p>Workspace note: ${notes ? escapeHtml(notes) : '<span class="text-muted">(none)</span>'}</p>`;
     process.stdout.write(`${renderOnce(summary, caps, theme)}\n`);
   } else {
     process.stdout.write(

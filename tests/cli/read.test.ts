@@ -129,6 +129,29 @@ describe("teml read", () => {
     expect(chunks.join("")).not.toContain("b.txt");
   });
 
+  test("prints document diagnostics after the terminal is restored", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "teml-reader-diags-"));
+    const file = join(dir, "doc.teml");
+    // An unknown directive is a parse-time warning the operator must still see.
+    writeFileSync(file, "# Reader\n\n:::nosuchcontainer\nBody\n:::\n");
+    const { input, output, chunks } = ttyPair();
+    const error = new PassThrough();
+    const errors: string[] = [];
+    error.on("data", (chunk) => errors.push(chunk.toString()));
+
+    const running = executeRead(file, { color: false }, { input, output, error });
+    await new Promise((resolve) => setImmediate(resolve));
+    // Nothing may reach stderr while the alternate screen is up.
+    expect(errors.join("")).toBe("");
+    input.write("q");
+    expect(await running).toBe(0);
+
+    rmSync(dir, { recursive: true, force: true });
+    expect(errors.join("")).toContain("teml: warning:");
+    expect(errors.join("")).toContain("nosuchcontainer");
+    expect(chunks.join("")).toContain("\x1b[?1049l");
+  });
+
   test("opens an external URL only after confirmation", async () => {
     const dir = mkdtempSync(join(tmpdir(), "teml-reader-link-"));
     const file = join(dir, "doc.teml");

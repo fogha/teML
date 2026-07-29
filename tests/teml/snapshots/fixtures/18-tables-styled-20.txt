@@ -2,7 +2,8 @@
 │ Feature │ Result │
 ├─────────┼────────┤
 │ bold    │ ✓ pass │
-│ italic  │ check  │
+│ italic  │ ⚠     │
+│         │ check  │
 │ code    │ link   │
 │         │ (https │
 │         │ ://exa │

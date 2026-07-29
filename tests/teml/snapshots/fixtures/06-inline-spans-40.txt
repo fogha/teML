@@ -1,5 +1,5 @@
-Status spans: ✓ ok careful ✗ fail note
-quiet [Ctrl+C]
+Status spans: ✓ ok ⚠ careful ✗ fail
+note quiet [Ctrl+C]
 
 Custom role: deploy
 

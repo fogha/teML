@@ -32,3 +32,24 @@ test("sanitizeHref allowlist and control rejection", () => {
   expect(sanitizeHref("ht\x1btps://x")).toBeNull();
   expect(sanitizeHref("https://x/\x7f")).toBeNull();
 });
+
+test("sanitizeHref vets the trimmed href a consumer would actually open", () => {
+  expect(sanitizeHref(" javascript:alert(1)")).toBeNull();
+  expect(sanitizeHref("\tjavascript:alert(1)\n")).toBeNull();
+  expect(sanitizeHref("  JavaScript:alert(1)")).toBeNull();
+  // What comes back is the exact string that was vetted.
+  expect(sanitizeHref("  https://x.dev/a  ")).toBe("https://x.dev/a");
+  expect(sanitizeHref(" #anchor ")).toBe("#anchor");
+});
+
+test("sanitizeHref rejects a backslash ahead of the scheme separator", () => {
+  expect(sanitizeHref("java\\script:alert(1)")).toBeNull();
+  expect(sanitizeHref("\\\\host\\share:x")).toBeNull();
+  // Backslashes with no scheme separator behind them stay a relative path.
+  expect(sanitizeHref("docs\\a.teml")).toBe("docs\\a.teml");
+});
+
+test("sanitizeText strips line and paragraph separators", () => {
+  expect(sanitizeText("a\u2028b\u2029c")).toBe("abc");
+  expect(sanitizeHref("https://x.dev/\u2028a")).toBeNull();
+});

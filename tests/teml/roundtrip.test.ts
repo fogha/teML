@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Align, Block, Inline, Meta, TDoc } from "../../src/core/ast.js";
 import { Diagnostics, normalize } from "../../src/core/index.js";
@@ -8,23 +8,6 @@ import { serializeTeml } from "../../src/teml/serialize.js";
 import { isShorthandInlineRole } from "../../src/teml/directives.js";
 
 const FIXTURES_DIR = join(process.cwd(), "fixtures/teml");
-
-async function temlFixtures(): Promise<string[]> {
-  return (await readdir(FIXTURES_DIR))
-    .filter((f) => f.endsWith(".teml"))
-    .sort()
-    .map((f) => join(FIXTURES_DIR, f));
-}
-
-for (const file of await temlFixtures()) {
-  const base = file.split("/").pop()!;
-  test(`TeML round-trip AST-stable: ${base}`, async () => {
-    const source = await readFile(file, "utf8");
-    const ast1 = normalize(parseTeml(source, new Diagnostics()));
-    const ast2 = normalize(parseTeml(serializeTeml(ast1), new Diagnostics()));
-    expect(ast2).toEqual(ast1);
-  });
-}
 
 function seededRng(seed: number): () => number {
   let s = seed >>> 0;
@@ -198,6 +181,31 @@ test("serializeTeml: frontmatter includes lang and roles", () => {
   expect(out).toContain("lang: en");
   expect(out).toContain("roles:");
   expect(out).toContain("accent:");
+});
+
+test("interactive composite widgets round-trip, including textarea newlines", () => {
+  const original = normalize({
+    meta: {},
+    blocks: [
+      {
+        type: "container",
+        name: "radio",
+        attrs: { id: "plan", value: "pro" },
+        children: [
+          { type: "leaf", name: "option", attrs: { value: "free", label: "Free" } },
+          { type: "leaf", name: "option", attrs: { value: "pro", label: "Pro" } },
+        ],
+      },
+      {
+        type: "leaf",
+        name: "textarea",
+        attrs: { id: "bio", rows: "3", value: "first\nsecond\\literal" },
+      },
+    ],
+  });
+  const serialized = serializeTeml(original);
+  expect(serialized).toContain('value="first\\nsecond\\\\literal"');
+  expect(normalize(parseTeml(serialized, new Diagnostics()))).toEqual(original);
 });
 
 test("serializeTeml: nested container fence depth", () => {

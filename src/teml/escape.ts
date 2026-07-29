@@ -11,7 +11,7 @@ export function escapeTemlText(s: string, ctx: EscapeContext = "prose"): string 
   switch (ctx) {
     case "prose": {
       let out = s.replace(PROSE_SPECIAL, "\\$&");
-      out = out.replace(/(?<!\\):(?=[a-zA-Z])/g, "\\:");
+      out = out.replace(/(?<!\\):(?=[a-zA-Z0-9])/g, "\\:");
       return out;
     }
     case "tableCell":

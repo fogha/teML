@@ -2,7 +2,7 @@ import { test, expect } from "vitest";
 import { doc, text } from "../../src/core/ast.js"; // text() builds a plain inline text node
 import { Diagnostics } from "../../src/core/diagnostics.js";
 import { layoutDocument } from "../../src/layout/layout.js";
-import { widgetAtRow, type WidgetHit } from "../../src/layout/hits.js";
+import { widgetAt, type WidgetHit } from "../../src/layout/hits.js";
 import { renderPlain } from "../../src/render/plain.js";
 import { loadTheme } from "../../src/terminal/theme.js";
 import type { Capabilities } from "../../src/terminal/capabilities.js";
@@ -36,9 +36,7 @@ function assertHitsMatchLines(
 ): void {
   const plainLines = renderPlain(lines).split("\n");
   for (const h of hits) {
-    for (let r = h.row; r < h.row + h.height; r++) {
-      expect(plainLines[r] ?? "").toContain(expectFragment(h.id));
-    }
+    expect(plainLines[h.row] ?? "").toContain(expectFragment(h.id));
   }
 }
 
@@ -50,10 +48,10 @@ test("top-level widgets each get their own row", () => {
   const o = opts();
   const lines = layoutDocument(d, o);
   assertHitsMatchLines(lines, o.hits!, (id) => (id === "a" ? "[ A ]" : "[ B ]"));
-  expect(widgetAtRow(o.hits!, 0)).toBe("a");
+  expect(widgetAt(o.hits!, 0, 0)).toBe("a");
   // row 1 is the blank separator between top-level blocks
-  expect(widgetAtRow(o.hits!, 1)).toBeUndefined();
-  expect(widgetAtRow(o.hits!, 2)).toBe("b");
+  expect(widgetAt(o.hits!, 1, 0)).toBeUndefined();
+  expect(widgetAt(o.hits!, 2, 0)).toBe("b");
 });
 
 test("a widget inside a card is offset by the title bar", () => {
@@ -68,7 +66,7 @@ test("a widget inside a card is offset by the title bar", () => {
   const o = opts();
   const lines = layoutDocument(d, o);
   assertHitsMatchLines(lines, o.hits!, () => "[ Go ]");
-  expect(o.hits).toEqual([{ id: "go", row: 1, height: 1 }]);
+  expect(o.hits).toEqual([{ id: "go", row: 1, colStart: 2, colEnd: 10 }]);
 });
 
 test("widgets in a bullet list each land on their own row", () => {
@@ -87,9 +85,9 @@ test("widgets in a bullet list each land on their own row", () => {
   const o = opts();
   const lines = layoutDocument(d, o);
   assertHitsMatchLines(lines, o.hits!, (id) => (id === "c1" ? "One" : "Two"));
-  expect(widgetAtRow(o.hits!, 0)).toBeUndefined(); // "intro" row
-  expect(widgetAtRow(o.hits!, 1)).toBe("c1");
-  expect(widgetAtRow(o.hits!, 2)).toBe("c2");
+  expect(widgetAt(o.hits!, 0, 2)).toBeUndefined(); // "intro" row
+  expect(widgetAt(o.hits!, 1, 2)).toBe("c1");
+  expect(widgetAt(o.hits!, 2, 2)).toBe("c2");
 });
 
 test("a widget inside an open details block is offset by the summary line", () => {
@@ -103,7 +101,7 @@ test("a widget inside an open details block is offset by the summary line", () =
   ]);
   const o = opts();
   const lines = layoutDocument(d, o);
-  expect(o.hits).toEqual([{ id: "f", row: 1, height: 1 }]);
+  expect(o.hits).toEqual([{ id: "f", row: 1, colStart: 0, colEnd: 13 }]);
   assertHitsMatchLines(lines, o.hits!, () => "Field:");
 });
 
@@ -136,8 +134,8 @@ test("widgets stacked in successive grid row-groups land on distinct rows", () =
   const o = opts();
   const lines = layoutDocument(d, o);
   assertHitsMatchLines(lines, o.hits!, (id) => (id === "a" ? "[ A ]" : "[ B ]"));
-  expect(widgetAtRow(o.hits!, 0)).toBe("a");
-  expect(widgetAtRow(o.hits!, 1)).toBe("b");
+  expect(widgetAt(o.hits!, 0, 0)).toBe("a");
+  expect(widgetAt(o.hits!, 1, 0)).toBe("b");
 });
 
 test("no hits are recorded when opts.hits is not set (default, no cost)", () => {
@@ -161,7 +159,63 @@ test("a preceding paragraph with an embedded hard line-break doesn't throw off l
   assertHitsMatchLines(lines, o.hits!, () => "[ Go ]");
   const plainLines = renderPlain(lines).split("\n");
   expect(plainLines.slice(0, 4)).toEqual(["Line one", "Line two", "", "  [ Go ]"]);
-  expect(o.hits).toEqual([{ id: "go", row: 3, height: 1 }]);
+  expect(o.hits).toEqual([{ id: "go", row: 3, colStart: 0, colEnd: 8 }]);
+});
+
+test("two buttons in one grid row resolve by exact terminal columns", () => {
+  const d = doc([
+    {
+      type: "container",
+      name: "grid",
+      attrs: { columns: "2", gap: "2" },
+      children: [
+        { type: "leaf", name: "button", attrs: { id: "left", label: "Left" } },
+        { type: "leaf", name: "button", attrs: { id: "right", label: "Right" } },
+      ],
+    },
+  ]);
+  const o = opts();
+  const lines = layoutDocument(d, o);
+  const hits = o.hits!;
+  const left = hits.find((hit) => hit.id === "left")!;
+  const right = hits.find((hit) => hit.id === "right")!;
+
+  expect(left.row).toBe(right.row);
+  expect(widgetAt(hits, left.row, left.colStart)).toBe("left");
+  expect(widgetAt(hits, right.row, right.colStart)).toBe("right");
+  expect(widgetAt(hits, left.row, left.colEnd)).toBeUndefined();
+  expect(widgetAt(hits, left.row, right.colStart - 1)).toBeUndefined();
+  expect(renderPlain(lines)).toContain("[ Left ]");
+  expect(renderPlain(lines)).toContain("[ Right ]");
+});
+
+test("wide labels and wrapped widgets use physical cell coordinates", () => {
+  const wide = opts({ width: 40 });
+  layoutDocument(
+    doc([{ type: "leaf", name: "button", attrs: { id: "wide", label: "界🙂" } }]),
+    wide,
+  );
+  expect(wide.hits).toEqual([{ id: "wide", row: 0, colStart: 0, colEnd: 10 }]);
+  expect(widgetAt(wide.hits!, 0, 9)).toBe("wide");
+  expect(widgetAt(wide.hits!, 0, 10)).toBeUndefined();
+
+  const wrapped = opts({ width: 10, caps: caps({ width: 10 }) });
+  layoutDocument(
+    doc([
+      {
+        type: "leaf",
+        name: "input",
+        attrs: { id: "field", label: "Long label", value: "abcdef" },
+      },
+    ]),
+    wrapped,
+  );
+  expect(wrapped.hits!.length).toBeGreaterThan(1);
+  expect(new Set(wrapped.hits!.map((hit) => hit.id))).toEqual(new Set(["field"]));
+  for (const hit of wrapped.hits!) {
+    expect(widgetAt(wrapped.hits!, hit.row, hit.colStart)).toBe("field");
+    expect(hit.colEnd).toBeLessThanOrEqual(10);
+  }
 });
 
 test("a widget missing an id is never recorded (matches focus.ts's rule)", () => {

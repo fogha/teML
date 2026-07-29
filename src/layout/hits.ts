@@ -1,23 +1,20 @@
-// layout/hits.ts — maps a clicked (row, col) back to the focusable widget
-// that rendered there (M-interactive follow-up: mouse support).
-//
-// Threaded through LayoutOpts.hits as one shared mutable array, the same
-// pattern already used for opts.diags: every layout function that recurses
-// into children is responsible for shifting whatever hits its children
-// recorded by however many extra lines *it* prepends before splicing the
-// recursive result into its own output. See shiftHits().
-//
-// Column position is intentionally not tracked in v1: if two widgets land
-// on the same absolute row (e.g. side-by-side grid columns), the first one
-// recorded wins. Keyboard Tab navigation (interactive/focus.ts) is
-// unaffected by any of this — it walks the AST directly.
+// layout/hits.ts — derives terminal-cell regions for focusable widgets from
+// the final styled lines. Widget spans carry an internal `style.widgetId`
+// tag; collecting after layout means grid joins, indentation, wrapping,
+// clipping, CJK widths, and embedded newlines are already reflected in the
+// same coordinate space a host sees.
 
-import type { Block } from "../core/index.js";
-import { isFocusableLeaf } from "../teml/directives.js";
 import type { Line } from "../render/styledLine.js";
-import type { LayoutOpts } from "./opts.js";
+import { cellWidth, graphemes, type MeasureOpts } from "./measure.js";
 
-export type WidgetHit = { id: string; row: number; height: number };
+export type WidgetHit = {
+  id: string;
+  row: number;
+  colStart: number;
+  colEnd: number;
+  kind?: "widget" | "radioOption" | "textareaContent" | "scroll";
+  value?: string;
+};
 
 /**
  * True visual row count of a Line[] array. Usually equal to lines.length,
@@ -39,37 +36,91 @@ export function visualHeight(lines: readonly Line[]): number {
   return rows;
 }
 
-/**
- * Record a freshly-laid-out focusable leaf at row 0, relative to its own
- * output. Ancestors shift it to an absolute row as layout unwinds, via
- * shiftHits.
- */
-export function recordWidgetHit(
-  opts: LayoutOpts,
-  b: Extract<Block, { type: "leaf" }>,
-  lines: readonly Line[],
-): void {
-  if (!opts.hits || !isFocusableLeaf(b.name)) return;
-  const id = b.attrs.id?.trim();
-  if (!id) return;
-  opts.hits.push({ id, row: 0, height: visualHeight(lines) });
-}
+/** Collect one exact cell interval per physical row occupied by a widget. */
+export function collectWidgetHits(lines: readonly Line[], opts?: MeasureOpts): WidgetHit[] {
+  const hits: WidgetHit[] = [];
+  let row = 0;
+  let col = 0;
+  let active: WidgetHit | null = null;
 
-/**
- * Shift every hit added since index `hitStart` down by `rowOffset` rows.
- * Call this right after recursing into children, once you know how many
- * lines you're about to prepend ahead of their output (e.g. a card's title
- * bar, a details header, a preceding sibling block).
- */
-export function shiftHits(opts: LayoutOpts, hitStart: number, rowOffset: number): void {
-  if (!opts.hits || rowOffset === 0) return;
-  for (let i = hitStart; i < opts.hits.length; i++) {
-    const h = opts.hits[i]!;
-    opts.hits[i] = { ...h, row: h.row + rowOffset };
+  const closeActive = (): void => {
+    if (!active) return;
+    const previous = hits[hits.length - 1];
+    // wrapSpans recreates inter-word spaces with an empty style. Rejoin
+    // fragments of the same widget on one row across those spaces, while
+    // preserving real grid gutters because the next region has another id.
+    if (
+      previous &&
+      previous.id === active.id &&
+      previous.row === active.row &&
+      previous.kind === active.kind &&
+      previous.value === active.value
+    ) {
+      previous.colEnd = active.colEnd;
+    } else {
+      hits.push(active);
+    }
+    active = null;
+  };
+
+  for (const line of lines) {
+    col = 0;
+    for (const span of line) {
+      const segments = span.text.split("\n");
+      for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+        if (segmentIndex > 0) {
+          closeActive();
+          row += 1;
+          col = 0;
+        }
+        const text = segments[segmentIndex]!;
+        const width = graphemes(text).reduce((sum, grapheme) => sum + cellWidth(grapheme, opts), 0);
+        const id = span.style.interactiveId ?? span.style.widgetId;
+        const kind = span.style.interactiveKind;
+        const value = span.style.interactiveValue;
+        if (id && width > 0) {
+          if (
+            !active ||
+            active.id !== id ||
+            active.row !== row ||
+            active.colEnd !== col ||
+            active.kind !== kind ||
+            active.value !== value
+          ) {
+            closeActive();
+            active = {
+              id,
+              row,
+              colStart: col,
+              colEnd: col + width,
+              ...(kind ? { kind } : {}),
+              ...(value !== undefined ? { value } : {}),
+            };
+          } else {
+            active.colEnd += width;
+          }
+        } else if (!id) {
+          closeActive();
+        }
+        col += width;
+      }
+    }
+    closeActive();
+    row += 1;
   }
+  return hits;
 }
 
-/** Find the widget id whose recorded row range contains `row`, if any. */
+/** Resolve exact 2D containment in terminal-cell coordinates. */
+export function widgetAt(hits: readonly WidgetHit[], row: number, col: number): string | undefined {
+  return hits.find((hit) => hit.row === row && col >= hit.colStart && col < hit.colEnd)?.id;
+}
+
+export function hitAt(hits: readonly WidgetHit[], row: number, col: number): WidgetHit | undefined {
+  return hits.find((hit) => hit.row === row && col >= hit.colStart && col < hit.colEnd);
+}
+
+/** @deprecated Use widgetAt with a terminal-cell column. */
 export function widgetAtRow(hits: readonly WidgetHit[], row: number): string | undefined {
-  return hits.find((h) => row >= h.row && row < h.row + h.height)?.id;
+  return hits.find((hit) => hit.row === row)?.id;
 }

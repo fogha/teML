@@ -48,15 +48,72 @@ export function hasPathologicalNesting(source: string): boolean {
 }
 
 /**
+ * A long unbroken run of the same emphasis delimiter nests one emphasis node
+ * per pair, so `"**".repeat(5000)` builds a ~5000-deep tree and overflows the
+ * stack *inside* micromark — before any of our own recursion runs. `***`
+ * (bold italic), `___` (thematic break) and `~~~` (code fence) are the longest
+ * runs with a legitimate reading, so a 64-char run is already far past
+ * anything authored. Counting delimiters per paragraph instead would flag
+ * legitimate delimiter-dense content such as a long table of bold cells.
+ */
+const DELIMITER_RUN = /([*_~])\1{63,}/;
+
+export function hasPathologicalDelimiterRun(source: string): boolean {
+  return DELIMITER_RUN.test(source);
+}
+
+/**
+ * Render source as one literal code block instead of parsing it. Shared by
+ * every guard that refuses an input shape, so degradation looks the same
+ * however it was triggered.
+ */
+export function literalSourceFallback(
+  source: string,
+  diags: Diagnostics,
+  code: string,
+  message: string,
+): TDoc {
+  diags.warn(code, message);
+  return { meta: {}, blocks: [{ type: "codeBlock", value: sanitizeText(source, "code") }] };
+}
+
+export function delimiterRunFallback(source: string, diags: Diagnostics): TDoc {
+  return literalSourceFallback(
+    source,
+    diags,
+    "pathological-delimiters-rejected",
+    "document contains an implausibly long run of emphasis delimiters; rendered as plain text to avoid excessive parse cost",
+  );
+}
+
+/** Last-resort degradation for an input that exhausted the stack inside the
+ * parser despite the pre-scans above. */
+export function parserOverflowFallback(source: string, diags: Diagnostics): TDoc {
+  return literalSourceFallback(
+    source,
+    diags,
+    "parse-overflow-rejected",
+    "document nests inline markup too deeply for the parser; rendered as plain text",
+  );
+}
+
+/** True for the stack exhaustion a pathologically nested document triggers
+ * inside remark/micromark. Any other error is a real bug and must propagate. */
+export function isStackOverflow(error: unknown): boolean {
+  return error instanceof RangeError && /call stack/i.test(error.message);
+}
+
+/**
  * Safe fallback for documents that fail `hasPathologicalNesting`: render the
  * raw source as a single literal code block instead of handing it to
  * remark-parse. Structure is lost, but the alternative is tens of seconds
  * (or more) of blocked CPU for a hostile document.
  */
 export function pathologicalNestingFallback(source: string, diags: Diagnostics): TDoc {
-  diags.warn(
+  return literalSourceFallback(
+    source,
+    diags,
     "pathological-nesting-rejected",
     "document contains implausibly deep blockquote/list nesting; rendered as plain text to avoid excessive parse cost",
   );
-  return { meta: {}, blocks: [{ type: "codeBlock", value: sanitizeText(source, "code") }] };
 }

@@ -31,7 +31,14 @@ async function main(): Promise<void> {
     cleanCommanderError,
     shouldShowRootHelp,
   } = await import("./help.js");
-  const { addInspectOptions, addSharedOptions, flagsFromOptions } = await import("./options.js");
+  const {
+    addInspectOptions,
+    addSharedOptions,
+    flagsFromOptions,
+    parseFrameFormat,
+    parseFrameMode,
+    parseHeight,
+  } = await import("./options.js");
   const { execute } = await import("./run.js");
   type Cmd = import("./run.js").CommandName;
 
@@ -101,7 +108,10 @@ async function main(): Promise<void> {
   const runCmd = addSharedOptions(
     new Command("run")
       .description("run interactive widgets over an NDJSON host protocol")
-      .argument("[file]", "input file or - for stdin"),
+      .argument("[file]", "input file or - for stdin")
+      .option("--frames <format>", "frame payload to emit: ansi, plain, or both", parseFrameFormat)
+      .option("--mode <mode>", "frame delivery mode: full or patches", parseFrameMode)
+      .option("--height <n>", "initial viewport height in terminal rows", parseHeight),
   );
   runCmd.addHelpText("after", RUN_HELP);
   runCmd.action(async (file: string | undefined, opts: Record<string, unknown>) => {
@@ -153,4 +163,8 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch(() => process.exit(2));
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  process.stderr.write(`teml: internal error: ${message}\n`);
+  process.exit(2);
+});

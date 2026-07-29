@@ -13,10 +13,29 @@ export type TerminalKey =
   | "pageUp"
   | "pageDown"
   | "home"
-  | "end";
+  | "end"
+  | "delete"
+  | "f1"
+  | "f2"
+  | "f3"
+  | "f4"
+  | "f5"
+  | "f6"
+  | "f7"
+  | "f8"
+  | "f9"
+  | "f10"
+  | "f11"
+  | "f12";
+
+export type TerminalKeyModifiers = {
+  ctrl?: boolean;
+  alt?: boolean;
+  shift?: boolean;
+};
 
 export type TerminalInputEvent =
-  | { type: "key"; key: TerminalKey }
+  | { type: "key"; key: TerminalKey; modifiers?: TerminalKeyModifiers }
   | { type: "char"; char: string }
   | { type: "pointer"; row: number; col: number; button: number }
   | { type: "wheel"; delta: -1 | 1 }
@@ -33,26 +52,99 @@ export type InputDecoder = {
 
 const ESC = TERMINAL_CONTROL.escByte;
 const SGR_MOUSE_RE = new RegExp(`^${ESC}\\[<(\\d+);(\\d+);(\\d+)([Mm])`);
-const CSI_KEYS: Record<string, TerminalKey> = {
-  [`${ESC}[A`]: "up",
-  [`${ESC}[B`]: "down",
-  [`${ESC}[C`]: "right",
-  [`${ESC}[D`]: "left",
-  [`${ESC}[H`]: "home",
-  [`${ESC}[F`]: "end",
-  [`${ESC}[1~`]: "home",
-  [`${ESC}[4~`]: "end",
-  [`${ESC}[5~`]: "pageUp",
-  [`${ESC}[6~`]: "pageDown",
-  [`${ESC}[Z`]: "shiftTab",
-  [`${ESC}[1;3D`]: "left",
-  [`${ESC}[1;3C`]: "right",
+const SS3_KEYS: Record<string, TerminalKey> = {
+  [`${ESC}OA`]: "up",
+  [`${ESC}OB`]: "down",
+  [`${ESC}OC`]: "right",
+  [`${ESC}OD`]: "left",
+  [`${ESC}OH`]: "home",
+  [`${ESC}OF`]: "end",
+  [`${ESC}OP`]: "f1",
+  [`${ESC}OQ`]: "f2",
+  [`${ESC}OR`]: "f3",
+  [`${ESC}OS`]: "f4",
 };
-const CSI_PREFIXES = new Set(
-  Object.keys(CSI_KEYS).flatMap((sequence) =>
-    Array.from({ length: sequence.length - 1 }, (_, index) => sequence.slice(0, index + 1)),
-  ),
-);
+const CSI_FINAL_KEYS: Partial<Record<string, TerminalKey>> = {
+  A: "up",
+  B: "down",
+  C: "right",
+  D: "left",
+  H: "home",
+  F: "end",
+  Z: "shiftTab",
+};
+const TILDE_KEYS: Partial<Record<number, TerminalKey>> = {
+  1: "home",
+  3: "delete",
+  4: "end",
+  5: "pageUp",
+  6: "pageDown",
+  11: "f1",
+  12: "f2",
+  13: "f3",
+  14: "f4",
+  15: "f5",
+  17: "f6",
+  18: "f7",
+  19: "f8",
+  20: "f9",
+  21: "f10",
+  23: "f11",
+  24: "f12",
+};
+const CSI_U_KEYS: Partial<Record<number, TerminalKey>> = {
+  8: "backspace",
+  9: "tab",
+  13: "enter",
+  27: "escape",
+  127: "backspace",
+};
+const CSI_RE = new RegExp(`^${ESC}\\[([0-9;]*)([A-Za-z~])`);
+const COMPLETE_CSI_RE = new RegExp(`^${ESC}\\[[0-9;<]*[A-Za-z~]`);
+
+function xtermModifiers(parameter: number | undefined): TerminalKeyModifiers | undefined {
+  if (parameter == null || parameter < 2 || parameter > 8) return undefined;
+  const mask = parameter - 1;
+  const modifiers: TerminalKeyModifiers = {};
+  if ((mask & 1) !== 0) modifiers.shift = true;
+  if ((mask & 2) !== 0) modifiers.alt = true;
+  if ((mask & 4) !== 0) modifiers.ctrl = true;
+  return modifiers;
+}
+
+function csiKey(
+  input: string,
+): { length: number; event: Extract<TerminalInputEvent, { type: "key" }> } | undefined {
+  const match = CSI_RE.exec(input);
+  if (!match) return undefined;
+  const [whole, parametersText, final] = match;
+  const parameters =
+    parametersText === ""
+      ? []
+      : parametersText.split(";").map((part) => Number.parseInt(part || "1", 10));
+  const key =
+    final === "~"
+      ? TILDE_KEYS[parameters[0] ?? 0]
+      : final === "u"
+        ? CSI_U_KEYS[parameters[0] ?? 0]
+        : final === "Z" && parameters.length === 0
+          ? "shiftTab"
+          : CSI_FINAL_KEYS[final];
+  if (!key) return undefined;
+  const modifierParameter =
+    final === "~"
+      ? parameters.length > 1
+        ? parameters[parameters.length - 1]
+        : undefined
+      : parameters.length > 1
+        ? parameters[parameters.length - 1]
+        : undefined;
+  const modifiers = xtermModifiers(modifierParameter);
+  return {
+    length: whole.length,
+    event: { type: "key", key, ...(modifiers ? { modifiers } : {}) },
+  };
+}
 
 export function createInputDecoder(): InputDecoder {
   let pending = "";
@@ -79,16 +171,25 @@ export function createInputDecoder(): InputDecoder {
         continue;
       }
 
-      const keySequence = Object.keys(CSI_KEYS).find((sequence) => pending.startsWith(sequence));
-      if (keySequence) {
-        events.push({ type: "key", key: CSI_KEYS[keySequence]! });
-        pending = pending.slice(keySequence.length);
+      const ss3Sequence = Object.keys(SS3_KEYS).find((sequence) => pending.startsWith(sequence));
+      if (ss3Sequence) {
+        events.push({ type: "key", key: SS3_KEYS[ss3Sequence]! });
+        pending = pending.slice(ss3Sequence.length);
+        continue;
+      }
+
+      const parsedKey = csiKey(pending);
+      if (parsedKey) {
+        events.push(parsedKey.event);
+        pending = pending.slice(parsedKey.length);
         continue;
       }
 
       if (
         !final &&
-        (pending === ESC || CSI_PREFIXES.has(pending) || pending.startsWith(`${ESC}[<`))
+        (pending === ESC ||
+          pending === `${ESC}O` ||
+          (pending.startsWith(`${ESC}[`) && !COMPLETE_CSI_RE.test(pending)))
       ) {
         break;
       }
@@ -99,12 +200,26 @@ export function createInputDecoder(): InputDecoder {
       else if (first === "\r" || first === "\n") events.push({ type: "key", key: "enter" });
       else if (first === "\u007f" || first === "\b") events.push({ type: "key", key: "backspace" });
       else if (first === ESC) {
-        events.push({ type: "key", key: "escape" });
         if (pending.startsWith(`${ESC}[`)) {
-          const terminator = pending.slice(2).search(/[A-Za-z~]/);
-          pending = terminator >= 0 ? pending.slice(terminator + 3) : "";
+          const unknown = COMPLETE_CSI_RE.exec(pending);
+          if (unknown) {
+            pending = pending.slice(unknown[0].length);
+            continue;
+          }
+          events.push({ type: "key", key: "escape" });
+          pending = "";
           continue;
         }
+        if (pending.startsWith(`${ESC}O`)) {
+          if (pending.length >= 3) {
+            pending = pending.slice(3);
+            continue;
+          }
+          events.push({ type: "key", key: "escape" });
+          pending = "";
+          continue;
+        }
+        events.push({ type: "key", key: "escape" });
       } else {
         events.push({ type: "char", char: first });
       }

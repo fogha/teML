@@ -72,7 +72,11 @@ export function linesToScreen(
 
 function styleSignature(style: Span["style"]): string {
   return Object.entries(style)
-    .filter(([, value]) => value !== undefined)
+    .filter(
+      ([key, value]) =>
+        !["widgetId", "interactiveId", "interactiveKind", "interactiveValue"].includes(key) &&
+        value !== undefined,
+    )
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, value]) => `${key}:${String(value)}`)
     .join(";");

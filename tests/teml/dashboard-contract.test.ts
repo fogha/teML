@@ -24,11 +24,11 @@ const caps = (): Capabilities => ({
 });
 
 test("directive registry: dashboard containers and leaf attrs", () => {
-  expect(DIRECTIVE_REGISTRY.containers.grid.attrs).toEqual(["columns", "gap"]);
-  expect(DIRECTIVE_REGISTRY.containers.details.attrs).toEqual(["summary", "open"]);
-  expect(DIRECTIVE_REGISTRY.containers.figure.attrs).toEqual(["caption"]);
-  expect(DIRECTIVE_REGISTRY.leafs.metric.attrs).toEqual(["label", "value", "role", "change"]);
-  expect(DIRECTIVE_REGISTRY.leafs.progress.attrs).toEqual(["label", "value", "max", "role"]);
+  expect(DIRECTIVE_REGISTRY.containers.grid.attrs).toEqual(["id", "columns", "gap"]);
+  expect(DIRECTIVE_REGISTRY.containers.details.attrs).toEqual(["id", "summary", "open"]);
+  expect(DIRECTIVE_REGISTRY.containers.figure.attrs).toEqual(["id", "caption"]);
+  expect(DIRECTIVE_REGISTRY.leafs.metric.attrs).toEqual(["id", "label", "value", "role", "change"]);
+  expect(DIRECTIVE_REGISTRY.leafs.progress.attrs).toEqual(["id", "label", "value", "max", "role"]);
   expect(DIRECTIVE_REGISTRY.leafs.event.attrs).toEqual(["time", "title", "detail", "role"]);
   expect(isShorthandInlineRole("highlight")).toBe(true);
 });
@@ -195,6 +195,27 @@ test("renderTokensView and inlineToSpans: strike style bit", () => {
 
   const rendered = renderTokensView([[{ text: "x", style: { strike: true } }]]);
   expect(rendered).toContain("strike=true");
+});
+
+test("status roles stay distinguishable when colour is unavailable", () => {
+  const theme = loadTheme("mono");
+  const spansFor = (role: string, unicode: boolean) =>
+    inlineToSpans([{ type: "span", role, children: [{ type: "text", value: "msg" }] }], {
+      theme,
+      caps: { ...caps(), colors: "none", unicode },
+      diags: new Diagnostics(),
+    })
+      .map((span) => span.text)
+      .join("");
+
+  for (const [role, unicodePrefix, asciiPrefix] of [
+    ["success", "✓ ", "[OK] "],
+    ["error", "✗ ", "[FAIL] "],
+    ["warning", "⚠ ", "[WARN] "],
+  ] as const) {
+    expect(spansFor(role, true)).toBe(`${unicodePrefix}msg`);
+    expect(spansFor(role, false)).toBe(`${asciiPrefix}msg`);
+  }
 });
 
 test("validateThemeShape accepts strike style key", () => {

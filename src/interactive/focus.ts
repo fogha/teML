@@ -1,54 +1,23 @@
 // interactive/focus.ts — walks a normalized TDoc to find focusable widgets
-// (button/input/checkbox) in document order, for keyboard navigation.
+// and containers in document order, for keyboard navigation.
 //
 // Layout only *renders* focus (via LayoutOpts.focusedId); this module is the
 // single place that decides what is focusable and in what order, mirroring
 // the same block-recursion shape as core/footnotes.ts's walkBlocks.
 
-import type { Block, TDoc } from "../core/index.js";
+import type { TDoc } from "../core/index.js";
 import type { Diagnostics } from "../core/diagnostics.js";
-import { isFocusableLeaf } from "../teml/directives.js";
+import type { Block } from "../core/index.js";
+import { collectInteractiveWidgets } from "./updatable.js";
+import type { RadioOption } from "./radio.js";
 
 export type FocusableWidget = {
   id: string;
-  name: "button" | "input" | "checkbox";
+  name: "button" | "input" | "checkbox" | "textarea" | "radio" | "scroll";
   attrs: Record<string, string>;
+  block?: Extract<Block, { type: "container" }>;
+  options?: RadioOption[];
 };
-
-function walkBlocks(blocks: Block[], out: FocusableWidget[], diags?: Diagnostics): void {
-  for (const b of blocks) {
-    switch (b.type) {
-      case "leaf":
-        if (isFocusableLeaf(b.name)) {
-          const id = b.attrs.id?.trim();
-          if (!id) {
-            diags?.warn(
-              "focus-missing-id",
-              `::${b.name} has no id; it cannot receive keyboard focus`,
-            );
-            break;
-          }
-          out.push({ id, name: b.name as FocusableWidget["name"], attrs: b.attrs });
-        }
-        break;
-      case "list":
-        for (const item of b.items) walkBlocks(item.blocks, out, diags);
-        break;
-      case "quote":
-      case "container":
-      case "footnoteDefinition":
-        walkBlocks(b.children, out, diags);
-        break;
-      case "definitionList":
-        for (const item of b.items) {
-          for (const def of item.definitions) walkBlocks(def, out, diags);
-        }
-        break;
-      default:
-        break;
-    }
-  }
-}
 
 /**
  * Collect focusable widgets in document order. Widgets with a missing id are
@@ -56,20 +25,7 @@ function walkBlocks(blocks: Block[], out: FocusableWidget[], diags?: Diagnostics
  * first occurrence so navigation never gets stuck on an ambiguous target.
  */
 export function collectFocusable(doc: TDoc, diags?: Diagnostics): FocusableWidget[] {
-  const found: FocusableWidget[] = [];
-  walkBlocks(doc.blocks, found, diags);
-
-  const seen = new Set<string>();
-  const out: FocusableWidget[] = [];
-  for (const w of found) {
-    if (seen.has(w.id)) {
-      diags?.warn("focus-duplicate-id", `duplicate focusable id '${w.id}'`);
-      continue;
-    }
-    seen.add(w.id);
-    out.push(w);
-  }
-  return out;
+  return collectInteractiveWidgets(doc, diags).focusables;
 }
 
 /** Id to focus after Tab, wrapping around; undefined if nothing is focusable. */

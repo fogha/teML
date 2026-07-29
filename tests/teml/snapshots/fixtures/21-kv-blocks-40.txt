@@ -6,5 +6,5 @@ Commit    a1b2c3d
 Short      x
 LongValue  this value is intentionally …
 
-日本語      東京
+日本語   東京
 English  Tokyo

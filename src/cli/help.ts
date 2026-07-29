@@ -134,12 +134,34 @@ key/character/pointer commands on stdin, and receives semantic events plus
 rendered frames on stdout. Node applications should normally use the simpler
 runInteractiveApp() API exported by "teml/interactive".
 
-Supported interactive HTML elements include labelled text inputs, checkboxes,
-and buttons. See the protocol documentation for command/event schemas.
+Supported interactive HTML elements include labelled text inputs, textareas,
+radio groups, checkboxes, and buttons. TeML also supports fixed-height
+:::scroll regions. See the protocol documentation for schemas and key routing.
+
+Every frame carries both a plain and an ANSI rendering by default. Production
+hosts should pass --frames, --mode, and --height at startup so the first frame
+is already single-format, patch-enabled, and viewport-bounded. Alternatively send
+{"type":"configure","frames":"ansi","mode":"patches"} as the first stdin line
+to negotiate one payload plus changed-row patches. Use one or the other:
+--frames/--mode lock negotiation, so a later configure is rejected and its
+settings are not applied (--height alone leaves negotiation open).
+Forward live TTY dimensions with
+{"type":"resize","width":100,"height":30}; resize preserves widget state and
+returns a complete frame before patches resume. Documents taller than the
+reported height emit viewport-bounded frames and auto-scroll with focus.
+Pointer row/col coordinates resolve exact terminal-cell widget regions.
+Keys include arrows, Home/End/Delete, PageUp/PageDown, F1-F12, and optional
+Ctrl/Alt/Shift modifiers.
+Negotiated full frames advertise protocol 1.3 capabilities. Forward coalesced
+wheel input with {"type":"scroll","rows":3}; positive rows move down.
+Addressable containers support capability-gated replace/append/remove commands.
 
 Examples:
   $ teml run form.html --width 60
-  $ npm run demo:interactive
+  $ teml run form.teml --frames plain
+  $ teml run dashboard.teml --frames ansi --mode patches --height 24
+  $ node examples/interactive-host.mjs examples/log-viewer.teml
+  $ pnpm run demo:interactive
 
 Protocol: https://github.com/fogha/teML/blob/main/docs/interactive-protocol.md
 `;

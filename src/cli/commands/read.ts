@@ -254,13 +254,34 @@ export async function executeRead(
     statusStyle: resolveRole(laidOut.theme, "muted", loaded.diags),
   });
 
+  // The Reader owns the alternate screen for the whole session, so parse and
+  // layout warnings cannot go to stderr while it runs without corrupting the
+  // display. Collect them per visited document and print once the terminal has
+  // been restored, which is what docs/cli.md promises.
+  const visited = new Set<Diagnostics>([loaded.diags]);
+  const printDiagnostics = (): void => {
+    const merged = new Diagnostics();
+    const seen = new Set<string>();
+    for (const diags of visited) {
+      for (const warning of diags.all()) {
+        // Layout re-runs on every resize against the same Diagnostics, so the
+        // same warning can be recorded many times in one session.
+        const key = `${warning.code}\u0000${warning.message}\u0000${warning.line ?? ""}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.warn(warning.code, warning.message, warning.line);
+      }
+    }
+    merged.print(error);
+  };
+
   return new Promise<number>((resolve) => {
     let finished = false;
     // Assigned once below, but referenced by closures defined earlier that
     // only run after the assignment — `const` isn't an option since it
     // requires the initializer at the declaration site.
     // eslint-disable-next-line prefer-const
-    let driver!: TerminalDriver;
+    let driver: TerminalDriver | undefined;
     let chain = Promise.resolve();
 
     const finish = (code: number): void => {
@@ -268,7 +289,10 @@ export async function executeRead(
       finished = true;
       process.removeListener("uncaughtException", onFatal);
       process.removeListener("unhandledRejection", onFatal);
-      driver.stop();
+      // A fatal error can arrive before the driver exists, since the handlers
+      // below are registered first.
+      driver?.stop();
+      printDiagnostics();
       resolve(code);
     };
 
@@ -291,7 +315,7 @@ export async function executeRead(
         if (finished) return;
         switch (effect.type) {
           case "frame":
-            driver.paint(effect.frame);
+            driver?.paint(effect.frame);
             break;
           case "exit":
             finish(effect.code);
@@ -312,6 +336,7 @@ export async function executeRead(
           case "navigate":
             try {
               loaded = await loadDocument(effect.path, root, flags);
+              visited.add(loaded.diags);
               laidOut = layoutLoaded(loaded, flags, caps, baseTheme);
               await applyEffects(
                 reader.setDocument(

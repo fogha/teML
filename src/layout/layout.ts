@@ -11,7 +11,7 @@ import {
 import type { Block, TDoc } from "../core/index.js";
 import type { Capabilities } from "../terminal/capabilities.js";
 import { decoration, mergeStyle, resolveRole } from "../terminal/theme.js";
-import { cellWidth, truncateToWidth, type MeasureOpts } from "./measure.js";
+import { cellWidth, padEnd, truncateToWidth, type MeasureOpts } from "./measure.js";
 import type { Line, Span } from "../render/styledLine.js";
 import { lineWidth, padLine } from "../render/styledLine.js";
 import { wrapSpans } from "./wrap.js";
@@ -25,10 +25,17 @@ import {
   layoutMetric,
   layoutProgress,
 } from "./dashboard.js";
-import { layoutButton, layoutCheckbox, layoutInput } from "./interactive.js";
-import { recordWidgetHit, shiftHits, visualHeight } from "./hits.js";
+import {
+  layoutButton,
+  layoutCheckbox,
+  layoutInput,
+  layoutRadio,
+  layoutTextarea,
+} from "./interactive.js";
+import { collectWidgetHits, visualHeight } from "./hits.js";
 import { isAlertContainer } from "../teml/directives.js";
 import type { LayoutOpts } from "./opts.js";
+import { layoutScroll } from "./scroll.js";
 
 export type { LayoutOpts } from "./opts.js";
 
@@ -246,19 +253,15 @@ function layoutList(b: Extract<Block, { type: "list" }>, opts: LayoutOpts, inden
     item.blocks.forEach((block, bi) => {
       if (block.type === "list") {
         const rowOffset = visualHeight(lines);
-        const hitStart = opts.hits?.length ?? 0;
         const regionStart = semanticStart(opts);
         const nested = layoutList(block, opts, baseIndent + markerW);
-        shiftHits(opts, hitStart, rowOffset);
         shiftSemanticRows(opts, regionStart, rowOffset);
         lines.push(...nested);
         return;
       }
       const rowOffset = visualHeight(lines);
-      const hitStart = opts.hits?.length ?? 0;
       const regionStart = semanticStart(opts);
       const inner = layoutBlock(block, { ...opts, width: contentW }, 0);
-      shiftHits(opts, hitStart, rowOffset);
       shiftSemanticRows(opts, regionStart, rowOffset);
       inner.forEach((line, j) => {
         const showMarker = bi === 0 && j === 0;
@@ -284,6 +287,8 @@ function layoutContainer(
   if (b.name === "grid") return layoutGrid(b, opts, indent, layoutBlock);
   if (b.name === "details") return layoutDetails(b, opts, indent, layoutBlocks);
   if (b.name === "figure") return layoutFigure(b, opts, indent, layoutBlocks);
+  if (b.name === "radio") return layoutRadio(b, opts, indent);
+  if (b.name === "scroll") return layoutScroll(b, opts, indent, layoutBlocks);
 
   const dec = decoration(theme, b.name);
   if (dec && isAlertContainer(b.name)) {
@@ -342,10 +347,8 @@ function layoutCard(
   const borderStyle = resolveRole(theme, "border", diags);
   const outerW = Math.max(1, width - indent);
   const innerWidth = Math.max(1, outerW - 4);
-  const hitStart = opts.hits?.length ?? 0;
   const regionStart = semanticStart(opts);
   const inner = layoutBlocks(b.children, { ...opts, width: innerWidth }, true, 0);
-  shiftHits(opts, hitStart, 1); // account for the "top" border/title line prepended below
   shiftSemanticRows(opts, regionStart, 1);
 
   // Reserve "┌─" (2) + "┐" (1) so the title itself is truncated instead of
@@ -404,7 +407,11 @@ function layoutLeaf(b: Extract<Block, { type: "leaf" }>, opts: LayoutOpts, inden
       const entries = Object.entries(b.attrs);
       const keyW = Math.max(0, ...entries.map(([k]) => cellWidth(k, m)));
       return entries.map(([k, v]) => {
-        const row = pad + k.padEnd(keyW + 2) + v;
+        // Keys are measured in terminal cells, so they have to be padded in
+        // cells too — String.padEnd counts UTF-16 units and misaligns any key
+        // containing wide or multi-unit graphemes.
+        const key = padEnd(k, keyW + 2, m);
+        const row = pad + key + v;
         if (cellWidth(row, m) > innerW) {
           return [
             {
@@ -415,7 +422,7 @@ function layoutLeaf(b: Extract<Block, { type: "leaf" }>, opts: LayoutOpts, inden
         }
         return [
           { text: pad, style: {} },
-          { text: k.padEnd(keyW + 2), style: resolveRole(theme, "muted", diags) },
+          { text: key, style: resolveRole(theme, "muted", diags) },
           { text: v, style: {} },
         ];
       });
@@ -438,21 +445,24 @@ function layoutLeaf(b: Extract<Block, { type: "leaf" }>, opts: LayoutOpts, inden
       return layoutProgress(b, opts, indent);
     case "event":
       return layoutEvent(b, opts, indent);
-    case "button": {
-      const lines = layoutButton(b, opts, indent);
-      recordWidgetHit(opts, b, lines);
-      return lines;
-    }
-    case "input": {
-      const lines = layoutInput(b, opts, indent);
-      recordWidgetHit(opts, b, lines);
-      return lines;
-    }
-    case "checkbox": {
-      const lines = layoutCheckbox(b, opts, indent);
-      recordWidgetHit(opts, b, lines);
-      return lines;
-    }
+    case "button":
+      return layoutButton(b, opts, indent);
+    case "input":
+      return layoutInput(b, opts, indent);
+    case "checkbox":
+      return layoutCheckbox(b, opts, indent);
+    case "textarea":
+      return layoutTextarea(b, opts, indent);
+    case "option":
+      return [
+        [
+          { text: pad, style: {} },
+          {
+            text: `( ) ${b.attrs.label ?? b.attrs.value ?? "option"}`,
+            style: resolveRole(theme, "muted", diags),
+          },
+        ],
+      ];
     case "break":
       return [[]];
     default:
@@ -526,10 +536,8 @@ function layoutBlocks(
       out.push([]);
       visualRow += 1;
     }
-    const hitStart = opts.hits?.length ?? 0;
     const regionStart = semanticStart(opts);
     const lines = layoutBlock(b, opts, indent);
-    shiftHits(opts, hitStart, visualRow);
     shiftSemanticRows(opts, regionStart, visualRow);
     out.push(...lines);
     visualRow += visualHeight(lines);
@@ -548,10 +556,8 @@ export function layoutDocument(docNode: TDoc, opts: LayoutOpts): Line[] {
       out.push([]);
       visualRow += 1;
     }
-    const hitStart = layoutOpts.hits?.length ?? 0;
     const regionStart = semanticStart(layoutOpts);
     const lines = layoutBlock(b, layoutOpts, 0);
-    shiftHits(layoutOpts, hitStart, visualRow);
     shiftSemanticRows(layoutOpts, regionStart, visualRow);
     out.push(...lines);
     visualRow += visualHeight(lines);
@@ -560,6 +566,13 @@ export function layoutDocument(docNode: TDoc, opts: LayoutOpts): Line[] {
   if (appendix.length) {
     if (out.length) out.push([]);
     out.push(...appendix);
+  }
+  if (layoutOpts.hits) {
+    layoutOpts.hits.splice(
+      0,
+      layoutOpts.hits.length,
+      ...collectWidgetHits(out, { ambiguousWide: layoutOpts.caps.ambiguousWide }),
+    );
   }
   return out;
 }

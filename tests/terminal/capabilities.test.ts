@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { detectCapabilities } from "../../src/terminal/capabilities.js";
+import { detectCapabilities, MAX_TERMINAL_DIMENSION } from "../../src/terminal/capabilities.js";
 
 const env = (vars: Record<string, string | undefined>): NodeJS.ProcessEnv => ({ ...vars });
 
@@ -47,6 +47,20 @@ test("width: flag beats tty columns", () => {
 test("width: explicit flag below 20 is honored", () => {
   const caps = detectCapabilities({ width: 10 }, env({}), true, 80);
   expect(caps.width).toBe(10);
+});
+
+test("width: an explicit flag above the maximum is clamped", () => {
+  // Layout builds border and spacing strings the full width, so an unclamped
+  // `--width 99999999` produced no output for tens of seconds.
+  expect(detectCapabilities({ width: 99_999_999 }, env({}), true, 80).width).toBe(
+    MAX_TERMINAL_DIMENSION,
+  );
+  expect(
+    detectCapabilities({ width: MAX_TERMINAL_DIMENSION }, env({}), false, undefined).width,
+  ).toBe(MAX_TERMINAL_DIMENSION);
+  // Below the maximum, an explicit width still passes through untouched.
+  expect(detectCapabilities({ width: 9_999 }, env({}), true, 80).width).toBe(9_999);
+  expect(detectCapabilities({ width: 1 }, env({}), true, 80).width).toBe(1);
 });
 
 test("width: implicit tty below 20 is clamped to 20", () => {

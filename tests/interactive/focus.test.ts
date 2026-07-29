@@ -38,6 +38,30 @@ test("collectFocusable walks into containers, lists, and quotes", () => {
   expect(found.map((w) => w.id)).toEqual(["in-card", "in-list", "in-quote"]);
 });
 
+test("radio and scroll containers are single focus targets in document order", () => {
+  const d = doc([
+    {
+      type: "container",
+      name: "radio",
+      attrs: { id: "plan" },
+      children: [
+        { type: "leaf", name: "option", attrs: { value: "free" } },
+        { type: "leaf", name: "option", attrs: { value: "pro" } },
+      ],
+    },
+    {
+      type: "container",
+      name: "scroll",
+      attrs: { id: "logs", rows: "3" },
+      children: [{ type: "leaf", name: "button", attrs: { id: "nested" } }],
+    },
+    { type: "leaf", name: "textarea", attrs: { id: "bio", rows: "2" } },
+  ]);
+  const found = collectFocusable(d);
+  expect(found.map((widget) => widget.id)).toEqual(["plan", "logs", "bio"]);
+  expect(found[0]?.options?.map((option) => option.value)).toEqual(["free", "pro"]);
+});
+
 test("widgets without an id are dropped from the tab order and warned about", () => {
   const d = doc([
     { type: "leaf", name: "button", attrs: { label: "No id" } },

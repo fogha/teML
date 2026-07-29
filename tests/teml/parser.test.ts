@@ -2,7 +2,7 @@ import { test, expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Diagnostics, inlineText, normalize } from "../../src/core/index.js";
-import { maxContainerNesting, parseTeml, parseToMdast } from "../../src/teml/parse.js";
+import { maxContainerNesting, parseInline, parseTeml, parseToMdast } from "../../src/teml/parse.js";
 import { mdastToTDoc, extractMeta } from "../../src/teml/mdast-to-tdoc.js";
 
 const FIXTURES = join(process.cwd(), "fixtures/teml");
@@ -192,4 +192,46 @@ test("parse: pathologically deep list/blockquote chains degrade instead of costi
   expect(Date.now() - t0).toBeLessThan(2000);
   expect(d.has("pathological-nesting-rejected")).toBe(true);
   expect(doc.blocks).toEqual([{ type: "codeBlock", value: src }]);
+});
+
+test("parse: a long emphasis-delimiter run degrades instead of overflowing the parser stack", () => {
+  // 10,000 consecutive '*' nest one emphasis node per pair, which exhausted the
+  // stack inside micromark itself (4.5s of CPU, then an uncatchable-looking
+  // RangeError out of teml view) before this guard existed.
+  const src = "**".repeat(5000) + "x" + "**".repeat(5000);
+  const d = new Diagnostics();
+  const t0 = Date.now();
+  const doc = parseTeml(src, d);
+  expect(Date.now() - t0).toBeLessThan(1000);
+  expect(d.has("pathological-delimiters-rejected")).toBe(true);
+  expect(doc.blocks).toEqual([{ type: "codeBlock", value: src }]);
+});
+
+test("parse: ordinary emphasis, code fences, and thematic breaks are untouched by the guard", () => {
+  const d = new Diagnostics();
+  const doc = parseTeml("A ***combo*** and ~~strike~~.\n\n~~~\nfence\n~~~\n\n___\n", d);
+  expect(d.has("pathological-delimiters-rejected")).toBe(false);
+  expect(doc.blocks.map((b) => b.type)).toEqual(["paragraph", "codeBlock", "thematicBreak"]);
+});
+
+test("parseToMdast applies the same input guards as parseTeml", () => {
+  const bomb = "**".repeat(5000) + "x" + "**".repeat(5000);
+  const t0 = Date.now();
+  expect(parseToMdast(bomb).children).toEqual([
+    { type: "code", lang: null, meta: null, value: bomb },
+  ]);
+
+  const fences = ":::a\n".repeat(2000) + "x\n" + ":::\n".repeat(2000);
+  const mdast = parseToMdast(fences);
+  expect(JSON.stringify(mdast)).not.toContain('"containerDirective"');
+  expect(Date.now() - t0).toBeLessThan(2000);
+});
+
+test("parseInline keeps a pathological fragment as literal text", () => {
+  const src = "**".repeat(5000) + "x" + "**".repeat(5000);
+  const d = new Diagnostics();
+  const t0 = Date.now();
+  expect(parseInline(src, d)).toEqual([{ type: "text", value: src }]);
+  expect(Date.now() - t0).toBeLessThan(1000);
+  expect(d.has("pathological-inline-rejected")).toBe(true);
 });

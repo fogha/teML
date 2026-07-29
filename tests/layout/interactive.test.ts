@@ -107,6 +107,46 @@ test("checkbox renders checked/unchecked glyphs, unicode and ascii", () => {
   expect(ascii).toContain("[ ] Agree");
 });
 
+test("radio group renders one pending focus marker and a confirmed selection", () => {
+  const d = doc([
+    {
+      type: "container",
+      name: "radio",
+      attrs: { id: "plan", value: "pro" },
+      children: [
+        { type: "leaf", name: "option", attrs: { value: "free", label: "Free" } },
+        { type: "leaf", name: "option", attrs: { value: "pro", label: "Pro" } },
+      ],
+    },
+  ]);
+  const out = renderPlain(
+    layoutDocument(
+      d,
+      opts({
+        focusedId: "plan",
+        radioPending: new Map([["plan", 0]]),
+      }),
+    ),
+  );
+  expect(out).toContain("▸ ( ) Free");
+  expect(out).toContain("  (*) Pro");
+});
+
+test("textarea contributes a fixed number of content rows", () => {
+  const d = doc([
+    {
+      type: "leaf",
+      name: "textarea",
+      attrs: { id: "bio", label: "Bio", rows: "2", value: "one\ntwo\nthree" },
+    },
+  ]);
+  const lines = layoutDocument(d, opts({ focusedId: "bio", cursorPos: 7 }));
+  expect(lines).toHaveLength(3);
+  const out = renderPlain(lines);
+  expect(out).toContain("▸ Bio");
+  expect(out).toContain("[one");
+});
+
 test("widgets respect the viewport width invariant at pathological widths", () => {
   for (const width of [40, 10, 3]) {
     const d = doc([

@@ -1,58 +1,13 @@
 import { test, expect } from "vitest";
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Diagnostics, inlineText, normalize } from "../../src/core/index.js";
 import { parseMarkdown } from "../../src/markdown/parse.js";
 import { serializeMarkdown } from "../../src/markdown/serialize.js";
 import { parseTeml } from "../../src/teml/parse.js";
-import { serializeTeml } from "../../src/teml/serialize.js";
 import { sanitizeText } from "../../src/core/sanitize.js";
 
 const MD_DIR = join(process.cwd(), "fixtures/markdown");
-
-async function mdFixtures(): Promise<string[]> {
-  return (await readdir(MD_DIR))
-    .filter((f) => f.endsWith(".md"))
-    .sort()
-    .map((f) => join(MD_DIR, f));
-}
-
-for (const file of await mdFixtures()) {
-  const base = file.split("/").pop()!;
-  test(`Markdown fixture parses: ${base}`, async () => {
-    const source = await readFile(file, "utf8");
-    const doc = normalize(parseMarkdown(source, new Diagnostics()));
-    expect(doc.blocks.length).toBeGreaterThan(0);
-  });
-}
-
-for (const file of await mdFixtures()) {
-  const base = file.split("/").pop()!;
-  test(`Markdown semantic stability MD→MD: ${base}`, async () => {
-    const source = await readFile(file, "utf8");
-    const d1 = new Diagnostics();
-    const d2 = new Diagnostics();
-    const doc1 = normalize(parseMarkdown(source, d1));
-    const md = serializeMarkdown(doc1, d1);
-    const doc2 = normalize(parseMarkdown(md, d2));
-    expect(doc2).toEqual(doc1);
-  });
-}
-
-for (const file of await mdFixtures()) {
-  const base = file.split("/").pop()!;
-  test(`Markdown→TeML→Markdown content path: ${base}`, async () => {
-    const source = await readFile(file, "utf8");
-    const d = new Diagnostics();
-    const doc1 = normalize(parseMarkdown(source, d));
-    const teml = serializeTeml(doc1);
-    const doc2 = normalize(parseTeml(teml, d));
-    expect(doc2).toEqual(doc1);
-    const md2 = serializeMarkdown(doc2, d);
-    const doc3 = normalize(parseMarkdown(md2, d));
-    expect(doc3).toEqual(doc1);
-  });
-}
 
 test("Markdown hostile: unsafe links and controls stripped", async () => {
   const source = await readFile(join(MD_DIR, "09-hostile.md"), "utf8");

@@ -1,6 +1,7 @@
 // cli/options.ts — shared Commander flags and parsing helpers.
 
 import type { Command } from "commander";
+import type { FrameFormat, FrameMode } from "../interactive/protocol.js";
 
 export type InputFormat = "teml" | "markdown" | "html";
 export type OutputFormat = "teml" | "markdown" | "text" | "speech" | "json";
@@ -11,6 +12,7 @@ export type CliFlags = {
   profile?: string;
   base?: string;
   width?: number;
+  height?: number;
   theme?: string;
   color?: boolean;
   ascii?: boolean;
@@ -22,10 +24,14 @@ export type CliFlags = {
   ast?: boolean;
   tokens?: boolean;
   renderTokens?: boolean;
+  frames?: FrameFormat;
+  frameMode?: FrameMode;
 };
 
 const INPUT_FORMATS = new Set<InputFormat>(["teml", "markdown", "html"]);
 const OUTPUT_FORMATS = new Set<OutputFormat>(["teml", "markdown", "text", "speech", "json"]);
+const FRAME_FORMATS = new Set<FrameFormat>(["ansi", "plain", "both"]);
+const FRAME_MODES = new Set<FrameMode>(["full", "patches"]);
 
 export function parseInputFormat(value: string): InputFormat {
   const v = value.toLowerCase() as InputFormat;
@@ -41,9 +47,28 @@ export function parseOutputFormat(value: string): OutputFormat {
   return v;
 }
 
+export function parseFrameFormat(value: string): FrameFormat {
+  const v = value.toLowerCase() as FrameFormat;
+  if (!FRAME_FORMATS.has(v))
+    throw new Error(`invalid --frames format '${value}' (expected ansi|plain|both)`);
+  return v;
+}
+
+export function parseFrameMode(value: string): FrameMode {
+  const v = value.toLowerCase() as FrameMode;
+  if (!FRAME_MODES.has(v)) throw new Error(`invalid --mode '${value}' (expected full|patches)`);
+  return v;
+}
+
 export function parseWidth(value: string): number {
-  const n = Number.parseInt(value, 10);
-  if (!Number.isFinite(n) || n < 1) throw new Error(`invalid --width '${value}'`);
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1) throw new Error(`invalid --width '${value}'`);
+  return n;
+}
+
+export function parseHeight(value: string): number {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 1) throw new Error(`invalid --height '${value}'`);
   return n;
 }
 
@@ -107,6 +132,7 @@ export function flagsFromOptions(opts: Record<string, unknown>): CliFlags {
     profile: opts.profile as string | undefined,
     base: opts.base as string | undefined,
     width: opts.width as number | undefined,
+    height: opts.height as number | undefined,
     theme: opts.theme as string | undefined,
     color: color === undefined ? undefined : color,
     ascii: Boolean(opts.ascii),
@@ -118,5 +144,7 @@ export function flagsFromOptions(opts: Record<string, unknown>): CliFlags {
     ast: Boolean(opts.ast),
     tokens: Boolean(opts.tokens),
     renderTokens: Boolean(opts.renderTokens),
+    frames: opts.frames as FrameFormat | undefined,
+    frameMode: opts.mode as FrameMode | undefined,
   };
 }

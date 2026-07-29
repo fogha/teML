@@ -1,6 +1,6 @@
 import { test, expect } from "vitest";
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { Diagnostics, normalize, tokensView } from "../../src/core/index.js";
 import { parseTeml } from "../../src/teml/parse.js";
@@ -19,7 +19,7 @@ async function fixtureFiles(): Promise<string[]> {
 for (const width of WIDTHS) {
   test(`fixture plain snapshots @ width ${width}`, async () => {
     for (const file of await fixtureFiles()) {
-      const base = file.replace(`${FIXTURES_DIR}/`, "").replace(/\.teml$/, "");
+      const base = basename(file, ".teml");
       const source = await readFile(file, "utf8");
       const doc = normalize(parseTeml(source, new Diagnostics()));
       const out = snapshotRender(doc, width, "plain", "mono");

@@ -31,7 +31,7 @@ const BLOCK_WRAPPERS = new Set([
   "figcaption",
   "form",
 ]);
-const DATA_TEML_CONTAINERS = new Set(["grid", "details", "figure"]);
+const DATA_TEML_CONTAINERS = new Set(["grid", "details", "figure", "scroll"]);
 const DATA_TEML_LEAFS = new Set(["metric", "progress", "event"]);
 const PROGRESS_ROLE_CLASSES: Record<string, string> = {
   "text-success": "success",
@@ -43,7 +43,7 @@ const PLACEHOLDER_TAGS = new Set(["canvas", "video", "iframe", "object", "embed"
 /** input[type] values that map to a button leaf instead of a text input. */
 const INPUT_BUTTON_TYPES = new Set(["submit", "button"]);
 /** input[type] values not represented by any v1 interactive leaf (skipped). */
-const INPUT_UNSUPPORTED_TYPES = new Set(["hidden", "radio"]);
+const INPUT_UNSUPPORTED_TYPES = new Set(["hidden"]);
 
 function tagName(el: Element): string {
   return el.tagName.toLowerCase();
@@ -158,6 +158,8 @@ function mapInlineImage(el: Element, opts: MapOptions, diags: Diagnostics): Inli
 function mapNativeProgressLeaf(el: Element): Block {
   const attrs = getAttrs(el);
   const leafAttrs: Record<string, string> = {};
+  const id = el.getAttribute("id")?.trim();
+  if (id) leafAttrs.id = sanitizeText(id);
   const label = progressLabel(el);
   if (label) leafAttrs.label = label;
   if (attrs.value) leafAttrs.value = sanitizeText(attrs.value);
@@ -185,14 +187,16 @@ function findLabelFor(el: Element, id: string): Element | undefined {
   return undefined;
 }
 
-/** True when a <label for="id"> targets an input we actually map to an interactive leaf
+/** True when a <label for="id"> targets a control we map to an interactive leaf
  *  (so mapBlocks can skip emitting the label itself as separate flow text). */
 function isConsumedLabel(el: Element): boolean {
   const forId = el.getAttribute("for");
   if (!forId) return false;
   const owner = el.ownerDocument;
   const target = owner ? findElementById(owner, forId) : undefined;
-  if (!target || tagName(target) !== "input") return false;
+  if (!target) return false;
+  if (tagName(target) === "textarea") return true;
+  if (tagName(target) !== "input") return false;
   const type = (getAttrs(target).type ?? "text").toLowerCase();
   return !INPUT_UNSUPPORTED_TYPES.has(type);
 }
@@ -202,6 +206,10 @@ function inputLabel(el: Element, attrs: Record<string, string>): string | undefi
   if (attrs.id) {
     const labelEl = findLabelFor(el, attrs.id);
     const text = labelEl ? collapseWhitespace(textOfElement(labelEl)).trim() : "";
+    if (text) return sanitizeText(text);
+  }
+  if (el.parentElement && tagName(el.parentElement) === "label") {
+    const text = collapseWhitespace(textOfElement(el.parentElement)).trim();
     if (text) return sanitizeText(text);
   }
   const fallback = attrs["aria-label"] || attrs.placeholder || attrs.name;
@@ -215,6 +223,21 @@ function mapNativeCheckbox(el: Element, attrs: Record<string, string>): Block {
   if (label) leafAttrs.label = label;
   leafAttrs.checked = el.hasAttribute("checked") ? "true" : "false";
   return { type: "leaf", name: "checkbox", attrs: leafAttrs };
+}
+
+function mapNativeRadio(el: Element, attrs: Record<string, string>): Block {
+  const groupId = sanitizeText(attrs.name || attrs.id || "");
+  const value = sanitizeText(attrs.value || "on");
+  const label = inputLabel(el, attrs) || value;
+  return {
+    type: "container",
+    name: "radio",
+    attrs: {
+      ...(groupId ? { id: groupId } : {}),
+      ...(el.hasAttribute("checked") ? { value } : {}),
+    },
+    children: [{ type: "leaf", name: "option", attrs: { value, label } }],
+  };
 }
 
 function mapNativeButton(el: Element, attrs: Record<string, string>): Block {
@@ -231,6 +254,7 @@ function mapNativeInput(el: Element): Block | null {
   const attrs = getAttrs(el);
   const type = (attrs.type ?? "text").toLowerCase();
   if (INPUT_UNSUPPORTED_TYPES.has(type)) return null;
+  if (type === "radio") return mapNativeRadio(el, attrs);
   if (type === "checkbox") return mapNativeCheckbox(el, attrs);
   if (INPUT_BUTTON_TYPES.has(type)) return mapNativeButton(el, attrs);
 
@@ -241,6 +265,54 @@ function mapNativeInput(el: Element): Block | null {
   if (attrs.placeholder) leafAttrs.placeholder = sanitizeText(attrs.placeholder);
   if (attrs.value) leafAttrs.value = sanitizeText(attrs.value);
   return { type: "leaf", name: "input", attrs: leafAttrs };
+}
+
+function mapNativeTextarea(el: Element): Block {
+  const attrs = getAttrs(el);
+  const leafAttrs: Record<string, string> = {};
+  if (attrs.id) leafAttrs.id = sanitizeText(attrs.id);
+  const label = inputLabel(el, attrs);
+  if (label) leafAttrs.label = label;
+  if (attrs.placeholder) leafAttrs.placeholder = sanitizeText(attrs.placeholder);
+  if (attrs.rows) leafAttrs.rows = sanitizeText(attrs.rows);
+  const value = sanitizeText((el.textContent ?? "").replace(/\r\n?/g, "\n"));
+  if (value) leafAttrs.value = value;
+  return { type: "leaf", name: "textarea", attrs: leafAttrs };
+}
+
+function coalesceRadioGroups(blocks: Block[], diags: Diagnostics): Block[] {
+  const out: Block[] = [];
+  const byId = new Map<string, Extract<Block, { type: "container" }>>();
+  for (const block of blocks) {
+    if (block.type !== "container" || block.name !== "radio") {
+      out.push(block);
+      continue;
+    }
+    const id = block.attrs.id?.trim();
+    if (!id) {
+      diags.warn("radio-missing-name", "HTML radio without name/id cannot form a group");
+      out.push(block);
+      continue;
+    }
+    const existing = byId.get(id);
+    if (!existing) {
+      byId.set(id, block);
+      out.push(block);
+      continue;
+    }
+    existing.children.push(...block.children);
+    if (block.attrs.value) {
+      if (existing.attrs.value) {
+        diags.warn(
+          "radio-multiple-checked",
+          `HTML radio group '${id}' has multiple checked options; the first wins`,
+        );
+      } else {
+        existing.attrs.value = block.attrs.value;
+      }
+    }
+  }
+  return out;
 }
 
 function mapNativeDetails(el: Element, opts: MapOptions, diags: Diagnostics): Block {
@@ -531,6 +603,29 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
       continue;
     }
 
+    if (tag === "textarea") {
+      flushInline();
+      blocks.push(mapNativeTextarea(el));
+      continue;
+    }
+
+    if (tag === "label") {
+      const nestedControl = [...el.children].find((child) => {
+        if (tagName(child) === "textarea") return true;
+        if (tagName(child) !== "input") return false;
+        return !INPUT_UNSUPPORTED_TYPES.has((getAttrs(child).type ?? "text").toLowerCase());
+      });
+      if (nestedControl) {
+        flushInline();
+        const mapped =
+          tagName(nestedControl) === "textarea"
+            ? mapNativeTextarea(nestedControl)
+            : mapNativeInput(nestedControl);
+        if (mapped) blocks.push(mapped);
+        continue;
+      }
+    }
+
     if (tag === "label" && isConsumedLabel(el)) {
       // Already surfaced as the target input's `label` attr; skip to avoid duplicating it as flow text.
       continue;
@@ -566,7 +661,7 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
       flushInline();
       const attrs: Record<string, string> = {};
       if (containerRule.titleFrom) {
-        const title = titleFromSelectors(el, containerRule.titleFrom);
+        const title = titleFromSelectors(el, containerRule.titleFrom, diags);
         if (title) attrs.title = sanitizeText(title);
       }
       let children = mapBlocks([...el.childNodes], opts, diags);
@@ -608,7 +703,7 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
   }
 
   flushInline();
-  return blocks;
+  return coalesceRadioGroups(blocks, diags);
 }
 
 function mapListItem(el: Element, opts: MapOptions, diags: Diagnostics): ListItem {

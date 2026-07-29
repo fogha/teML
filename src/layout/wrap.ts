@@ -28,13 +28,26 @@ function toWords(spans: Span[], opts?: MeasureOpts): Word[] {
   return words;
 }
 
+/** Stand-in for a grapheme too wide to render in the available cells; matches
+ * the marker `truncateToWidth` uses. */
+const OVERSIZED = "…";
+
 function breakWord(word: Word, width: number, opts?: MeasureOpts): Word[] {
   const out: Word[] = [];
   let parts: Span[] = [];
   let w = 0;
   for (const span of word.parts) {
-    for (const g of graphemes(span.text)) {
-      const gw = cellWidth(g, opts);
+    for (const raw of graphemes(span.text)) {
+      // A grapheme wider than the whole line (a CJK character at width 1) can
+      // never fit. Placing it anyway would emit a line over the caller's cell
+      // budget, which every downstream slice-by-width consumer relies on.
+      let g = raw;
+      let gw = cellWidth(g, opts);
+      if (gw > width) {
+        g = OVERSIZED;
+        gw = cellWidth(g, opts);
+        if (gw > width) continue;
+      }
       if (w + gw > width && w > 0) {
         out.push({ parts, width: w });
         parts = [];

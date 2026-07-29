@@ -20,6 +20,24 @@ export type CapOverrides = {
   showUrls?: boolean;
 };
 
+/** Minimum useful width for dimensions reported by a live terminal. Explicit
+ * CLI `--width` values remain allowed below this threshold for testing and
+ * constrained-output use cases. */
+export const MIN_TERMINAL_WIDTH = 20;
+/** Far above practical terminal dimensions, but bounded so a hostile resize
+ * command cannot make layout allocate gigabyte-scale border/spacing strings. */
+export const MAX_TERMINAL_DIMENSION = 10_000;
+
+export function clampTerminalWidth(width: number): number {
+  if (!Number.isFinite(width)) return MIN_TERMINAL_WIDTH;
+  return Math.min(MAX_TERMINAL_DIMENSION, Math.max(MIN_TERMINAL_WIDTH, Math.trunc(width)));
+}
+
+export function clampTerminalHeight(height: number): number {
+  if (!Number.isFinite(height)) return 1;
+  return Math.min(MAX_TERMINAL_DIMENSION, Math.max(1, Math.trunc(height)));
+}
+
 export function colorsEnabled(caps: Capabilities): boolean {
   return caps.colors !== "none";
 }
@@ -50,9 +68,15 @@ function detectWidth(
   const fromFlag = overrides.width;
   const fromTty = isTTY && ttyColumns ? ttyColumns : undefined;
   const fromEnv = env.COLUMNS ? parseInt(env.COLUMNS, 10) || undefined : undefined;
-  if (fromFlag != null) return Math.max(1, fromFlag);
+  // An explicit width may go below MIN_TERMINAL_WIDTH (documented above), but
+  // the upper bound still applies: layout builds border and spacing strings the
+  // full width, so `--width 99999999` produces no output for many seconds.
+  if (fromFlag != null) {
+    if (!Number.isFinite(fromFlag)) return clampTerminalWidth(fromFlag);
+    return Math.min(MAX_TERMINAL_DIMENSION, Math.max(1, Math.trunc(fromFlag)));
+  }
   const fallback = fromTty ?? fromEnv ?? 80;
-  return Math.max(20, fallback);
+  return clampTerminalWidth(fallback);
 }
 
 function detectHyperlinks(env: NodeJS.ProcessEnv, colors: ColorMode): boolean {
