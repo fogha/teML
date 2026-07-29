@@ -20,6 +20,17 @@ function ttyPair(): {
   return { input, output, chunks };
 }
 
+// Opening a document is an asynchronous read, so counting event-loop ticks is a
+// race that a slower filesystem loses. Wait for the output instead, and name the
+// stage that stalled if it never arrives.
+async function waitForOutput(chunks: string[], needle: string): Promise<void> {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    if (chunks.join("").includes(needle)) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  throw new Error(`timed out waiting for ${JSON.stringify(needle)} in reader output`);
+}
+
 describe("teml read", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -118,14 +129,12 @@ describe("teml read", () => {
     writeFileSync(join(dir, "b.txt"), "ignored");
     const { input, output, chunks } = ttyPair();
     const running = executeRead(dir, { color: false }, { input, output });
-    await new Promise((resolve) => setImmediate(resolve));
+    await waitForOutput(chunks, "a.teml");
     input.write("\t\r");
-    await new Promise((resolve) => setImmediate(resolve));
+    await waitForOutput(chunks, "OPENED_DOCUMENT");
     input.write("q");
     expect(await running).toBe(0);
     rmSync(dir, { recursive: true, force: true });
-    expect(chunks.join("")).toContain("a.teml");
-    expect(chunks.join("")).toContain("OPENED_DOCUMENT");
     expect(chunks.join("")).not.toContain("b.txt");
   });
 

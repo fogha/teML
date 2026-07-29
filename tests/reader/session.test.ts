@@ -1,7 +1,14 @@
+import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 import type { DetailedLayout } from "../../src/layout/regions.js";
 import { ReaderSession, resolveReaderTarget, type ReaderEffect } from "../../src/reader/session.js";
 import type { Capabilities } from "../../src/terminal/capabilities.js";
+
+// The Reader resolves link targets through node:path, so these fixtures have to
+// be native paths: on Windows a "/docs/x.teml" literal would never equal the
+// "D:\docs\x.teml" the session actually produces.
+const root = resolve("/docs");
+const docPath = (...segments: string[]) => resolve(root, ...segments);
 
 const caps: Capabilities = {
   colors: "none",
@@ -41,8 +48,8 @@ function detailed(): DetailedLayout {
 
 function session(): ReaderSession {
   return new ReaderSession({
-    rootPath: "/docs",
-    currentPath: "/docs/index.teml",
+    rootPath: root,
+    currentPath: docPath("index.teml"),
     title: "Index",
     detailed: detailed(),
     viewport: { cols: 30, rows: 4, statusRows: 1 },
@@ -79,7 +86,7 @@ describe("ReaderSession", () => {
     const effects = reader.handle({ type: "key", key: "enter" });
     expect(effectOf(effects, "navigate")).toEqual({
       type: "navigate",
-      path: "/docs/next.teml",
+      path: docPath("next.teml"),
       anchor: undefined,
       history: "push",
     });
@@ -117,14 +124,14 @@ describe("ReaderSession", () => {
   test("history restores prior document position", () => {
     const reader = session();
     reader.handle({ type: "key", key: "down" });
-    reader.setDocument("/docs/next.teml", "Next", detailed(), "push");
+    reader.setDocument(docPath("next.teml"), "Next", detailed(), "push");
     expect(reader.state().historyIndex).toBe(1);
     const back = reader.handle({ type: "char", char: "b" });
     expect(effectOf(back, "navigate")).toMatchObject({
-      path: "/docs/index.teml",
+      path: docPath("index.teml"),
       history: "restore",
     });
-    reader.setDocument("/docs/index.teml", "Index", detailed(), "restore");
+    reader.setDocument(docPath("index.teml"), "Index", detailed(), "restore");
     expect(reader.state().scrollRow).toBe(1);
   });
 
@@ -159,22 +166,22 @@ describe("ReaderSession", () => {
 
 describe("Reader navigation confinement", () => {
   test("allows local descendants and rejects root escape", () => {
-    expect(resolveReaderTarget("chapter/a.teml", "/docs/index.teml", "/docs")).toMatchObject({
+    expect(resolveReaderTarget("chapter/a.teml", docPath("index.teml"), root)).toMatchObject({
       kind: "local",
-      path: "/docs/chapter/a.teml",
+      path: docPath("chapter", "a.teml"),
     });
-    expect(resolveReaderTarget("../secret.teml", "/docs/index.teml", "/docs")).toEqual({
+    expect(resolveReaderTarget("../secret.teml", docPath("index.teml"), root)).toEqual({
       kind: "rejected",
       reason: "link is outside the document root",
     });
   });
 
   test("separates anchors and external URLs", () => {
-    expect(resolveReaderTarget("#install", "/docs/index.teml", "/docs")).toEqual({
+    expect(resolveReaderTarget("#install", docPath("index.teml"), root)).toEqual({
       kind: "anchor",
       anchor: "install",
     });
-    expect(resolveReaderTarget("https://example.test", "/docs/index.teml", "/docs")).toMatchObject({
+    expect(resolveReaderTarget("https://example.test", docPath("index.teml"), root)).toMatchObject({
       kind: "external",
     });
   });
@@ -182,7 +189,7 @@ describe("Reader navigation confinement", () => {
   test("rejects a malformed URI escape instead of throwing", () => {
     // A stray '%' makes decodeURIComponent throw; one bad link must degrade
     // to a rejection, not crash the whole Reader session.
-    expect(resolveReaderTarget("notes%.md", "/docs/index.teml", "/docs")).toEqual({
+    expect(resolveReaderTarget("notes%.md", docPath("index.teml"), root)).toEqual({
       kind: "rejected",
       reason: "link target has a malformed URI escape",
     });
