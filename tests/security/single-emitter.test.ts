@@ -1,6 +1,6 @@
 import { test, expect } from "vitest";
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { normalize } from "../../src/core/index.js";
 import { Diagnostics } from "../../src/core/diagnostics.js";
 import { layoutDocument } from "../../src/layout/layout.js";
@@ -22,12 +22,24 @@ async function adversarialFixtures(): Promise<string[]> {
   const dirs = [join(process.cwd(), "fixtures/adversarial"), join(process.cwd(), "fixtures/html")];
   const files: string[] = [];
   for (const dir of dirs) {
+    // Match on the basename, not endsWith("/html"): this path ends with "\html"
+    // on Windows, where a '/'-spelled check silently drops every hostile HTML
+    // fixture and leaves both invariants below passing without loading them.
+    const isHtmlDir = basename(dir) === "html";
     for (const f of await readdir(dir)) {
       if (f.endsWith(".teml")) files.push(join(dir, f));
-      if (dir.endsWith("/html") && f.endsWith(".html") && f.includes("hostile")) {
+      if (isHtmlDir && f.endsWith(".html") && f.includes("hostile")) {
         files.push(join(dir, f));
       }
     }
+  }
+  // These invariants are worthless if the hostile inputs go missing, so refuse to
+  // report success on an incomplete corpus.
+  if (!files.some((file) => file.endsWith(".html"))) {
+    throw new Error("adversarial corpus collected no hostile HTML fixtures");
+  }
+  if (!files.some((file) => file.endsWith(".teml"))) {
+    throw new Error("adversarial corpus collected no .teml fixtures");
   }
   return files;
 }
