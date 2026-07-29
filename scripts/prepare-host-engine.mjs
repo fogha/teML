@@ -34,7 +34,13 @@ writeFileSync(join(installRoot, "package.json"), '{"private":true}\n');
 // shell: true because pnpm is a .cmd shim on Windows, which execFileSync cannot
 // launch directly — it fails with ENOENT unquoted and EINVAL when the shim is
 // named, since Node refuses to exec batch files.
-execFileSync("pnpm", ["add", "--ignore-scripts", "--force", `"file:${tarball}"`], {
+// --ignore-workspace keeps this throwaway install out of the committed
+// lockfile. pnpm-workspace.yaml makes the repo root a workspace root, so
+// without it pnpm walks up from .host-engine and records an integrity hash for
+// a tarball that is rebuilt on every release:pack, dirtying the tree of anyone
+// who runs the host suites.
+const args = ["add", "--ignore-scripts", "--force", "--ignore-workspace", `"file:${tarball}"`];
+execFileSync("pnpm", args, {
   cwd: installRoot,
   stdio: "inherit",
   shell: true,

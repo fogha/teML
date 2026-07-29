@@ -82,12 +82,6 @@ importers:
         specifier: ^3.2.0
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(tsx@4.23.0)(yaml@2.9.0)
 
-  .host-engine:
-    dependencies:
-      teml:
-        specifier: file:/Users/Armand/Documents/Code/teml/teml.tgz
-        version: file:teml.tgz
-
 packages:
 
   '@esbuild/aix-ppc64@0.25.12':
@@ -1429,12 +1423,6 @@ packages:
   supports-color@7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
     engines: {node: '>=8'}
-
-  teml@file:teml.tgz:
-    resolution: {integrity: sha512-hRAx6kzINee147BTEIl/Bj0FnICDJUX0P/uQFzPoLUKx4tWo0ran0RxJuWQXZgdVQnHkobb0Gq8hvp+CW+tMRQ==, tarball: file:teml.tgz}
-    version: 0.2.0
-    engines: {node: '>=20', pnpm: '>=10'}
-    hasBin: true
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -3047,24 +3035,6 @@ snapshots:
   supports-color@7.2.0:
     dependencies:
       has-flag: 4.0.0
-
-  teml@file:teml.tgz:
-    dependencies:
-      '@mozilla/readability': 0.6.0
-      commander: 14.0.3
-      linkedom: 0.18.13
-      mdast-util-to-string: 4.0.0
-      parse5: 8.0.1
-      remark-directive: 4.0.0
-      remark-frontmatter: 5.0.0
-      remark-gfm: 4.0.1
-      remark-parse: 11.0.0
-      string-width: 7.2.0
-      unified: 11.0.5
-      yaml: 2.9.0
-    transitivePeerDependencies:
-      - canvas
-      - supports-color
 
   tinybench@2.9.0: {}
 
