@@ -4,6 +4,34 @@ All notable changes to this project are documented in this file. Public
 versioning starts at 0.1.0; the v1.0 and v1.5 labels below are earlier internal
 development milestones, not published package versions.
 
+## v0.2.1 — Windows correctness (2026-07-29)
+
+- Fixed `teml read` on Windows, where every entry of a directory listing was
+  rejected as `unsupported link scheme 'c:'`, making directory browsing
+  impossible. A drive letter is also a syntactically valid URL scheme, so the
+  absolute hrefs a listing builds were parsed as URLs; they now resolve as
+  filesystem paths, still confined to the document root. `--base C:\docs` was
+  refused for the same reason and is now accepted. Document href sanitization
+  deliberately continues to reject drive-qualified paths, so an untrusted
+  document cannot address the local filesystem.
+- Fixed the S-2 escape-sequence invariants, which compared filesystem paths
+  spelled with `/` and therefore did not hold on Windows. The adversarial-corpus
+  check silently dropped every hostile HTML fixture and passed without ever
+  loading it; the corpus now refuses to report success when a fixture kind is
+  missing.
+- Fixed `pnpm pack` invocation in the packaging and release scripts, which could
+  not launch pnpm's `.cmd` shim on Windows and so failed before exercising the
+  installed CLI.
+- Stopped the host-engine conformance install from writing the committed
+  lockfile, where it recorded an integrity hash that changed on every
+  `release:pack`.
+- Made the bundled-asset tests assert that their assets exist instead of
+  skipping when absent, and replaced a tick-counting Reader test with one that
+  waits for the expected output.
+
+The CI matrix now passes on Linux, macOS, and Windows. It had never been green
+before this release, which is what allowed the Windows defects above to ship.
+
 ## v0.2.0 — Interactive protocol 1.3 and polyglot hosts (2026-07-29)
 
 - Added frame-format negotiation to the `teml run` host protocol: an
