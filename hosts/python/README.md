@@ -18,6 +18,16 @@ support is **experimental** and not covered by integration tests.
 
 ## Install
 
+> **Not on PyPI yet.** Publishing runs on a release tag and starts with v0.3.0.
+> Until that release lands, install from a checkout:
+
+```sh
+cd hosts/python
+python -m pip install .
+```
+
+Once published, the same package installs by name:
+
 ```sh
 python -m pip install teml-host
 ```

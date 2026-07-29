@@ -9,6 +9,17 @@ frame reconstruction, and optional crossterm helpers.
 
 ## Install
 
+> **Not on crates.io yet.** Publishing runs on a release tag and starts with
+> v0.3.0. Until that release lands, depend on a checkout with a `path` (or `git`)
+> dependency:
+
+```toml
+[dependencies]
+teml-host = { path = "../teml/crates/teml-host" }
+```
+
+Once published, the same crate is a version dependency:
+
 ```toml
 [dependencies]
 teml-host = "0.1"

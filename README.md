@@ -5,18 +5,20 @@ Build readable terminal documents and interactive CLI interfaces from **TeML**,
 
 ## Install
 
-```bash
-npm install --global teml     # or: pnpm add --global teml
-teml --version
-```
-
-Requires **Node ≥ 20**. To pin an exact build instead, install the small prebuilt
-package attached to any GitHub Release—not the repository or its development
-dependencies:
+Install the small prebuilt package attached to the latest GitHub Release—not the
+repository or its development dependencies:
 
 ```bash
 pnpm add --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
+teml --version
 ```
+
+Requires **Node ≥ 20**. Replace `latest` with a tag (for example
+`download/v0.2.1/teml.tgz`) to pin an exact build.
+
+> **Not on npm yet.** Registry publishing landed in v0.3.0 and runs on a release
+> tag, so `npm install --global teml` starts working with the v0.3.0 release. Until
+> then the Release tarball above is the supported install.
 
 ### Host libraries
 
@@ -25,10 +27,13 @@ language. Each one speaks the same protocol to the same engine, so the same
 document works from any of them:
 
 ```bash
-cargo add teml-host                              # Rust
-go get github.com/fogha/teml/hosts/go            # Go
-pip install teml-host                            # Python
+go get github.com/fogha/teml/hosts/go            # Go — resolves from the repository
 ```
+
+The Rust and Python libraries are complete and tested in-repo but are not on
+crates.io or PyPI until the v0.3.0 release publishes them. Until then, depend on
+them from a checkout—see [`crates/teml-host`](crates/teml-host/README.md) and
+[`hosts/python`](hosts/python/README.md).
 
 Node programs need no extra package: `teml/interactive` exports
 `runInteractiveApp` for in-process use. A host library locates the engine

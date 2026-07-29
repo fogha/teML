@@ -4,15 +4,17 @@ All notable changes to this project are documented in this file. Public
 versioning starts at 0.1.0; the v1.0 and v1.5 labels below are earlier internal
 development milestones, not published package versions.
 
-## v0.3.0 — Handler-driven hosts, published packages (2026-07-29)
+## v0.3.0 — Handler-driven hosts, registry publishing (2026-07-29)
 
-- Published the packages. `teml` was a 404 on npm and `teml-host` a 404 on both
+- Added registry publishing. `teml` was a 404 on npm and `teml-host` a 404 on both
   crates.io and PyPI, while the Rust README told readers to depend on
   `teml-host = "0.1"` regardless; the only installable host was Go, because Go
   modules resolve straight from the repository. Nothing had ever published them —
   the release workflow only created a GitHub Release. Publishing now runs on a tag
   after every gate passes, and each package's version is independent of the tag, so
-  a job is a no-op unless that version is new.
+  a job is a no-op unless that version is new. The packages therefore become
+  installable when this version is tagged and released; until then the GitHub
+  Release tarball and the Go module remain the only working installs.
 
   Three packaging defects surfaced while dry-running the artifacts. The crate
   shipped integration tests that read a view from a sibling example directory
