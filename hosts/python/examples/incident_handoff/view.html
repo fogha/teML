@@ -1,0 +1,28 @@
+<h2>Incident handoff</h2>
+<p>
+  Tab moves focus &middot; arrows choose severity &middot; Ctrl+Enter leaves the summary &middot;
+  wheel/Page keys scroll telemetry
+</p>
+<label for="service">Affected service</label>
+<input id="service" value="api" />
+<label for="sev3">SEV-3 &middot; degraded</label>
+<input id="sev3" type="radio" name="severity" value="sev3" checked />
+<label for="sev2">SEV-2 &middot; major impact</label>
+<input id="sev2" type="radio" name="severity" value="sev2" />
+<label for="sev1">SEV-1 &middot; critical</label>
+<input id="sev1" type="radio" name="severity" value="sev1" />
+<label for="summary">Operator summary</label>
+<textarea id="summary" rows="3" placeholder="Impact, mitigation, and next action"></textarea>
+<div data-teml="scroll" data-id="telemetry" data-rows="5">
+  <h3>Recent telemetry</h3>
+  <p>14:31:04 api p95 latency crossed 900ms</p>
+  <p>14:31:08 gateway opened the circuit breaker</p>
+  <p>14:31:12 worker backlog reached 18,420</p>
+  <p>14:31:18 api rollback started</p>
+  <p>14:31:26 p95 latency recovered to 120ms</p>
+  <p>14:31:31 circuit breaker closed</p>
+</div>
+<label for="page">Page the on-call engineer</label>
+<input id="page" type="checkbox" />
+<button id="submit">Send handoff</button>
+<button id="cancel">Cancel</button>

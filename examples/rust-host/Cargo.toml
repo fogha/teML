@@ -1,0 +1,11 @@
+[package]
+name = "teml-rust-host"
+version = "0.1.0"
+edition = "2021"
+description = "Example: HTML view + Rust controller + TeML terminal runtime (teml run NDJSON host)"
+license = "MIT"
+publish = false
+
+[dependencies]
+teml-host = { path = "../../crates/teml-host" }
+crossterm = "0.28"
