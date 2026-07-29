@@ -490,6 +490,41 @@ test("the in-process Node host handles callbacks, rerender, resize, submit, and 
   expect(setRawMode).toHaveBeenLastCalledWith(false);
 });
 
+test("a handler's ctx.render is the last paint, not overwritten by its trigger's frame", async () => {
+  // session.handle() builds the triggering command's frame before the handler
+  // runs, so a command the handler issues has to be queued until that frame
+  // has been dispatched — otherwise the fresh screen is painted and then
+  // immediately replaced by the stale one.
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const paints: string[] = [];
+  output.on("data", (chunk) => {
+    const text = chunk.toString("utf8");
+    if (text.startsWith("\x1b[2J")) paints.push("");
+    if (paints.length) paints[paints.length - 1] += text;
+  });
+
+  const done = runInteractiveApp('::button{id="go" label="Go"}', {
+    format: "teml",
+    handlers: {
+      onClick(_id, _values, ctx) {
+        ctx.render('SECOND SCREEN\n\n::button{id="go" label="Go"}', "teml");
+        setTimeout(() => ctx.exit(), 20);
+      },
+    },
+    input,
+    output,
+  });
+
+  await tick();
+  input.write("\r");
+  await delay(120);
+  await done;
+
+  expect(paints.at(-1)).toContain("SECOND SCREEN");
+  expect(paints.filter((paint) => paint.includes("SECOND SCREEN"))).toHaveLength(1);
+});
+
 test("the in-process Node host decodes richer CSI and SS3 keys end to end", async () => {
   const input = new PassThrough();
   const output = new PassThrough();

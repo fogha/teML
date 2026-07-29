@@ -192,6 +192,9 @@ export function runInteractiveApp(
     let pendingWheelRows = 0;
     let lastResize = { width: layout.width, height: layout.height ?? 24 };
     const decoder = createInputDecoder();
+    /** Commands a handler asked for while its own command was being dispatched. */
+    const queued: Command[] = [];
+    let dispatching = false;
 
     const dispatchInput = (event: TerminalInputEvent): void => {
       switch (event.type) {
@@ -330,8 +333,28 @@ export function runInteractiveApp(
       }
     }
 
+    // `session.handle()` builds its whole event array before returning, so the
+    // frame for the triggering command already exists while a handler runs. A
+    // handler's own command must therefore wait until that array is fully
+    // dispatched, or its fresh frame would be painted and then immediately
+    // overwritten by the stale one. This matches the queueing contract the
+    // Rust/Go/Python drivers follow over the wire.
     function send(command: Command): void {
-      for (const event of session.handle(command)) dispatch(event);
+      if (dispatching) {
+        queued.push(command);
+        return;
+      }
+      dispatching = true;
+      try {
+        let next: Command | undefined = command;
+        while (next) {
+          for (const event of session.handle(next)) dispatch(event);
+          next = queued.shift();
+        }
+      } finally {
+        dispatching = false;
+        queued.length = 0;
+      }
     }
 
     lifecycle = enterTerminal({
