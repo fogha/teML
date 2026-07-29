@@ -24,13 +24,16 @@ if (releaseTag && releaseTag !== expectedTag) {
 const destination = join(root, "teml.tgz");
 rmSync(destination, { force: true });
 
-// execFileSync does not go through a shell, so on Windows it has to name the
-// .cmd shim explicitly or the lookup fails with ENOENT.
-const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-const output = execFileSync(pnpm, ["pack", "--json", "--out", destination], {
+// pnpm is a .cmd shim on Windows, which execFileSync cannot launch directly:
+// without a shell the lookup fails with ENOENT, and naming pnpm.cmd explicitly
+// fails with EINVAL because Node refuses to exec batch files. A shell resolves
+// the shim via PATHEXT and changes nothing elsewhere, so long as arguments that
+// may contain spaces are quoted.
+const output = execFileSync("pnpm", ["pack", "--json", "--out", `"${destination}"`], {
   cwd: root,
   encoding: "utf8",
   stdio: ["ignore", "pipe", "inherit"],
+  shell: true,
 });
 const packed = JSON.parse(output);
 if (typeof packed.filename !== "string" || resolve(root, packed.filename) !== destination) {

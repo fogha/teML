@@ -1431,7 +1431,7 @@ packages:
     engines: {node: '>=8'}
 
   teml@file:teml.tgz:
-    resolution: {integrity: sha512-al2nRVSqNdgk2VzvVbDQS9EBIUMnNege20tpz0z3kHOZrlv5+7qrVpiPXDyMOskIO5Nz3EaoVqCqgvSujnRbPQ==, tarball: file:teml.tgz}
+    resolution: {integrity: sha512-hRAx6kzINee147BTEIl/Bj0FnICDJUX0P/uQFzPoLUKx4tWo0ran0RxJuWQXZgdVQnHkobb0Gq8hvp+CW+tMRQ==, tarball: file:teml.tgz}
     version: 0.2.0
     engines: {node: '>=20', pnpm: '>=10'}
     hasBin: true

@@ -8,9 +8,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-// execFileSync does not go through a shell, so on Windows it has to name the
-// .cmd shim explicitly or the lookup fails with ENOENT.
-const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+// pnpm is a .cmd shim on Windows, which execFileSync cannot launch directly:
+// without a shell the lookup fails with ENOENT, and naming pnpm.cmd explicitly
+// fails with EINVAL because Node refuses to exec batch files. Going through a
+// shell resolves the shim via PATHEXT on Windows and changes nothing elsewhere,
+// at the cost of having to quote arguments that may contain spaces.
+const shellArg = (value) => `"${value}"`;
 
 function run(cmd, cwd = root) {
   return execSync(cmd, {
@@ -33,10 +36,11 @@ mkdirSync(proj);
 try {
   console.log("pack-verify: creating tarball…");
   const packed = JSON.parse(
-    execFileSync(pnpm, ["pack", "--json", "--out", tgzPath], {
+    execFileSync("pnpm", ["pack", "--json", "--out", shellArg(tgzPath)], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      shell: true,
     }),
   );
   if (

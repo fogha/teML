@@ -177,13 +177,19 @@ describe("Reader navigation confinement", () => {
   });
 
   test("treats a drive-qualified target as a path, not a 'c:' scheme", () => {
-    // The directory listing hrefs are absolute paths, so on Windows every entry
-    // arrives here as "C:\...". new URL() reads the drive letter as a scheme,
+    // Directory listings build absolute hrefs, so on Windows every entry arrives
+    // here as "D:\docs\a.teml". new URL() reads the drive letter as a scheme,
     // which used to reject the whole listing as unsupported and made directory
-    // browsing impossible there. Asserted on every platform because the
-    // misparse is in the URL layer, not in path handling.
-    const resolved = resolveReaderTarget("C:\\docs\\a.teml", docPath("index.teml"), root);
-    expect(resolved.kind).not.toBe("rejected");
+    // browsing impossible there.
+    const target = docPath("a.teml");
+    expect(resolveReaderTarget(target, docPath("index.teml"), root)).toMatchObject({
+      kind: "local",
+      path: target,
+    });
+    // A target on another drive really is outside the root, so it stays refused
+    // — but for that reason, never as an unrecognized URL scheme.
+    const foreign = resolveReaderTarget("Z:\\elsewhere\\a.teml", docPath("index.teml"), root);
+    expect(foreign.kind === "rejected" ? foreign.reason : "").not.toContain("scheme");
   });
 
   test("separates anchors and external URLs", () => {

@@ -26,14 +26,18 @@ rmSync(installRoot, { recursive: true, force: true });
 mkdirSync(installRoot, { recursive: true });
 writeFileSync(join(installRoot, "package.json"), '{"private":true}\n');
 
-const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 // --force because a `file:` dependency is keyed by its path: without it pnpm
 // happily serves the copy it cached the last time this same teml.tgz path was
 // installed, and the host conformance suites then run against a previous
 // engine build. A clean CI runner never hits that; a developer's machine does.
-execFileSync(pnpm, ["add", "--ignore-scripts", "--force", `file:${tarball}`], {
+//
+// shell: true because pnpm is a .cmd shim on Windows, which execFileSync cannot
+// launch directly — it fails with ENOENT unquoted and EINVAL when the shim is
+// named, since Node refuses to exec batch files.
+execFileSync("pnpm", ["add", "--ignore-scripts", "--force", `"file:${tarball}"`], {
   cwd: installRoot,
   stdio: "inherit",
+  shell: true,
 });
 
 if (!existsSync(cli)) {
