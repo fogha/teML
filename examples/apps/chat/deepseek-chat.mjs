@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// examples/chat/deepseek-chat.mjs — a minimal CLI chat client for the
+// examples/apps/chat/deepseek-chat.mjs — a minimal CLI chat client for the
 // DeepSeek API that renders assistant replies through the TeML pipeline.
 //
 // The model is instructed (via the system prompt below) to answer using a
@@ -11,7 +11,7 @@
 //
 // Usage:
 //   export DEEPSEEK_API_KEY=sk-...
-//   node examples/chat/deepseek-chat.mjs
+//   node examples/apps/chat/deepseek-chat.mjs
 //   pnpm run demo:chat
 //
 // Flags:
@@ -40,7 +40,7 @@ import {
   normalize,
   renderAnsi,
   renderPlain,
-} from "../../dist/index.js";
+} from "../../../dist/index.js";
 
 const API_URL = "https://api.deepseek.com/chat/completions";
 
@@ -137,7 +137,7 @@ function parseArgs(argv) {
 function printHelp() {
   process.stdout.write(
     [
-      "usage: node examples/chat/deepseek-chat.mjs [options]",
+      "usage: node examples/apps/chat/deepseek-chat.mjs [options]",
       "",
       "  --model <name>   DeepSeek model id (default: deepseek-v4-flash, or $DEEPSEEK_MODEL)",
       "  --theme <name>   TeML theme: auto | dark | light | mono (default: auto)",

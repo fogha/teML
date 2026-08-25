@@ -15,7 +15,7 @@ import {
   applyFrame as applyHostFrame,
   createFrameState,
   frameText,
-} from "../../examples/interactive-frame.mjs";
+} from "../../examples/interactive/interactive-frame.mjs";
 
 function sessionOptions(overrides: Partial<SessionOptions> = {}): SessionOptions {
   return {

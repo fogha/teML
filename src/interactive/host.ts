@@ -9,7 +9,7 @@
 //
 // This module drives the exact same InteractiveSession engine directly,
 // in-process: it puts stdin in raw mode, decodes keypresses/mouse clicks
-// into Commands itself (the same decoding `examples/interactive-host.mjs`
+// into Commands itself (the same decoding `examples/interactive/interactive-host.mjs`
 // does for the subprocess case), calls `session.handle()` directly — no
 // JSON in between — and dispatches the resulting events to typed callbacks
 // instead of writing NDJSON to a pipe.
@@ -25,6 +25,7 @@ import { createInputDecoder, type TerminalInputEvent } from "../terminal/client/
 import { enterTerminal, type TerminalLifecycle } from "../terminal/client/lifecycle.js";
 import { applyMetaRoles, loadTheme } from "../terminal/theme.js";
 import { InteractiveSession, type SessionLayoutConfig } from "./session.js";
+import { ATTACH_BINDING_SINK, bindings, type Bindings } from "./bindings.js";
 import type { Command, DocFormat, SessionEvent } from "./protocol.js";
 import { MAX_SCROLL_ROWS } from "./protocol.js";
 
@@ -62,6 +63,8 @@ export type {
   ViewportMeta,
 } from "./protocol.js";
 
+export { bindings, type Bindings };
+
 /** Passed to every handler so it can act on the live session without reaching into internals. */
 export type InteractiveAppContext = {
   /** Ends the interactive loop; runInteractiveApp's promise resolves with the final values. */
@@ -74,6 +77,8 @@ export type InteractiveAppContext = {
   append(target: string, source: string, format?: DocFormat): void;
   /** Removes one addressable container and its subtree. */
   remove(target: string): void;
+  /** Mutates one live updatable widget (`::metric`/`::progress`) by id. */
+  update(id: string, props: Record<string, string>): void;
   /** Current value of every focusable widget (id -> value; checkboxes as "true"/"false"). */
   values(): Record<string, string>;
 };
@@ -101,6 +106,8 @@ export type InteractiveAppOptions = {
   input?: NodeJS.ReadableStream & Partial<NodeJS.ReadStream>;
   output?: NodeJS.WritableStream & Partial<NodeJS.WriteStream>;
   diags?: Diagnostics;
+  /** Id-keyed binding set; assigning a string to a key mutates that widget live. */
+  state?: Bindings;
 };
 
 function parseSource(
@@ -298,6 +305,7 @@ export function runInteractiveApp(
       append: (target, src, fmt) =>
         send({ type: "append", target, markup: src, format: fmt ?? format }),
       remove: (target) => send({ type: "remove", target }),
+      update: (id, props) => send({ type: "update", id, props }),
       values: () => session.values(),
     };
 
@@ -356,6 +364,13 @@ export function runInteractiveApp(
         queued.length = 0;
       }
     }
+
+    // Assignment to a binding is the notification: it routes through `send`
+    // so a value set from a handler is queued behind the frame already built
+    // for the triggering command, exactly like the context actions above.
+    options.state?.[ATTACH_BINDING_SINK]((id, value) => {
+      send({ type: "update", id, props: { value } });
+    });
 
     lifecycle = enterTerminal({
       input,

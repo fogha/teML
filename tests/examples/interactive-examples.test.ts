@@ -40,7 +40,7 @@ function frameOf(events: SessionEvent[]): Extract<SessionEvent, { type: "frame" 
 }
 
 test("interactive-form example completes the composite widget journey", async () => {
-  const session = await exampleSession("interactive-form.teml");
+  const session = await exampleSession("interactive/interactive-form.teml");
   expect(frameOf(session.start()).focusedId).toBe("channel");
 
   session.handle({ type: "key", key: "right" });
@@ -71,7 +71,7 @@ test("interactive-form example completes the composite widget journey", async ()
 });
 
 test("log-viewer example exposes a focusable bounded region", async () => {
-  const session = await exampleSession("log-viewer.teml");
+  const session = await exampleSession("interactive/log-viewer.teml");
   session.start();
   session.handle({ type: "key", key: "tab" });
   expect(session.getFocusedId()).toBe("logs");

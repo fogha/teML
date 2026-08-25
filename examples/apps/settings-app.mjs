@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// examples/settings-app.mjs — a small "nice CLI interface built from HTML"
+// examples/apps/settings-app.mjs — a small "nice CLI interface built from HTML"
 // reference app: a workspace-profile form driven by
 // interactive/host.ts's runInteractiveApp, with no NDJSON/subprocess in the
 // loop at all — this app talks to the InteractiveSession engine in-process.
@@ -14,7 +14,7 @@
 //     reusing the exact same htmlToDoc -> layout -> render pipeline
 //
 // Usage:
-//   node examples/settings-app.mjs
+//   node examples/apps/settings-app.mjs
 //   pnpm run demo:settings
 
 import {
@@ -28,8 +28,8 @@ import {
   normalize,
   renderAnsi,
   renderPlain,
-} from "../dist/index.js";
-import { runInteractiveApp } from "../dist/interactive/host.js";
+} from "../../dist/index.js";
+import { runInteractiveApp } from "../../dist/interactive/host.js";
 
 function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

@@ -130,12 +130,12 @@ teml read README.md
 teml read docs/
 
 # Service command-center demo (TeML + synchronized HTML)
-teml view examples/service-command-center.teml --theme dark --width 100
-teml view examples/service-command-center.html --width 100
+teml view examples/markup/service-command-center.teml --theme dark --width 100
+teml view examples/markup/service-command-center.html --width 100
 pnpm run demo:command-center
 
 # Plain pipe-friendly output
-teml examples/demo.teml --no-color | less
+teml examples/markup/demo.teml --no-color | less
 
 # Convert HTML → TeML
 teml convert page.html --from html --to teml > page.teml
@@ -144,13 +144,13 @@ teml convert page.html --from html --to teml > page.teml
 teml convert README.md --from markdown --to teml
 
 # Deterministic snapshot for tests
-teml render examples/demo.teml --width 80 > out.txt
+teml render examples/markup/demo.teml --width 80 > out.txt
 
 # Linear accessibility output
-teml convert examples/demo.teml --to speech
+teml convert examples/markup/demo.teml --to speech
 
 # Debug parse/layout timings
-teml view examples/demo.teml --debug
+teml view examples/markup/demo.teml --debug
 
 # Stdin
 curl -sL https://example.com/doc.html | teml view --from html --width 100

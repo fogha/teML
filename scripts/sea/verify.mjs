@@ -35,7 +35,7 @@ if (!/deploy report/i.test(demo)) {
 }
 console.log("sea:verify: demo render OK");
 
-const convertFixture = join(root, "examples/demo.teml");
+const convertFixture = join(root, "examples/markup/demo.teml");
 const converted = run(["convert", convertFixture, "--to", "markdown", "--no-color"]);
 if (!converted.includes("#")) {
   throw new Error("sea:verify: convert to markdown failed");

@@ -359,7 +359,7 @@ Document engine resolution and how to run against a built CLI.
 | Artifact                                                                                                   | Role                                           |
 | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | [`src/interactive/protocol.ts`](https://github.com/fogha/teML/blob/main/src/interactive/protocol.ts)       | Canonical wire types                           |
-| [`examples/interactive-frame.mjs`](https://github.com/fogha/teML/blob/main/examples/interactive-frame.mjs) | Frame reconstruction algorithm                 |
+| [`examples/interactive/interactive-frame.mjs`](https://github.com/fogha/teML/blob/main/examples/interactive/interactive-frame.mjs) | Frame reconstruction algorithm                 |
 | [`examples/rust-host/`](https://github.com/fogha/teML/tree/main/examples/rust-host)                        | First reference host                           |
 | [`hosts/go/`](https://github.com/fogha/teML/tree/main/hosts/go)                                            | Second reference host (this playbook's source) |
 | [`hosts/python/`](https://github.com/fogha/teML/tree/main/hosts/python)                                    | Third reference host                           |

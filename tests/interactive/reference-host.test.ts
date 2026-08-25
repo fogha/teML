@@ -1,5 +1,9 @@
 import { expect, test } from "vitest";
-import { applyFrame, createFrameState, frameText } from "../../examples/interactive-frame.mjs";
+import {
+  applyFrame,
+  createFrameState,
+  frameText,
+} from "../../examples/interactive/interactive-frame.mjs";
 
 test("JavaScript reference host reconstructs row growth and truncation", () => {
   const screen = createFrameState("plain");

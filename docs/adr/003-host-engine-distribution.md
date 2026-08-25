@@ -96,7 +96,7 @@ run the platform-local binary manually until a pseudo-TTY harness exists:
 
 ```bash
 pnpm run sea:build
-./.sea/teml read examples/demo.teml
+./.sea/teml read examples/markup/demo.teml
 ./.sea/teml read docs/
 ```
 

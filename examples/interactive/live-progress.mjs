@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// examples/live-progress.mjs — 10 Hz interactive `update` demo.
+// examples/interactive/live-progress.mjs — 10 Hz interactive `update` demo.
 //
 // Usage:
-//   node examples/live-progress.mjs
+//   node examples/interactive/live-progress.mjs
 //   pnpm run demo:live-progress   # parent package.json script
 
 import { spawn } from "node:child_process";
@@ -14,7 +14,7 @@ const FPS = 10;
 const TICKS = FPS * 3;
 const INTERVAL_MS = Math.round(1000 / FPS);
 const doc = join(dirname(fileURLToPath(import.meta.url)), "live-progress.teml");
-const cliPath = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "cli", "main.js");
+const cliPath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "dist", "cli", "main.js");
 
 const child = spawn(
   "node",

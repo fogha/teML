@@ -1,5 +1,7 @@
 # TeML — Terminal Markup Language
 
+[![Discord](https://img.shields.io/badge/Discord-Join_the_server-5865F2?logo=discord&logoColor=white)](https://discord.gg/Q5ZqPf98t)
+
 Build readable terminal documents and interactive CLI interfaces from **TeML**,
 **Markdown**, or semantic **HTML**.
 
@@ -74,6 +76,25 @@ entry point exports `runInteractiveApp` for building interactive
 a subprocess — see
 [docs/interactive-protocol.md](docs/interactive-protocol.md#in-process-node-alternative-runinteractiveapp).
 
+`teml/interactive` also exports `bindings()` — an id-keyed binding object that
+lets the host reflect a variable change into a live `::metric`/`::progress`
+widget just by assigning to it:
+
+```ts
+import { bindings, runInteractiveApp } from "teml/interactive";
+
+const state = bindings();
+runInteractiveApp('::metric{id="cpu" value="0%"}', {
+  format: "teml",
+  state,
+  handlers: {
+    onClick(id, _values, ctx) {
+      if (id === "refresh") state.cpu = "99%"; // → update{id:"cpu", props:{value:"99%"}}
+    },
+  },
+});
+```
+
 ## Build a CLI interface with HTML
 
 Use semantic HTML as the view, ordinary JavaScript as the controller, and TeML
@@ -106,7 +127,7 @@ console.log(`Saved ${values.channel}: ${values.notes}`);
 Inputs, textareas, radio groups, checkboxes, buttons, bounded scroll regions,
 validation rerenders, contextual keyboard focus, mouse
 clicks, and terminal cleanup are handled by TeML. See
-[`examples/settings-app.mjs`](examples/settings-app.mjs) for a complete app.
+[`examples/apps/settings-app.mjs`](examples/apps/settings-app.mjs) for a complete app.
 
 ## Explore the examples
 
@@ -201,6 +222,11 @@ The intended absolute cold-start target is 50 ms; on hosts where starting an emp
 Node process already exceeds that value, the suite reports both the wall time and
 baseline rather than attributing runtime startup cost to TeML. Heavy HTML
 dependencies are lazy-loaded so TeML-only paths stay fast.
+
+## Community
+
+Join the [TeML Discord server](https://discord.gg/Q5ZqPf98t) for development
+discussion, questions, and contributions.
 
 ## License
 

@@ -98,7 +98,7 @@ const nodeMs = bench("node dist/cli/main.js --version", process.execPath, [nodeC
 const deltaMs = seaMs - nodeMs;
 const memoryArgs = [
   "run",
-  join(root, "examples/interactive-form.teml"),
+  join(root, "examples/interactive/interactive-form.teml"),
   "--frames",
   "plain",
   "--no-color",

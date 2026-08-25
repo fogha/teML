@@ -14,7 +14,7 @@ import {
   applyFrame as applyHostFrame,
   createFrameState,
   frameText,
-} from "../../examples/interactive-frame.mjs";
+} from "../../examples/interactive/interactive-frame.mjs";
 
 const caps = (over: Partial<Capabilities> = {}): Capabilities => ({
   colors: "truecolor",

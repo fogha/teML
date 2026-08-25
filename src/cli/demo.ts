@@ -13,7 +13,7 @@ export function bundledDemoPath(moduleUrl: string = import.meta.url): string {
     if (existsSync(packaged)) return packaged;
   }
 
-  const source = fileURLToPath(new URL("../../examples/demo.teml", moduleUrl));
+  const source = fileURLToPath(new URL("../../examples/markup/demo.teml", moduleUrl));
   if (existsSync(source)) return source;
 
   throw new Error("built-in demo asset is missing; reinstall TeML");

@@ -63,23 +63,23 @@ introduces a second place that can emit raw ANSI.
 
 ## Try it yourself
 
-`examples/interactive-host.mjs` is a minimal reference host: it puts your
+`examples/interactive/interactive-host.mjs` is a minimal reference host: it puts your
 real terminal in raw mode, translates keypresses _and mouse clicks_ into
 `Command`s, and repaints the screen from each `frame`'s `ansi` field, so you
 can actually tab/type/click through a form. It also prints a persistent
 confirmation banner under the form after a `click` event, so submitting is
 visibly obvious (not just a value in the JSON stream). The primary journey
-(`examples/interactive-form.teml`) combines a radio group, defaulted input,
+(`examples/interactive/interactive-form.teml`) combines a radio group, defaulted input,
 fixed-height textarea, checkbox, and button. It demonstrates pending radio
 selection, select-on-focus editing, multiline input, and contextual
 Ctrl+Enter navigation in one compact screen.
 
 ```bash
 pnpm run build
-pnpm run demo:interactive          # runs examples/interactive-form.teml
+pnpm run demo:interactive          # runs examples/interactive/interactive-form.teml
 pnpm run demo:log-viewer           # bounded region + residual scrolling
 # or point it at any file:
-node examples/interactive-host.mjs path/to/form.teml
+node examples/interactive/interactive-host.mjs path/to/form.teml
 ```
 
 The host's footer reports the discovered protocol version. When a bounded
@@ -102,7 +102,7 @@ printf '%s\n' \
   '{"type":"key","key":"tab"}' \
   '{"type":"key","key":"enter"}' \
   '{"type":"exit"}' \
-  | teml run examples/interactive-form.teml --width 60 --height 20 \
+  | teml run examples/interactive/interactive-form.teml --width 60 --height 20 \
       --frames plain --mode patches
 ```
 
@@ -839,13 +839,45 @@ is a valid (if unadventurous) way to just let someone fill in a form.
 `ctx.replace(target, source, format?)`, `ctx.append(target, source, format?)`,
 and `ctx.remove(target)` expose the same protocol 1.3 document mutations
 in-process; capability negotiation is unnecessary because the context and
-engine come from the same package.
+engine come from the same package. `ctx.update(id, props)` is the in-process
+equivalent of the `update` command above, mutating one live display widget
+(`::metric` / `::progress`) by id.
+
+For the ergonomic case of "a host variable whose changes are reflected in the
+interface", `teml/interactive` also exports `bindings()` — an id-keyed binding
+object passed as the `state` option:
+
+```js
+import { bindings, runInteractiveApp } from "teml/interactive";
+
+const state = bindings();
+runInteractiveApp(view, {
+  state,
+  handlers: {
+    onClick(id, _values, ctx) {
+      if (id === "refresh") state.cpu = "99%"; // → update{id:"cpu", props:{value:"99%"}}
+      if (id === "save") ctx.exit();
+    },
+  },
+});
+setInterval(() => {
+  state.clock = new Date().toLocaleTimeString(); // in-process timers need no extra plumbing
+}, 1000);
+```
+
+Assigning a string to `state[id]` emits `update{id, props: { value }}` —
+`value` is the shared display attribute of `::metric` and `::progress`.
+Assignments from a handler are queued behind the frame already built for the
+triggering event (the same ordering `ctx.render` follows), and an unknown id
+surfaces through `onError` exactly like a rejected `update`. Reads return the
+last value the host assigned, never engine state; user-edited inputs and
+checkboxes remain on `ctx.values()`. See ADR 006.
 
 `input`/`output` default to `process.stdin`/`process.stdout` but accept any
 readable/writable stream — raw mode and mouse tracking only engage when the
 stream looks like a real TTY (has a callable `setRawMode`), so the same
 function works against a `PassThrough` in tests. See
-`examples/settings-app.mjs` (`pnpm run demo:settings`) for a complete
+`examples/apps/settings-app.mjs` (`pnpm run demo:settings`) for a complete
 HTML-authored workspace profile with native radios, a textarea, and validation,
 and
 `tests/system/interactive-journey.test.ts` for the integrated test-harness
@@ -916,11 +948,11 @@ language is specified in
 | Widget hit-testing (document row + terminal-cell column → widget id)  | `src/layout/hits.ts`                                            |
 | Cached interactive layout + viewport slicing                          | `src/interactive/layout-cache.ts`, `src/interactive/session.ts` |
 | CLI wiring (`teml run`)                                               | `src/cli/commands/run.ts`                                       |
-| JavaScript host frame reconstruction                                  | `examples/interactive-frame.mjs`                                |
-| JavaScript reference host (real TTY, mouse, keys)                     | `examples/interactive-host.mjs`                                 |
+| JavaScript host frame reconstruction                                  | `examples/interactive/interactive-frame.mjs`                                |
+| JavaScript reference host (real TTY, mouse, keys)                     | `examples/interactive/interactive-host.mjs`                                 |
 | Rust reference host + equivalence tests                               | `examples/rust-host/`                                           |
 | In-process Node host (`runInteractiveApp`)                            | `src/interactive/host.ts`                                       |
-| Example app built on `runInteractiveApp`                              | `examples/settings-app.mjs`                                     |
+| Example app built on `runInteractiveApp`                              | `examples/apps/settings-app.mjs`                                     |
 | Rust handler driver (`run`, `App`, `Context`)                         | `crates/teml-host/src/app.rs`                                   |
 | Go handler driver (`Run`, `Handlers`, `Context`)                      | `hosts/go/app/app.go`                                           |
 | Python handler driver (`run`, `Context`)                              | `hosts/python/src/teml_host/app.py`                             |

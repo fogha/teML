@@ -7,7 +7,7 @@ import { htmlToDoc } from "../../src/html/index.js";
 import { parseTeml } from "../../src/teml/parse.js";
 import { snapshotRender } from "../snapshot.js";
 
-const ROOT = join(process.cwd(), "examples");
+const ROOT = join(process.cwd(), "examples/markup");
 const TEML_FILE = join(ROOT, "service-command-center.teml");
 const HTML_FILE = join(ROOT, "service-command-center.html");
 

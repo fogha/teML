@@ -7,7 +7,7 @@ import { renderAnsi } from "../src/render/ansi.js";
 import { renderPlain } from "../src/render/plain.js";
 import type { Capabilities } from "../src/terminal/capabilities.js";
 import { loadTheme } from "../src/terminal/theme.js";
-import { buildDemoDoc } from "../examples/hardcoded.js";
+import { buildDemoDoc } from "./helpers/hardcoded.js";
 
 export type SnapshotVariant = "dark" | "mono" | "ascii" | "no-color";
 

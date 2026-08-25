@@ -160,7 +160,7 @@ Examples:
   $ teml run form.html --width 60
   $ teml run form.teml --frames plain
   $ teml run dashboard.teml --frames ansi --mode patches --height 24
-  $ node examples/interactive-host.mjs examples/log-viewer.teml
+  $ node examples/interactive/interactive-host.mjs examples/interactive/log-viewer.teml
   $ pnpm run demo:interactive
 
 Protocol: https://github.com/fogha/teML/blob/main/docs/interactive-protocol.md

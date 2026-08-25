@@ -1,14 +1,14 @@
 #!/usr/bin/env tsx
-// examples/hardcoded.ts — hand-built AST demo (Milestone 2). No parser required.
+// tests/helpers/hardcoded.ts — hand-built AST demo (Milestone 2). No parser required.
 
 import { pathToFileURL } from "node:url";
 
-import { doc, text, type Block, type Inline, type TDoc } from "../src/core/ast.js";
-import { Diagnostics } from "../src/core/diagnostics.js";
-import { layoutDocument } from "../src/layout/layout.js";
-import { renderAnsi } from "../src/render/ansi.js";
-import { detectCapabilities } from "../src/terminal/capabilities.js";
-import { applyMetaRoles, loadTheme } from "../src/terminal/theme.js";
+import { doc, text, type Block, type Inline, type TDoc } from "../../src/core/ast.js";
+import { Diagnostics } from "../../src/core/diagnostics.js";
+import { layoutDocument } from "../../src/layout/layout.js";
+import { renderAnsi } from "../../src/render/ansi.js";
+import { detectCapabilities } from "../../src/terminal/capabilities.js";
+import { applyMetaRoles, loadTheme } from "../../src/terminal/theme.js";
 
 export function buildDemoDoc(): TDoc {
   const paragraph: Inline[] = [

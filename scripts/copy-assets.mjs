@@ -11,7 +11,7 @@ const assetDirs = [["src/terminal/themes", "dist/terminal/themes"]];
 
 const assetFiles = [
   ["src/html/profiles/bootstrap.json", "dist/html/profiles/bootstrap.json"],
-  ["examples/demo.teml", "dist/assets/demo.teml"],
+  ["examples/markup/demo.teml", "dist/assets/demo.teml"],
   ["docs/spec.md", "dist/assets/docs/spec.md"],
   ["docs/cli.md", "dist/assets/docs/cli.md"],
   ["docs/reader.md", "dist/assets/docs/reader.md"],

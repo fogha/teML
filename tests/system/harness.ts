@@ -2,7 +2,11 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyFrame, createFrameState, frameText } from "../../examples/interactive-frame.mjs";
+import {
+  applyFrame,
+  createFrameState,
+  frameText,
+} from "../../examples/interactive/interactive-frame.mjs";
 
 export const CLI = join(process.cwd(), "dist/cli/main.js");
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// examples/interactive-host.mjs — a minimal reference host for `teml run`.
+// examples/interactive/interactive-host.mjs — a minimal reference host for `teml run`.
 //
 // This is deliberately small: it exists to demonstrate (and let you play
 // with) the host side of the protocol documented in
@@ -10,7 +10,7 @@
 // is the "host" the protocol doc keeps referring to.
 //
 // Usage:
-//   node examples/interactive-host.mjs <file> [-- extra teml run flags]
+//   node examples/interactive/interactive-host.mjs <file> [-- extra teml run flags]
 //   pnpm run demo:interactive
 
 import { spawn } from "node:child_process";
@@ -18,11 +18,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import stringWidth from "string-width";
 import { applyFrame, createFrameState, frameText } from "./interactive-frame.mjs";
-import { createInputDecoder } from "../dist/terminal/client/input.js";
+import { createInputDecoder } from "../../dist/terminal/client/input.js";
 
 const file = process.argv[2];
 if (!file) {
-  console.error("usage: node examples/interactive-host.mjs <file> [teml-run-flags...]");
+  console.error("usage: node examples/interactive/interactive-host.mjs <file> [teml-run-flags...]");
   process.exit(2);
 }
 if (!process.stdin.isTTY) {
@@ -61,7 +61,7 @@ const configuredHeight =
           : flags[heightArgIndex + 1],
       );
 const liveResizeEnabled = configuredWidth == null || configuredWidth >= 20;
-const cliPath = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "cli", "main.js");
+const cliPath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "dist", "cli", "main.js");
 const initialWidth = Math.min(
   configuredWidth ?? Number.MAX_SAFE_INTEGER,
   Math.max(1, process.stdout.columns ?? 80),
