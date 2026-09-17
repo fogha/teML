@@ -20,7 +20,8 @@ export type NormalizeFragmentContext = {
 function mergeText(nodes: Inline[]): Inline[] {
   const out: Inline[] = [];
   for (const n of nodes) {
-    const withKids = "children" in n ? ({ ...n, children: mergeText(n.children) } as Inline) : n;
+    const withKids =
+      "children" in n ? ({ ...n, children: mergeText(n.children) } as Inline) : { ...n };
     const prev = out[out.length - 1];
     if (withKids.type === "text" && prev?.type === "text") prev.value += withKids.value;
     else out.push(withKids);

@@ -11,10 +11,8 @@
 // proportional to visible/changed rows.
 
 import type { Diagnostics, SanitizeOpts, TDoc } from "../core/index.js";
-import { normalize, sanitizeText } from "../core/index.js";
-import { htmlToDoc } from "../html/index.js";
-import { parseMarkdown } from "../markdown/parse.js";
-import { parseTeml } from "../teml/parse.js";
+import { sanitizeText } from "../core/index.js";
+import { documentCompilers } from "../document/frontends.js";
 import type { LayoutOpts } from "../layout/layout.js";
 import { graphemes } from "../layout/measure.js";
 import { hitAt, type WidgetHit } from "../layout/hits.js";
@@ -25,13 +23,12 @@ import {
   textareaVisualLines,
   textareaVisualToGrapheme,
 } from "../layout/textarea.js";
-import type { ScrollRegionRuntime } from "../layout/opts.js";
 import {
   clampScrollRow,
   ensureRowVisible,
   scrollByPage,
   sliceDocumentLines,
-} from "../reader/viewport.js";
+} from "../layout/viewport.js";
 import { renderAnsi } from "../render/ansi.js";
 import { renderPlain } from "../render/plain.js";
 import {
@@ -48,6 +45,7 @@ import {
   type MutationTarget,
   type UpdatableWidget,
 } from "./updatable.js";
+import { WidgetState } from "./widget-state.js";
 import {
   applyScrollDelta,
   normalizeKey,
@@ -128,22 +126,10 @@ export class InteractiveSession {
   private updatables: UpdatableWidget[];
   private mutationTargets: MutationTarget[];
   private focusedId: string | null;
-  /** Grapheme index into each input's value, keyed by widget id. Lazily
-   * defaulted to "end of value" the first time a field is read; persists
-   * across focus changes so returning to a field resumes where you left it. */
-  private cursor = new Map<string, number>();
-  /** Preferred terminal-cell column for textarea vertical navigation. */
-  private preferredCol = new Map<string, number>();
-  private textareaScrollOffsets = new Map<string, number>();
-  private radioPending = new Map<string, number>();
-  private scrollRegionRuntime = new Map<string, ScrollRegionRuntime>();
-  /** Ids of inputs whose value is still exactly the document-supplied
-   * default (set at construction or by a `render`) and hasn't been edited
-   * by the user yet — mirrors a browser's "select all on focus" for a
-   * pre-filled field. While an id is in here, the whole value renders as
-   * selected (no caret) and the first edit replaces it outright: typing
-   * overwrites it, backspace clears it. Any edit removes the id. */
-  private untouchedDefault = new Set<string>();
+  /** Transient, id-keyed editing/selection state. Consolidated in one object so
+   * the session's carry-over and pruning lifecycle is visible in a single
+   * place — see widget-state.ts for per-field semantics. */
+  private widgetState = new WidgetState();
   /** Row ranges from the most recently rendered frame, for `pointer` commands. */
   private lastHits: WidgetHit[] = [];
   /** Cached full layout plus independently replaceable widget subtrees. */
@@ -176,10 +162,12 @@ export class InteractiveSession {
 
   constructor(doc: TDoc, opts: SessionOptions) {
     this.diags = opts.diags;
-    this.layout = opts.layout;
-    this.sanitizeOpts = opts.sanitize ?? {};
-    this.doc = doc;
-    this.documentBlockCount = countBlocks(doc.blocks);
+    // Establish exclusive ownership once, before indexes retain AST references.
+    // Per-command edits mutate this private copy (docs/architecture.md).
+    this.layout = structuredClone(opts.layout);
+    this.sanitizeOpts = { ...opts.sanitize };
+    this.doc = structuredClone(doc);
+    this.documentBlockCount = countBlocks(this.doc.blocks);
     if (this.documentBlockCount > MAX_DOCUMENT_BLOCKS) {
       // The budget bounds *growth*: every mutation path below rejects while the
       // count is over the limit. An oversized startup document still renders,
@@ -189,7 +177,7 @@ export class InteractiveSession {
         `document has ${this.documentBlockCount} blocks, above the ${MAX_DOCUMENT_BLOCKS}-block mutation budget; structural mutations will be rejected`,
       );
     }
-    const identity = collectInteractiveWidgets(doc, this.diags);
+    const identity = collectInteractiveWidgets(this.doc, this.diags);
     this.focusables = identity.focusables;
     this.updatables = identity.updatables;
     this.mutationTargets = identity.mutationTargets;
@@ -211,10 +199,10 @@ export class InteractiveSession {
   /** (Re)populate untouchedDefault: every input with a non-empty value
    * counts as an untouched default until the user edits it. */
   private markDefaultsUntouched(widgets: FocusableWidget[]): void {
-    this.untouchedDefault.clear();
+    this.widgetState.untouchedDefault.clear();
     for (const w of widgets) {
       if ((w.name === "input" || w.name === "textarea") && (w.attrs.value ?? "") !== "") {
-        this.untouchedDefault.add(w.id);
+        this.widgetState.untouchedDefault.add(w.id);
       }
     }
   }
@@ -234,11 +222,9 @@ export class InteractiveSession {
 
   /** Snapshot of every focusable widget's current value ("true"/"false" for checkboxes). */
   values(): Record<string, string> {
-    const out: Record<string, string> = {};
-    for (const w of this.focusables) {
-      if (w.name !== "scroll") out[w.id] = widgetValue(w);
-    }
-    return out;
+    return Object.fromEntries(
+      this.focusables.filter((w) => w.name !== "scroll").map((w) => [w.id, widgetValue(w)]),
+    );
   }
 
   getCapabilities(): readonly ProtocolCapability[] {
@@ -345,9 +331,9 @@ export class InteractiveSession {
   }
 
   private initializeRadioPending(widget: FocusableWidget | undefined): void {
-    if (widget?.name !== "radio" || this.radioPending.has(widget.id)) return;
+    if (widget?.name !== "radio" || this.widgetState.radioPending.has(widget.id)) return;
     const selected = radioOptionIndex(widget.options ?? [], widget.attrs.value);
-    this.radioPending.set(widget.id, selected >= 0 ? selected : 0);
+    this.widgetState.radioPending.set(widget.id, selected >= 0 ? selected : 0);
   }
 
   private markWidgetDirty(id: string | null | undefined): void {
@@ -359,7 +345,7 @@ export class InteractiveSession {
   private setFocusedId(id: string | null): void {
     if (id === this.focusedId) return;
     const previous = this.currentWidget();
-    if (previous?.name === "radio") this.radioPending.delete(previous.id);
+    if (previous?.name === "radio") this.widgetState.radioPending.delete(previous.id);
     this.markWidgetDirty(this.focusedId);
     this.focusedId = id;
     this.initializeRadioPending(this.currentWidget());
@@ -386,10 +372,10 @@ export class InteractiveSession {
   /** Cursor position for a given input, lazily defaulting to (and caching) end-of-value. */
   private cursorFor(w: FocusableWidget): number {
     const len = graphemes(w.attrs.value ?? "").length;
-    let pos = this.cursor.get(w.id);
+    let pos = this.widgetState.cursor.get(w.id);
     if (pos == null || pos > len) {
       pos = len;
-      this.cursor.set(w.id, pos);
+      this.widgetState.cursor.set(w.id, pos);
     }
     return pos;
   }
@@ -397,7 +383,7 @@ export class InteractiveSession {
   private moveCursor(w: FocusableWidget, delta: number): void {
     const len = graphemes(w.attrs.value ?? "").length;
     const pos = this.cursorFor(w);
-    this.cursor.set(w.id, Math.max(0, Math.min(len, pos + delta)));
+    this.widgetState.cursor.set(w.id, Math.max(0, Math.min(len, pos + delta)));
   }
 
   private textareaContentWidth(id: string): number {
@@ -427,8 +413,8 @@ export class InteractiveSession {
     const cursor = graphemeToTextareaVisual(geometry.value, this.cursorFor(w), geometry.lines, {
       ambiguousWide: this.layout.caps.ambiguousWide,
     });
-    const current = this.textareaScrollOffsets.get(w.id) ?? 0;
-    this.textareaScrollOffsets.set(
+    const current = this.widgetState.textareaScrollOffsets.get(w.id) ?? 0;
+    this.widgetState.textareaScrollOffsets.set(
       w.id,
       clampTextareaScroll(current, cursor.line, geometry.lines.length, geometry.rows),
     );
@@ -493,7 +479,7 @@ export class InteractiveSession {
         if (key.key === "pageUp" || key.key === "pageDown") {
           return this.scrollFocusedRegion(
             (key.key === "pageUp" ? -1 : 1) *
-              Math.max(1, (this.scrollRegionRuntime.get(widget.id)?.rows ?? 1) - 1),
+              Math.max(1, (this.widgetState.scrollRegionRuntime.get(widget.id)?.rows ?? 1) - 1),
           );
         }
         return [this.frame()];
@@ -509,23 +495,24 @@ export class InteractiveSession {
       case "delete":
         return this.deleteFocused();
       case "left":
-        if (this.untouchedDefault.delete(widget.id)) this.cursor.set(widget.id, 0);
+        if (this.widgetState.untouchedDefault.delete(widget.id))
+          this.widgetState.cursor.set(widget.id, 0);
         else this.moveCursor(widget, -1);
         break;
       case "right":
-        if (this.untouchedDefault.delete(widget.id)) {
-          this.cursor.set(widget.id, graphemes(widget.attrs.value ?? "").length);
+        if (this.widgetState.untouchedDefault.delete(widget.id)) {
+          this.widgetState.cursor.set(widget.id, graphemes(widget.attrs.value ?? "").length);
         } else {
           this.moveCursor(widget, 1);
         }
         break;
       case "home":
-        this.untouchedDefault.delete(widget.id);
-        this.cursor.set(widget.id, 0);
+        this.widgetState.untouchedDefault.delete(widget.id);
+        this.widgetState.cursor.set(widget.id, 0);
         break;
       case "end":
-        this.untouchedDefault.delete(widget.id);
-        this.cursor.set(widget.id, graphemes(widget.attrs.value ?? "").length);
+        this.widgetState.untouchedDefault.delete(widget.id);
+        this.widgetState.cursor.set(widget.id, graphemes(widget.attrs.value ?? "").length);
         break;
       default:
         return [this.frame()];
@@ -538,11 +525,14 @@ export class InteractiveSession {
     const options = widget.options ?? [];
     if (options.length === 0) return [this.frame()];
     this.initializeRadioPending(widget);
-    const current = this.radioPending.get(widget.id) ?? 0;
+    const current = this.widgetState.radioPending.get(widget.id) ?? 0;
     if (key === "enter") return this.confirmRadio(widget);
     const delta = key === "left" || key === "up" ? -1 : key === "right" || key === "down" ? 1 : 0;
     if (delta !== 0) {
-      this.radioPending.set(widget.id, Math.max(0, Math.min(options.length - 1, current + delta)));
+      this.widgetState.radioPending.set(
+        widget.id,
+        Math.max(0, Math.min(options.length - 1, current + delta)),
+      );
       this.markWidgetDirty(widget.id);
     }
     return [this.frame()];
@@ -562,8 +552,8 @@ export class InteractiveSession {
         return this.deleteFocused();
       case "left":
       case "right": {
-        if (this.untouchedDefault.delete(widget.id)) {
-          this.cursor.set(
+        if (this.widgetState.untouchedDefault.delete(widget.id)) {
+          this.widgetState.cursor.set(
             widget.id,
             key.key === "left" ? 0 : graphemes(widget.attrs.value ?? "").length,
           );
@@ -614,11 +604,11 @@ export class InteractiveSession {
   private insertText(w: FocusableWidget, clean: string): SessionEvent[] {
     const inserted = graphemes(clean);
 
-    if (this.untouchedDefault.delete(w.id)) {
+    if (this.widgetState.untouchedDefault.delete(w.id)) {
       // The default was "selected" — typing overwrites it outright, like a browser.
       const value = clean;
       w.attrs.value = value;
-      this.cursor.set(w.id, inserted.length);
+      this.widgetState.cursor.set(w.id, inserted.length);
       if (w.name === "textarea") {
         this.updateTextareaPreferredColumn(w);
         this.keepTextareaCursorVisible(w);
@@ -632,7 +622,7 @@ export class InteractiveSession {
     chars.splice(pos, 0, ...inserted);
     const value = chars.join("");
     w.attrs.value = value;
-    this.cursor.set(w.id, pos + inserted.length);
+    this.widgetState.cursor.set(w.id, pos + inserted.length);
     if (w.name === "textarea") {
       this.updateTextareaPreferredColumn(w);
       this.keepTextareaCursorVisible(w);
@@ -645,11 +635,11 @@ export class InteractiveSession {
     const w = this.currentWidget();
     if (!w || (w.name !== "input" && w.name !== "textarea")) return [this.frame()];
 
-    if (this.untouchedDefault.delete(w.id)) {
+    if (this.widgetState.untouchedDefault.delete(w.id)) {
       // The default was "selected" — Backspace clears it in one press, like a browser.
       w.attrs.value = "";
-      this.cursor.set(w.id, 0);
-      if (w.name === "textarea") this.textareaScrollOffsets.set(w.id, 0);
+      this.widgetState.cursor.set(w.id, 0);
+      if (w.name === "textarea") this.widgetState.textareaScrollOffsets.set(w.id, 0);
       this.markWidgetDirty(w.id);
       return [{ type: "change", id: w.id, value: "" }, this.frame()];
     }
@@ -660,7 +650,7 @@ export class InteractiveSession {
     chars.splice(pos - 1, 1);
     const value = chars.join("");
     w.attrs.value = value;
-    this.cursor.set(w.id, pos - 1);
+    this.widgetState.cursor.set(w.id, pos - 1);
     if (w.name === "textarea") {
       this.updateTextareaPreferredColumn(w);
       this.keepTextareaCursorVisible(w);
@@ -673,10 +663,10 @@ export class InteractiveSession {
     const w = this.currentWidget();
     if (!w || (w.name !== "input" && w.name !== "textarea")) return [this.frame()];
 
-    if (this.untouchedDefault.delete(w.id)) {
+    if (this.widgetState.untouchedDefault.delete(w.id)) {
       w.attrs.value = "";
-      this.cursor.set(w.id, 0);
-      if (w.name === "textarea") this.textareaScrollOffsets.set(w.id, 0);
+      this.widgetState.cursor.set(w.id, 0);
+      if (w.name === "textarea") this.widgetState.textareaScrollOffsets.set(w.id, 0);
       this.markWidgetDirty(w.id);
       return [{ type: "change", id: w.id, value: "" }, this.frame()];
     }
@@ -700,11 +690,11 @@ export class InteractiveSession {
     const visual = graphemeToTextareaVisual(geometry.value, this.cursorFor(w), geometry.lines, {
       ambiguousWide: this.layout.caps.ambiguousWide,
     });
-    this.preferredCol.set(w.id, visual.col);
+    this.widgetState.preferredCol.set(w.id, visual.col);
   }
 
   private moveTextareaVertically(w: FocusableWidget, direction: 1 | -1): void {
-    this.untouchedDefault.delete(w.id);
+    this.widgetState.untouchedDefault.delete(w.id);
     const geometry = this.textareaGeometry(w);
     const measure = { ambiguousWide: this.layout.caps.ambiguousWide };
     const current = graphemeToTextareaVisual(
@@ -713,25 +703,25 @@ export class InteractiveSession {
       geometry.lines,
       measure,
     );
-    const preferred = this.preferredCol.get(w.id) ?? current.col;
+    const preferred = this.widgetState.preferredCol.get(w.id) ?? current.col;
     const targetLine = Math.max(0, Math.min(geometry.lines.length - 1, current.line + direction));
-    this.cursor.set(
+    this.widgetState.cursor.set(
       w.id,
       textareaVisualToGrapheme(geometry.value, targetLine, preferred, geometry.lines, measure),
     );
-    this.preferredCol.set(w.id, preferred);
+    this.widgetState.preferredCol.set(w.id, preferred);
     this.keepTextareaCursorVisible(w);
     this.markWidgetDirty(w.id);
   }
 
   private moveTextareaLineEdge(w: FocusableWidget, edge: "start" | "end"): void {
-    this.untouchedDefault.delete(w.id);
+    this.widgetState.untouchedDefault.delete(w.id);
     const geometry = this.textareaGeometry(w);
     const current = graphemeToTextareaVisual(geometry.value, this.cursorFor(w), geometry.lines, {
       ambiguousWide: this.layout.caps.ambiguousWide,
     });
     const line = geometry.lines[current.line];
-    if (line) this.cursor.set(w.id, edge === "start" ? line.start : line.end);
+    if (line) this.widgetState.cursor.set(w.id, edge === "start" ? line.start : line.end);
     this.updateTextareaPreferredColumn(w);
     this.keepTextareaCursorVisible(w);
     this.markWidgetDirty(w.id);
@@ -739,10 +729,10 @@ export class InteractiveSession {
 
   private pageTextarea(w: FocusableWidget, direction: 1 | -1): SessionEvent[] {
     const geometry = this.textareaGeometry(w);
-    const current = this.textareaScrollOffsets.get(w.id) ?? 0;
+    const current = this.widgetState.textareaScrollOffsets.get(w.id) ?? 0;
     const delta = direction * Math.max(1, geometry.rows - 1);
     const result = applyScrollDelta(current, delta, geometry.lines.length, geometry.rows);
-    this.textareaScrollOffsets.set(w.id, result.next);
+    this.widgetState.textareaScrollOffsets.set(w.id, result.next);
     if (result.consumed !== 0) this.markWidgetDirty(w.id);
     if (result.residual !== 0) this.applyDocumentScroll(result.residual);
     return [this.frame()];
@@ -752,7 +742,10 @@ export class InteractiveSession {
     const options = w.options ?? [];
     if (options.length === 0) return [this.frame()];
     this.initializeRadioPending(w);
-    const index = Math.max(0, Math.min(options.length - 1, this.radioPending.get(w.id) ?? 0));
+    const index = Math.max(
+      0,
+      Math.min(options.length - 1, this.widgetState.radioPending.get(w.id) ?? 0),
+    );
     const value = options[index]!.value;
     if (w.attrs.value === value) return [this.frame()];
     w.attrs.value = value;
@@ -786,9 +779,9 @@ export class InteractiveSession {
     if (widget?.name === "scroll") return this.scrollFocusedRegion(rows);
     if (widget?.name === "textarea") {
       const geometry = this.textareaGeometry(widget);
-      const current = this.textareaScrollOffsets.get(widget.id) ?? 0;
+      const current = this.widgetState.textareaScrollOffsets.get(widget.id) ?? 0;
       const result = applyScrollDelta(current, rows, geometry.lines.length, geometry.rows);
-      this.textareaScrollOffsets.set(widget.id, result.next);
+      this.widgetState.textareaScrollOffsets.set(widget.id, result.next);
       if (result.consumed !== 0) this.markWidgetDirty(widget.id);
       if (result.residual !== 0) this.applyDocumentScroll(result.residual);
       return [this.frame()];
@@ -803,7 +796,7 @@ export class InteractiveSession {
       this.applyDocumentScroll(rows);
       return [this.frame()];
     }
-    const state = this.scrollRegionRuntime.get(widget.id);
+    const state = this.widgetState.scrollRegionRuntime.get(widget.id);
     if (!state) {
       this.applyDocumentScroll(rows);
       return [this.frame()];
@@ -853,7 +846,7 @@ export class InteractiveSession {
     if (w?.name === "radio" && hit.kind === "radioOption" && hit.value !== undefined) {
       const index = radioOptionIndex(w.options ?? [], hit.value);
       if (index >= 0) {
-        this.radioPending.set(w.id, index);
+        this.widgetState.radioPending.set(w.id, index);
         this.markWidgetDirty(w.id);
         return this.confirmRadio(w);
       }
@@ -866,7 +859,7 @@ export class InteractiveSession {
         // A focused textarea paints a one-cell caret into its content. That
         // cell is presentation-only, so clicks after it must be translated
         // back into the underlying text's cell coordinates.
-        if (renderedFocusedId === w.id && !this.untouchedDefault.has(w.id)) {
+        if (renderedFocusedId === w.id && !this.widgetState.untouchedDefault.has(w.id)) {
           const renderedCursor = graphemeToTextareaVisual(
             geometry.value,
             this.cursorFor(w),
@@ -877,8 +870,8 @@ export class InteractiveSession {
             visualCol -= 1;
           }
         }
-        this.untouchedDefault.delete(w.id);
-        this.cursor.set(
+        this.widgetState.untouchedDefault.delete(w.id);
+        this.widgetState.cursor.set(
           w.id,
           textareaVisualToGrapheme(geometry.value, line, visualCol, geometry.lines, {
             ambiguousWide: this.layout.caps.ambiguousWide,
@@ -931,18 +924,15 @@ export class InteractiveSession {
     return parseMutationFragment(markup, format, this.sanitizeOpts, this.diags, context);
   }
 
-  /** Refresh addressable indexes after structural surgery while carrying
-   * user-owned state for ids that survive (including ids recreated by a
-   * replacement fragment). */
-  private reconcileAfterMutation(
+  /** Copy user-edited widget values (and checkbox/radio selections) from a
+   * previous document's focusables onto the same-id widgets in a freshly
+   * parsed/reconciled document. This is the single place live values are
+   * re-glued after the AST is regenerated — see docs/architecture.md. */
+  private carryWidgetValues(
     previousFocusables: FocusableWidget[],
-    previousUntouched: ReadonlySet<string>,
+    nextFocusables: FocusableWidget[],
   ): void {
-    const previousRadioPending = new Map(this.radioPending);
-    const identity = collectInteractiveWidgets(this.doc, this.diags);
-    const nextFocusables = identity.focusables;
     const previousById = new Map(previousFocusables.map((widget) => [widget.id, widget] as const));
-
     for (const widget of nextFocusables) {
       const previous = previousById.get(widget.id);
       if (!previous) continue;
@@ -962,6 +952,20 @@ export class InteractiveSession {
         }
       }
     }
+  }
+
+  /** Refresh addressable indexes after structural surgery while carrying
+   * user-owned state for ids that survive (including ids recreated by a
+   * replacement fragment). */
+  private reconcileAfterMutation(
+    previousFocusables: FocusableWidget[],
+    previousUntouched: ReadonlySet<string>,
+  ): void {
+    const previousRadioPending = new Map(this.widgetState.radioPending);
+    const identity = collectInteractiveWidgets(this.doc, this.diags);
+    const nextFocusables = identity.focusables;
+    const previousById = new Map(previousFocusables.map((widget) => [widget.id, widget] as const));
+    this.carryWidgetValues(previousFocusables, nextFocusables);
 
     const previousFocus = this.focusedId;
     this.focusables = nextFocusables;
@@ -973,19 +977,9 @@ export class InteractiveSession {
     if (this.focusedId !== previousFocus) this.ensureFocusedVisible = true;
 
     const survivingIds = new Set(nextFocusables.map((widget) => widget.id));
-    for (const map of [this.cursor, this.preferredCol, this.textareaScrollOffsets]) {
-      for (const id of map.keys()) {
-        if (!survivingIds.has(id)) map.delete(id);
-      }
-    }
-    const survivingScrollIds = new Set(
-      nextFocusables.filter((widget) => widget.name === "scroll").map((widget) => widget.id),
-    );
-    for (const id of this.scrollRegionRuntime.keys()) {
-      if (!survivingScrollIds.has(id)) this.scrollRegionRuntime.delete(id);
-    }
+    this.widgetState.pruneTransient(survivingIds);
 
-    this.untouchedDefault.clear();
+    this.widgetState.untouchedDefault.clear();
     for (const widget of nextFocusables) {
       if (widget.name !== "input" && widget.name !== "textarea") continue;
       const previous = previousById.get(widget.id);
@@ -994,16 +988,19 @@ export class InteractiveSession {
         (sameKind && previousUntouched.has(widget.id)) ||
         (!sameKind && (widget.attrs.value ?? "") !== "")
       ) {
-        this.untouchedDefault.add(widget.id);
+        this.widgetState.untouchedDefault.add(widget.id);
       }
     }
-    this.radioPending.clear();
+    this.widgetState.radioPending.clear();
     for (const widget of nextFocusables) {
       if (widget.name !== "radio" || previousById.get(widget.id)?.name !== "radio") continue;
       const pending = previousRadioPending.get(widget.id);
       const optionCount = widget.options?.length ?? 0;
       if (pending !== undefined && optionCount > 0) {
-        this.radioPending.set(widget.id, Math.max(0, Math.min(optionCount - 1, pending)));
+        this.widgetState.radioPending.set(
+          widget.id,
+          Math.max(0, Math.min(optionCount - 1, pending)),
+        );
       }
     }
     this.initializeRadioPending(this.currentWidget());
@@ -1037,7 +1034,7 @@ export class InteractiveSession {
     }
 
     const previousFocusables = this.focusables;
-    const previousUntouched = new Set(this.untouchedDefault);
+    const previousUntouched = new Set(this.widgetState.untouchedDefault);
     target.block.children = [...target.block.children, ...parsed.blocks];
     this.documentBlockCount += appendedBlockCount;
     this.reconcileAfterMutation(previousFocusables, previousUntouched);
@@ -1073,7 +1070,7 @@ export class InteractiveSession {
     }
 
     const previousFocusables = this.focusables;
-    const previousUntouched = new Set(this.untouchedDefault);
+    const previousUntouched = new Set(this.widgetState.untouchedDefault);
     target.parent.splice(target.index, 1, ...parsed.blocks);
     this.documentBlockCount = nextCount;
     this.reconcileAfterMutation(previousFocusables, previousUntouched);
@@ -1086,7 +1083,7 @@ export class InteractiveSession {
     const target = this.mutationTarget(targetId);
     if (!target) return this.mutationError(targetId);
     const previousFocusables = this.focusables;
-    const previousUntouched = new Set(this.untouchedDefault);
+    const previousUntouched = new Set(this.widgetState.untouchedDefault);
     const removedBlockCount = countBlocks([target.block]);
     target.parent.splice(target.index, 1);
     this.documentBlockCount -= removedBlockCount;
@@ -1099,26 +1096,16 @@ export class InteractiveSession {
   private handleRender(markup: string, format: DocFormat | undefined): SessionEvent[] {
     const budget = checkMarkupBudget("render", markup);
     if (!budget.ok) return [{ type: "error", message: budget.error }, this.frame(true)];
-    let raw: TDoc;
+    let newDoc: TDoc;
     try {
-      const ctx = { sanitize: this.sanitizeOpts };
-      switch (format ?? "teml") {
-        case "html":
-          raw = htmlToDoc(markup, { sanitize: this.sanitizeOpts }, this.diags);
-          break;
-        case "markdown":
-          raw = parseMarkdown(markup, this.diags, ctx);
-          break;
-        default:
-          raw = parseTeml(markup, this.diags, ctx);
-          break;
-      }
+      newDoc = documentCompilers[format ?? "teml"].document(markup, this.diags, {
+        sanitize: this.sanitizeOpts,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       return [{ type: "error", message: `render failed: ${msg}` }, this.frame(true)];
     }
 
-    const newDoc = normalize(raw, this.diags);
     const renderedBlockCount = countBlocks(newDoc.blocks);
     if (renderedBlockCount > MAX_DOCUMENT_BLOCKS) {
       return [
@@ -1131,20 +1118,7 @@ export class InteractiveSession {
     }
     const identity = collectInteractiveWidgets(newDoc, this.diags);
     const newFocusables = identity.focusables;
-    const prevById = new Map(this.focusables.map((w) => [w.id, w] as const));
-    for (const w of newFocusables) {
-      const prev = prevById.get(w.id);
-      if (!prev) continue;
-      if (w.name === "input" && prev.name === "input") w.attrs.value = prev.attrs.value;
-      if (w.name === "textarea" && prev.name === "textarea") w.attrs.value = prev.attrs.value;
-      if (w.name === "checkbox" && prev.name === "checkbox") w.attrs.checked = prev.attrs.checked;
-      if (w.name === "radio" && prev.name === "radio") {
-        const previousValue = prev.attrs.value;
-        if (previousValue && (w.options ?? []).some((option) => option.value === previousValue)) {
-          w.attrs.value = previousValue;
-        }
-      }
-    }
+    this.carryWidgetValues(this.focusables, newFocusables);
 
     this.doc = newDoc;
     this.documentBlockCount = renderedBlockCount;
@@ -1161,17 +1135,8 @@ export class InteractiveSession {
     // Drop cursor positions for widgets that no longer exist; surviving ids
     // keep their position, clamped lazily on next read by cursorFor.
     const survivingIds = new Set(newFocusables.map((w) => w.id));
-    for (const map of [
-      this.cursor,
-      this.preferredCol,
-      this.textareaScrollOffsets,
-      this.scrollRegionRuntime,
-    ]) {
-      for (const id of map.keys()) {
-        if (!survivingIds.has(id)) map.delete(id);
-      }
-    }
-    this.radioPending.clear();
+    this.widgetState.pruneTransient(survivingIds);
+    this.widgetState.radioPending.clear();
     this.initializeRadioPending(this.currentWidget());
 
     // A render is a fresh document: every non-empty input value (whether
@@ -1185,7 +1150,7 @@ export class InteractiveSession {
   private frame(forceFull = false): SessionEvent {
     const focused = this.currentWidget();
     const isText = focused?.name === "input" || focused?.name === "textarea";
-    const selectionActive = isText && this.untouchedDefault.has(focused.id);
+    const selectionActive = isText && this.widgetState.untouchedDefault.has(focused.id);
     const cursorPos = isText && !selectionActive ? this.cursorFor(focused) : undefined;
     const hits: WidgetHit[] = [];
     const opts: LayoutOpts = {
@@ -1198,9 +1163,9 @@ export class InteractiveSession {
       focusedId: this.focusedId ?? undefined,
       cursorPos,
       selectionActive,
-      radioPending: this.radioPending,
-      textareaScrollOffsets: this.textareaScrollOffsets,
-      scrollRegionRuntime: this.scrollRegionRuntime,
+      radioPending: this.widgetState.radioPending,
+      textareaScrollOffsets: this.widgetState.textareaScrollOffsets,
+      scrollRegionRuntime: this.widgetState.scrollRegionRuntime,
       hits,
     };
     if (!this.layoutCache) {
@@ -1247,7 +1212,7 @@ export class InteractiveSession {
     const scrollRegions: ScrollRegionMeta[] = [];
     for (const widget of this.focusables) {
       if (widget.name !== "scroll") continue;
-      const state = this.scrollRegionRuntime.get(widget.id);
+      const state = this.widgetState.scrollRegionRuntime.get(widget.id);
       if (!state) continue;
       const regionHits = this.lastHits.filter(
         (hit) => hit.id === widget.id && hit.kind === "scroll",

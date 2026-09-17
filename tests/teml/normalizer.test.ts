@@ -2,6 +2,18 @@ import { test, expect } from "vitest";
 import { normalize } from "../../src/core/index.js";
 import { Diagnostics } from "../../src/core/diagnostics.js";
 import { parseTeml } from "../../src/teml/parse.js";
+import { doc, text } from "../../src/core/ast.js";
+
+test("normalization preserves its input and earlier results across repeated calls", () => {
+  const source = doc([{ type: "paragraph", children: [text(" a"), text("b ")] }]);
+  const original = structuredClone(source);
+  const first = normalize(source);
+  const second = normalize(source);
+  expect(source).toEqual(original);
+  expect(first).toEqual(doc([{ type: "paragraph", children: [text("ab")] }]));
+  expect(second).toEqual(first);
+  expect(normalize(first)).toEqual(first);
+});
 
 test("normalize: merges adjacent text nodes", () => {
   const doc = normalize(parseTeml("Hello **bold** world"));

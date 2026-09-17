@@ -215,7 +215,7 @@ test("updates preserve focus, cursor, scroll, and patch continuity", () => {
   const frame = patchFrameOf(events);
   expect(frame.focusedId).toBe("note");
   expect(session["scrollOffset"]).toBe(scrollOffset);
-  expect(session["cursor"].get("note")).toBe(2);
+  expect(session["widgetState"].cursor.get("note")).toBe(2);
   expect(frame.patches.length).toBeGreaterThan(0);
   expect(frame.patches.length).toBeLessThanOrEqual(2);
   expect(frame.patches.some((patch) => patch.plain?.includes("80%"))).toBe(true);

@@ -1,11 +1,6 @@
-import type { Block, Diagnostics, Inline, SanitizeOpts, TDoc } from "../core/index.js";
-import {
-  normalizeFragment as normalizeBlocksAtGraft,
-  type NormalizeFragmentContext,
-} from "../core/normalize.js";
-import { htmlToDoc } from "../html/index.js";
-import { parseMarkdown } from "../markdown/parse.js";
-import { parseTeml } from "../teml/parse.js";
+import type { Block, Diagnostics, Inline, SanitizeOpts } from "../core/index.js";
+import type { NormalizeFragmentContext } from "../core/normalize.js";
+import { documentCompilers } from "../document/frontends.js";
 import type { DocFormat } from "./protocol.js";
 
 export type ParsedMutationFragment = { ok: true; blocks: Block[] } | { ok: false; error: string };
@@ -21,20 +16,12 @@ export function parseMutationFragment(
   context: NormalizeFragmentContext = {},
 ): ParsedMutationFragment {
   try {
-    const ctx = { sanitize };
-    let raw: TDoc;
-    switch (format ?? "teml") {
-      case "html":
-        raw = htmlToDoc(markup, { sanitize }, diags);
-        break;
-      case "markdown":
-        raw = parseMarkdown(markup, diags, ctx);
-        break;
-      case "teml":
-        raw = parseTeml(markup, diags, ctx);
-        break;
-    }
-    const blocks = normalizeBlocksAtGraft(raw.blocks, diags, context);
+    const blocks = documentCompilers[format ?? "teml"].fragment(
+      markup,
+      diags,
+      { sanitize },
+      context,
+    );
     return blocks.length > 0
       ? { ok: true, blocks }
       : { ok: false, error: "fragment produced no document blocks" };

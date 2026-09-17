@@ -44,6 +44,33 @@ function formDoc(src?: string) {
   return normalize(parseTeml(source));
 }
 
+test("sessions own isolated documents and layout configuration", () => {
+  const document = formDoc();
+  const original = structuredClone(document);
+  const options = sessionOptions();
+  const first = new InteractiveSession(document, options);
+  const second = new InteractiveSession(document, options);
+  first.start();
+  second.start();
+  first.handle({ type: "char", char: "Ada" });
+  first.handle({ type: "resize", width: 60, height: 10 });
+  expect(first.values().name).toBe("Ada");
+  expect(second.values().name).toBe("");
+  expect(document).toEqual(original);
+  expect(second.getLayoutSize()).toEqual({ width: 40, height: undefined });
+  expect(options.layout.width).toBe(40);
+});
+
+test("all string widget IDs survive value snapshots as own properties", () => {
+  const session = new InteractiveSession(
+    formDoc('::input{id="__proto__" value="visible"}'),
+    sessionOptions(),
+  );
+  const snapshot = session.values();
+  expect(Object.hasOwn(snapshot, "__proto__")).toBe(true);
+  expect(JSON.parse(JSON.stringify(snapshot))).toEqual(JSON.parse('{"__proto__":"visible"}'));
+});
+
 function frameOf(events: SessionEvent[]): FullFrame {
   const frame = events.find((e) => e.type === "frame");
   if (!frame || frame.type !== "frame" || "patches" in frame) {
@@ -473,6 +500,40 @@ test("render re-marks whatever value survives (restored or fresh) as untouched/s
   expect(f.plain).not.toContain("▏");
   const overwrite = s.handle({ type: "char", char: "Y" });
   expect(overwrite[0]).toEqual({ type: "change", id: "name", value: "Y" });
+});
+
+test("a render that changes a widget's kind drops the old value for the new default", () => {
+  const s = new InteractiveSession(
+    normalize(parseTeml('::input{id="field" label="Field" value="Ada"}')),
+    sessionOptions(),
+  );
+  s.handle({ type: "char", char: "X" }); // edit away from the markup default
+  // Same id, different kind: value carry-over is same-kind only, so the new
+  // document's own default survives instead — and counts as untouched.
+  const events = s.handle({
+    type: "render",
+    markup: '::textarea{id="field" label="Field" value="Grace"}\n\nBody',
+  });
+  const f = frameOf(events);
+  expect(f.plain).toContain("Grace");
+  expect(f.plain).not.toContain("X");
+  const overwrite = s.handle({ type: "char", char: "Z" });
+  expect(overwrite[0]).toEqual({ type: "change", id: "field", value: "Z" });
+});
+
+test("a render that introduces a fresh id selects the markup default", () => {
+  const s = new InteractiveSession(
+    normalize(parseTeml('::input{id="a" label="A" value="one"}')),
+    sessionOptions(),
+  );
+  const events = s.handle({
+    type: "render",
+    markup: '::input{id="b" label="B" value="two"}',
+  });
+  const f = frameOf(events);
+  expect(f.plain).toContain("[two]");
+  const overwrite = s.handle({ type: "char", char: "z" });
+  expect(overwrite[0]).toEqual({ type: "change", id: "b", value: "z" });
 });
 
 test("pointer command focuses and activates a button, matching Enter", () => {
