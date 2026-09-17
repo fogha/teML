@@ -136,9 +136,15 @@ try {
     throw new Error("pack-verify: FAIL — dist/assets/docs/spec.md missing from install");
   }
 
-  // Every path here must exist in the repo, or the assertion passes vacuously.
-  const packagedPlanningDocs = [join(proj, "node_modules/teml/dist/assets/docs/teml-prd.md")];
-  if (packagedPlanningDocs.some(existsSync)) {
+  const architecture = join(proj, "node_modules/teml/dist/assets/docs/architecture.md");
+  if (!existsSync(architecture)) {
+    throw new Error("pack-verify: FAIL — consolidated architecture reference missing");
+  }
+  // Use an existing internal document so exclusion cannot pass vacuously.
+  if (!existsSync(join(root, "docs/maintenance.md"))) {
+    throw new Error("pack-verify: FAIL — internal documentation source missing");
+  }
+  if (existsSync(join(proj, "node_modules/teml/dist/assets/docs/maintenance.md"))) {
     throw new Error("pack-verify: FAIL — internal planning docs leaked into the package");
   }
   console.log("pack-verify: internal planning docs excluded");

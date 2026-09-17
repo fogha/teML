@@ -19,23 +19,7 @@ const assetFiles = [
   ["docs/theming.md", "dist/assets/docs/theming.md"],
   ["docs/tutorial.md", "dist/assets/docs/tutorial.md"],
   ["docs/host-porting-playbook.md", "dist/assets/docs/host-porting-playbook.md"],
-  ["docs/polyglot-hosts.md", "dist/assets/docs/polyglot-hosts.md"],
-  [
-    "docs/adr/001-terminal-client-ownership.md",
-    "dist/assets/docs/adr/001-terminal-client-ownership.md",
-  ],
-  [
-    "docs/adr/002-read-command-and-mode-boundary.md",
-    "dist/assets/docs/adr/002-read-command-and-mode-boundary.md",
-  ],
-  [
-    "docs/adr/003-host-engine-distribution.md",
-    "dist/assets/docs/adr/003-host-engine-distribution.md",
-  ],
-  [
-    "docs/adr/004-native-engine-port-decision.md",
-    "dist/assets/docs/adr/004-native-engine-port-decision.md",
-  ],
+  ["docs/architecture.md", "dist/assets/docs/architecture.md"],
 ];
 
 for (const [srcRel, destRel] of assetDirs) {

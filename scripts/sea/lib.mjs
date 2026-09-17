@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Shared helpers for the Node SEA artifact described by ADR 003.
+// Shared helpers for the Node SEA artifact described in docs/architecture.md.
 
 import {
   cpSync,

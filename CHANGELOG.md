@@ -242,8 +242,8 @@ ansi|plain|both`) trims every frame to a single payload, with the dropped
   scripting use cases.
 - Documented the three-way interactivity split (Static / Reader / App modes)
   and the Reader's security boundary in `docs/spec.md`, `docs/reader.md`,
-  and two new ADRs (`docs/adr/001-terminal-client-ownership.md`,
-  `docs/adr/002-read-command-and-mode-boundary.md`).
+  and two new ADRs (001 and 002, now consolidated in
+  [architecture.md](docs/architecture.md)).
 - Security fixes found in a full-codebase audit:
   - Windows command injection in the Reader's "open external link" path
     (switched from `cmd /c start` to `explorer.exe`).

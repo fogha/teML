@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // examples/bindings-demo.mjs — a small HTML-authored interface whose live
-// values are host variables, reflected through id-keyed bindings (ADR 006).
+// values are host variables, reflected through id-keyed bindings (docs/architecture.md).
 //
 // Assigning a string to `state[id]` mutates a live ::metric/::progress widget
 // (the `update` command under the hood) — no re-sending markup, no widget-id

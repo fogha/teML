@@ -144,6 +144,13 @@ by exactly one new `frame` (except `exit`, which produces only the `exit`
 event). Malformed or unknown command lines produce an `error` without a
 frame.
 
+`error` is the verdict for the command it answers, not a preamble to a frame:
+it completes that command. A host read loop must stop waiting for a frame when
+it receives one — waiting consumes the *next* command's frame, or blocks forever
+when nothing else is pending. The session stays usable, and any command the
+error handler queues runs next. The same rule covers an oversized line (see
+Resource limits).
+
 ## Commands (host → teml)
 
 One JSON object per line on stdin.
@@ -158,8 +165,8 @@ One JSON object per line on stdin.
 | `resize`    | `width`: positive integer; `height?`: positive integer                               | Re-layout at live terminal dimensions, preserving widget state                                                        |
 | `render`    | `markup`: string, `format?`: `"teml"` \| `"markdown"` \| `"html"` (default `"teml"`) | Replace the document, preserving focus/values/cursor where ids match                                                  |
 | `update`    | `id`: string, `props`: `{ [name]: string }`                                          | Mutate allowlisted props on an addressable display widget without re-parsing markup                                   |
-| `replace`   | `target`: string, `markup`: string, optional `format`                                 | Replace one addressable container block with normalized fragment blocks                                               |
-| `append`    | `target`: string, `markup`: string, optional `format`                                 | Append normalized fragment blocks to one addressable container                                                        |
+| `replace`   | `target`: string, `markup`: string, optional `format`                                | Replace one addressable container block with normalized fragment blocks                                               |
+| `append`    | `target`: string, `markup`: string, optional `format`                                | Append normalized fragment blocks to one addressable container                                                        |
 | `remove`    | `target`: string                                                                     | Remove one addressable container and its subtree                                                                      |
 | `exit`      | —                                                                                    | End the session                                                                                                       |
 
@@ -596,14 +603,14 @@ without sending `exit` — the session ends the same way.
 
 One JSON object per line on stdout.
 
-| `type`   | Fields                                                                                                                                                                              | When                                                                                                           |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `frame`  | Full: `seq`, `focusedId`, `plain`, `ansi`; patch: `seq`, `focusedId`, `rows`, `patches`; optional `viewport`/`scrollRegions`; negotiated full frames may include discovery metadata | After every command except `exit` (`seq` starts at 1 and increments monotonically)                             |
-| `change` | `id`, `value`                                                                                                                                                                       | An input/textarea value changed, or a radio selection was confirmed                                            |
-| `toggle` | `id`, `checked`                                                                                                                                                                     | A checkbox's checked state changed                                                                             |
-| `click`  | `id`, `values`                                                                                                                                                                      | A button was activated; `values` maps every widget id to its current value (`"true"`/`"false"` for checkboxes) |
+| `type`   | Fields                                                                                                                                                                              | When                                                                                                             |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `frame`  | Full: `seq`, `focusedId`, `plain`, `ansi`; patch: `seq`, `focusedId`, `rows`, `patches`; optional `viewport`/`scrollRegions`; negotiated full frames may include discovery metadata | After every command except `exit` (`seq` starts at 1 and increments monotonically)                               |
+| `change` | `id`, `value`                                                                                                                                                                       | An input/textarea value changed, or a radio selection was confirmed                                              |
+| `toggle` | `id`, `checked`                                                                                                                                                                     | A checkbox's checked state changed                                                                               |
+| `click`  | `id`, `values`                                                                                                                                                                      | A button was activated; `values` maps every widget id to its current value (`"true"`/`"false"` for checkboxes)   |
 | `error`  | `message`                                                                                                                                                                           | A command line was malformed, unrecognized, a late `configure`, a failed `render`, or a rejected update/mutation |
-| `exit`   | —                                                                                                                                                                                   | The session ended                                                                                              |
+| `exit`   | —                                                                                                                                                                                   | The session ended                                                                                                |
 
 ### Full frames
 
@@ -836,6 +843,17 @@ reads the live snapshot at any time; `ctx.exit()` ends the loop early from
 any handler. The returned promise also resolves if the user presses Ctrl+C
 or stdin ends, so a bare `await runInteractiveApp(html)` with no handlers
 is a valid (if unadventurous) way to just let someone fill in a form.
+
+Startup failures, thrown application callbacks, rejected promises returned by
+callbacks, and terminal stream errors reject the returned promise after
+best-effort terminal cleanup. Protocol errors still go to `onError`; they are
+not automatically fatal. Callbacks remain non-blocking: returned promises are
+supervised for rejection, not awaited or serialized. After completion, context
+commands and binding notifications no longer render. External timers and async
+tasks are not cancelled by the host; their owner must stop them. Cleanup is
+idempotent, but cannot restore a terminal after SIGKILL or write to a closed
+output stream.
+
 `ctx.replace(target, source, format?)`, `ctx.append(target, source, format?)`,
 and `ctx.remove(target)` expose the same protocol 1.3 document mutations
 in-process; capability negotiation is unnecessary because the context and
@@ -871,7 +889,7 @@ Assignments from a handler are queued behind the frame already built for the
 triggering event (the same ordering `ctx.render` follows), and an unknown id
 surfaces through `onError` exactly like a rejected `update`. Reads return the
 last value the host assigned, never engine state; user-edited inputs and
-checkboxes remain on `ctx.values()`. See ADR 006.
+checkboxes remain on `ctx.values()`. See [host-owned bindings](architecture.md#host-owned-bindings).
 
 `input`/`output` default to `process.stdin`/`process.stdout` but accept any
 readable/writable stream — raw mode and mouse tracking only engage when the
@@ -948,11 +966,11 @@ language is specified in
 | Widget hit-testing (document row + terminal-cell column → widget id)  | `src/layout/hits.ts`                                            |
 | Cached interactive layout + viewport slicing                          | `src/interactive/layout-cache.ts`, `src/interactive/session.ts` |
 | CLI wiring (`teml run`)                                               | `src/cli/commands/run.ts`                                       |
-| JavaScript host frame reconstruction                                  | `examples/interactive/interactive-frame.mjs`                                |
-| JavaScript reference host (real TTY, mouse, keys)                     | `examples/interactive/interactive-host.mjs`                                 |
+| JavaScript host frame reconstruction                                  | `examples/interactive/interactive-frame.mjs`                    |
+| JavaScript reference host (real TTY, mouse, keys)                     | `examples/interactive/interactive-host.mjs`                     |
 | Rust reference host + equivalence tests                               | `examples/rust-host/`                                           |
 | In-process Node host (`runInteractiveApp`)                            | `src/interactive/host.ts`                                       |
-| Example app built on `runInteractiveApp`                              | `examples/apps/settings-app.mjs`                                     |
+| Example app built on `runInteractiveApp`                              | `examples/apps/settings-app.mjs`                                |
 | Rust handler driver (`run`, `App`, `Context`)                         | `crates/teml-host/src/app.rs`                                   |
 | Go handler driver (`Run`, `Handlers`, `Context`)                      | `hosts/go/app/app.go`                                           |
 | Python handler driver (`run`, `Context`)                              | `hosts/python/src/teml_host/app.py`                             |

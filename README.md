@@ -159,10 +159,9 @@ its key hints when a bounded scroll region has focus.
 | [docs/cli.md](docs/cli.md)                                                                 | CLI reference (commands, flags, exit codes)                           |
 | [docs/reader.md](docs/reader.md)                                                           | Full-screen Reader keymap, navigation security, and terminal recovery |
 | [docs/interactive-protocol.md](docs/interactive-protocol.md)                               | App-host commands, events, frame negotiation, and patches             |
-| [docs/polyglot-hosts.md](docs/polyglot-hosts.md)                                           | Cross-language host model and measured roadmap                        |
+| [docs/architecture.md](docs/architecture.md)                                             | Engine boundaries, state ownership, bindings, and distribution        |
 | [docs/host-porting-playbook.md](docs/host-porting-playbook.md)                             | Contract and conformance steps for porting a host to a new language   |
-| [docs/adr/003-host-engine-distribution.md](docs/adr/003-host-engine-distribution.md)       | Host discovery, release artifacts, and SEA outcome                    |
-| [docs/adr/004-native-engine-port-decision.md](docs/adr/004-native-engine-port-decision.md) | Native-port no-go decision and reopen triggers                        |
+| [docs/maintenance.md](docs/maintenance.md)                                               | Open findings, refactoring priorities, and verification evidence       |
 | [docs/theming.md](docs/theming.md)                                                         | Themes, roles, ASCII/color fallbacks                                  |
 | [docs/tutorial.md](docs/tutorial.md)                                                       | 5-minute first conversion walkthrough                                 |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                                                         | Dev setup, testing, and PR expectations                               |

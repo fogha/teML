@@ -97,7 +97,7 @@ Standard resolution order:
 
 **Launch rule:** JavaScript entry scripts (`.js`, `.mjs`, `.cjs`) spawn via
 `node <script>`. Native executables — including Node SEA single-binary
-artifacts described in [ADR 003](adr/003-host-engine-distribution.md) — execute
+artifacts described in [Architecture](architecture.md#engine-discovery-and-distribution) — execute
 directly (`<binary> run …`). Do not wrap a native `teml` binary with `node`.
 
 Record diagnostics: resolved program, arguments, absolute path, discovery

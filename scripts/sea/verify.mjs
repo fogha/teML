@@ -78,7 +78,7 @@ if (readSmoke.status === 0) {
 if (!/requires TTY/i.test(readSmoke.stderr)) {
   throw new Error(`sea:verify: read non-TTY message unexpected: ${readSmoke.stderr}`);
 }
-console.log("sea:verify: read non-TTY guard OK (manual TTY smoke documented in ADR 003)");
+console.log("sea:verify: read non-TTY guard OK (manual TTY smoke in docs/architecture.md)");
 
 const metrics = {
   platform: `${process.platform}-${process.arch}`,

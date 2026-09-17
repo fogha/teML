@@ -49,7 +49,7 @@ The platform-local full-screen Reader smoke cannot run in ordinary CI. After
 `sea:verify`, run `./.sea/teml read examples/markup/demo.teml` and
 `./.sea/teml read docs/` in a real terminal before promoting a SEA artifact.
 Measured spike results and platform release gates are recorded in
-`docs/adr/003-host-engine-distribution.md`.
+[the architecture reference](docs/architecture.md#engine-discovery-and-distribution).
 
 `pnpm run dev` runs the CLI straight from TypeScript via `tsx` (no build step),
 useful while iterating: `pnpm run dev -- view examples/markup/demo.teml`.
