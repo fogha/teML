@@ -1,6 +1,6 @@
 // interactive/bindings.ts — id-keyed binding object for the in-process Node host.
 //
-// A binding is a push-only, host-owned variable keyed by widget id (ADR 006).
+// A binding is a push-only host variable keyed by id (docs/architecture.md).
 // Assigning a string to a key emits `update{id, {value: s}}` through the sink
 // the host attaches at startup, so a host mutates variables rather than
 // writing protocol commands. Reads return the last assigned value (or
@@ -19,7 +19,7 @@ export const ATTACH_BINDING_SINK: unique symbol = Symbol("teml.bindings.attach")
 /** A map from widget id → value. Assignment is the notification. */
 export type Bindings = Record<string, string> & {
   /** @internal */
-  [ATTACH_BINDING_SINK](sink: BindingSink | null): void;
+  [ATTACH_BINDING_SINK](sink: BindingSink | null): () => void;
 };
 
 /** Create an id-keyed binding set for `runInteractiveApp`'s `state` option. */
@@ -37,8 +37,12 @@ export function bindings(): Bindings {
     },
     get(_target, prop) {
       if (prop === ATTACH_BINDING_SINK) {
-        return (next: BindingSink | null): void => {
+        return (next: BindingSink | null): (() => void) => {
           sink = next;
+          // A previous host's cleanup must not detach a newer attachment.
+          return () => {
+            if (sink === next) sink = null;
+          };
         };
       }
       return store.get(String(prop));

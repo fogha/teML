@@ -19,6 +19,7 @@ export type TerminalLifecycle = {
 };
 
 function safeWrite(output: TerminalWritable, value: string): void {
+  if (output.destroyed || output.writableEnded) return;
   try {
     output.write(value);
   } catch {
@@ -50,7 +51,11 @@ export function enterTerminal(options: TerminalLifecycleOptions): TerminalLifecy
         // A closed input stream may reject mode changes.
       }
     }
-    options.input.pause();
+    try {
+      options.input.pause();
+    } catch {
+      // Other cleanup steps must survive a failing injected/closed stream.
+    }
   };
 
   try {
@@ -71,8 +76,11 @@ export function enterTerminal(options: TerminalLifecycleOptions): TerminalLifecy
   if (useSignals) {
     for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
       const handler = (): void => {
-        options.onSignal?.(signal);
-        cleanup();
+        try {
+          options.onSignal?.(signal);
+        } finally {
+          cleanup();
+        }
       };
       signalHandlers.set(signal, handler);
       process.on(signal, handler);

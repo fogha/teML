@@ -14,6 +14,53 @@ const caps: Capabilities = {
 };
 
 describe("terminal driver", () => {
+  test("callback failure stops before dispatching the rest of an input batch", () => {
+    vi.useFakeTimers();
+    const input = new PassThrough() as PassThrough & Partial<NodeJS.ReadStream>;
+    const output = new PassThrough();
+    input.setRawMode = vi.fn();
+    const onEvent = vi.fn(() => {
+      throw new Error("event failed");
+    });
+    const onError = vi.fn();
+    const driver = createTerminalDriver({ input, output, caps, signals: false, onEvent, onError });
+    try {
+      expect(() => input.emit("data", "ab")).not.toThrow();
+      driver.resize();
+      expect(onEvent).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "event failed" }));
+      expect(input.setRawMode).toHaveBeenLastCalledWith(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      driver.stop();
+      vi.useRealTimers();
+    }
+  });
+
+  test("switching from encoded rendering resets the damage-diff baseline", () => {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    let bytes = "";
+    output.on("data", (chunk) => {
+      bytes += chunk.toString();
+    });
+    const driver = createTerminalDriver({ input, output, caps, signals: false, onEvent() {} });
+    try {
+      const frame = linesToScreen([[{ text: "hello", style: {} }]], 20, 2);
+      driver.paint(frame);
+      driver.paintRendered("different screen");
+      bytes = "";
+      driver.paint(frame);
+      expect(bytes).toContain("hello");
+      driver.stop();
+      bytes = "";
+      driver.paintRendered("late");
+      expect(bytes).toBe("");
+    } finally {
+      driver.stop();
+    }
+  });
+
   test("connects input, resize, damage paint, and cleanup", async () => {
     const input = new PassThrough() as PassThrough & Partial<NodeJS.ReadStream>;
     const output = new PassThrough() as PassThrough & Partial<NodeJS.WriteStream>;

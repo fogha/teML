@@ -14,15 +14,13 @@
 // JSON in between — and dispatches the resulting events to typed callbacks
 // instead of writing NDJSON to a pipe.
 
-import { Diagnostics, normalize, type SanitizeOpts, type TDoc } from "../core/index.js";
+import { Diagnostics, type SanitizeOpts } from "../core/index.js";
 import stringWidth from "string-width";
-import { htmlToDoc } from "../html/index.js";
-import { parseMarkdown } from "../markdown/parse.js";
-import { parseTeml } from "../teml/parse.js";
+import { documentCompilers } from "../document/frontends.js";
 import { TERMINAL_CONTROL } from "../render/ansi.js";
 import { detectCapabilities, MIN_TERMINAL_WIDTH } from "../terminal/capabilities.js";
-import { createInputDecoder, type TerminalInputEvent } from "../terminal/client/input.js";
-import { enterTerminal, type TerminalLifecycle } from "../terminal/client/lifecycle.js";
+import type { TerminalInputEvent } from "../terminal/client/input.js";
+import { createTerminalDriver, type TerminalDriver } from "../terminal/client/driver.js";
 import { applyMetaRoles, loadTheme } from "../terminal/theme.js";
 import { InteractiveSession, type SessionLayoutConfig } from "./session.js";
 import { ATTACH_BINDING_SINK, bindings, type Bindings } from "./bindings.js";
@@ -110,24 +108,6 @@ export type InteractiveAppOptions = {
   state?: Bindings;
 };
 
-function parseSource(
-  source: string,
-  format: DocFormat,
-  sanitize: SanitizeOpts,
-  diags: Diagnostics,
-): TDoc {
-  const ctx = { sanitize };
-  switch (format) {
-    case "html":
-      return htmlToDoc(source, { sanitize }, diags);
-    case "markdown":
-      return parseMarkdown(source, diags, ctx);
-    case "teml":
-    default:
-      return parseTeml(source, diags, ctx);
-  }
-}
-
 function reservedFooterRows(footer: string | undefined, columns: number): number {
   if (!footer) return 0;
   // dispatch() writes one blank separator before the footer, followed by
@@ -150,7 +130,7 @@ function reservedFooterRows(footer: string | undefined, columns: number): number
  * and mouse tracking are only engaged when the stream actually looks like a
  * TTY (has a callable `setRawMode`), so this works headlessly too.
  */
-export function runInteractiveApp(
+export async function runInteractiveApp(
   source: string,
   options: InteractiveAppOptions = {},
 ): Promise<Record<string, string>> {
@@ -183,27 +163,24 @@ export function runInteractiveApp(
   };
   const liveResizeEnabled = options.width == null || options.width >= MIN_TERMINAL_WIDTH;
 
-  const raw = parseSource(source, format, sanitize, diags);
-  const session = new InteractiveSession(normalize(raw, diags), { diags, layout, sanitize });
+  const doc = documentCompilers[format].document(source, diags, { sanitize });
+  const session = new InteractiveSession(doc, { diags, layout, sanitize });
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let settled = false;
-    // Assigned once below, but referenced by closures defined earlier that
-    // only run after the assignment — `const` isn't an option since it
-    // requires the initializer at the declaration site.
-    // eslint-disable-next-line prefer-const
-    let lifecycle: TerminalLifecycle | undefined;
-    let escapeTimer: ReturnType<typeof setTimeout> | undefined;
+    // Setup callbacks can finish the app before driver acquisition returns.
+    let driver: TerminalDriver | undefined;
+    let detachBindings: (() => void) | undefined;
     let resizeTimer: ReturnType<typeof setTimeout> | undefined;
     let wheelTimer: ReturnType<typeof setTimeout> | undefined;
     let pendingWheelRows = 0;
     let lastResize = { width: layout.width, height: layout.height ?? 24 };
-    const decoder = createInputDecoder();
     /** Commands a handler asked for while its own command was being dispatched. */
     const queued: Command[] = [];
     let dispatching = false;
 
     const dispatchInput = (event: TerminalInputEvent): void => {
+      if (settled) return;
       switch (event.type) {
         case "interrupt":
         case "end":
@@ -237,17 +214,9 @@ export function runInteractiveApp(
           });
           break;
         case "resize":
-          send({ type: "resize", width: event.cols, height: event.rows });
+          onResize();
           break;
       }
-    };
-
-    const onData = (data: Buffer | string): void => {
-      if (escapeTimer) clearTimeout(escapeTimer);
-      for (const event of decoder.push(data)) dispatchInput(event);
-      escapeTimer = setTimeout(() => {
-        for (const event of decoder.flush()) dispatchInput(event);
-      }, 25);
     };
 
     const dimensions = (): { width: number; height: number } => {
@@ -265,7 +234,7 @@ export function runInteractiveApp(
       const next = dimensions();
       if (next.width === lastResize.width && next.height === lastResize.height) return;
       lastResize = next;
-      dispatchInput({ type: "resize", cols: next.width, rows: next.height });
+      send({ type: "resize", width: next.width, height: next.height });
     };
 
     const onResize = (): void => {
@@ -275,20 +244,30 @@ export function runInteractiveApp(
     };
 
     const cleanup = (): void => {
-      if (escapeTimer) clearTimeout(escapeTimer);
       if (resizeTimer) clearTimeout(resizeTimer);
       if (wheelTimer) clearTimeout(wheelTimer);
-      input.removeListener("data", onData);
-      input.removeListener("end", finish);
-      output.removeListener("resize", onResize);
-      lifecycle?.cleanup();
+      queued.length = 0;
+      detachBindings?.();
+      driver?.stop();
     };
 
-    function finish(): void {
+    function finish(error?: Error): void {
       if (settled) return;
       settled = true;
       cleanup();
-      resolve(session.values());
+      session.handle({ type: "exit" });
+      if (error) reject(error);
+      else resolve(session.values());
+    }
+
+    function fail(cause: unknown): void {
+      finish(cause instanceof Error ? cause : new Error(String(cause)));
+    }
+
+    // Callbacks remain non-blocking: commands issued synchronously retain their
+    // event-batch ordering, while returned promises have supervised rejection.
+    function observe(result: unknown): void {
+      if (result != null) void Promise.resolve(result).catch(fail);
     }
 
     const ctx: InteractiveAppContext = {
@@ -310,30 +289,33 @@ export function runInteractiveApp(
     };
 
     function dispatch(event: SessionEvent): void {
+      if (settled) return;
       switch (event.type) {
         case "frame": {
           // In-process sessions never negotiate patches mode, so every frame
           // here is a complete render.
           if ("patches" in event) break;
-          output.write(TERMINAL_CONTROL.clearScreen);
           // With format negotiation a frame may carry only one payload;
           // fall back to whichever is present.
           const preferred = caps.colors !== "none" ? event.ansi : event.plain;
-          output.write(preferred ?? event.ansi ?? event.plain ?? "");
-          if (options.footer) output.write(`\n${options.footer}\n`);
+          driver?.paintRendered(
+            TERMINAL_CONTROL.clearScreen +
+              (preferred ?? event.ansi ?? event.plain ?? "") +
+              (options.footer ? `\n${options.footer}\n` : ""),
+          );
           break;
         }
         case "change":
-          handlers.onChange?.(event.id, event.value, ctx);
+          observe(handlers.onChange?.(event.id, event.value, ctx));
           break;
         case "toggle":
-          handlers.onToggle?.(event.id, event.checked, ctx);
+          observe(handlers.onToggle?.(event.id, event.checked, ctx));
           break;
         case "click":
-          handlers.onClick?.(event.id, event.values, ctx);
+          observe(handlers.onClick?.(event.id, event.values, ctx));
           break;
         case "error":
-          handlers.onError?.(event.message, ctx);
+          observe(handlers.onError?.(event.message, ctx));
           break;
         case "exit":
           finish();
@@ -348,6 +330,7 @@ export function runInteractiveApp(
     // overwritten by the stale one. This matches the queueing contract the
     // Rust/Go/Python drivers follow over the wire.
     function send(command: Command): void {
+      if (settled) return;
       if (dispatching) {
         queued.push(command);
         return;
@@ -355,10 +338,12 @@ export function runInteractiveApp(
       dispatching = true;
       try {
         let next: Command | undefined = command;
-        while (next) {
+        while (next && !settled) {
           for (const event of session.handle(next)) dispatch(event);
           next = queued.shift();
         }
+      } catch (cause) {
+        fail(cause);
       } finally {
         dispatching = false;
         queued.length = 0;
@@ -368,22 +353,24 @@ export function runInteractiveApp(
     // Assignment to a binding is the notification: it routes through `send`
     // so a value set from a handler is queued behind the frame already built
     // for the triggering command, exactly like the context actions above.
-    options.state?.[ATTACH_BINDING_SINK]((id, value) => {
-      send({ type: "update", id, props: { value } });
-    });
-
-    lifecycle = enterTerminal({
-      input,
-      output,
-      alternateScreen: false,
-      hideCursor: false,
-      mouse: useMouse,
-      onSignal: finish,
-    });
-    input.on("data", onData);
-    input.on("end", finish);
-    if (liveResizeEnabled) output.on("resize", onResize);
-
-    for (const event of session.start()) dispatch(event);
+    try {
+      detachBindings = options.state?.[ATTACH_BINDING_SINK]((id, value) => {
+        send({ type: "update", id, props: { value } });
+      });
+      driver = createTerminalDriver({
+        input,
+        output,
+        caps,
+        alternateScreen: false,
+        hideCursor: false,
+        mouse: useMouse,
+        onEvent: dispatchInput,
+        onError: fail,
+      });
+      if (settled) driver.stop();
+      else for (const event of session.start()) dispatch(event);
+    } catch (cause) {
+      fail(cause);
+    }
   });
 }

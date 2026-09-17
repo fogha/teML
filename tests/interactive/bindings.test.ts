@@ -24,6 +24,20 @@ test("bindings stores assigned values and reads them back", () => {
   expect(state.cpu).toBe("50%");
 });
 
+test("disposing an old binding attachment preserves its newer owner", () => {
+  const state = bindings();
+  const values: string[] = [];
+  const oldDetach = state[ATTACH_BINDING_SINK](() => undefined);
+  const detach = state[ATTACH_BINDING_SINK]((_id, value) => {
+    values.push(value);
+  });
+  oldDetach();
+  state.cpu = "42%";
+  detach();
+  state.cpu = "99%";
+  expect(values).toEqual(["42%"]);
+});
+
 test("bindings emits through the attached sink on assignment", () => {
   const state = bindings();
   const emitted: Array<[string, string]> = [];
