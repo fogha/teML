@@ -45,3 +45,20 @@ test("Diagnostics clear resets state", () => {
   d.warnOnce("x", "msg");
   expect(d.count()).toBe(1);
 });
+
+// stderr is a display surface: a message carrying a newline or a control
+// sequence could forge a second warning or drive the terminal (C01).
+test("Diagnostics print flattens control bytes and newlines", () => {
+  const d = new Diagnostics();
+  d.warn("x", "forged\x1b[31m\nsecond line");
+  let out = "";
+  const stream = new Writable({
+    write(chunk, _enc, cb) {
+      out += chunk.toString();
+      cb();
+    },
+  });
+  d.print(stream);
+  expect(out).toBe("teml: warning: forged[31m second line\n");
+  expect(out).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f]/);
+});

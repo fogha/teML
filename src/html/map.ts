@@ -3,7 +3,7 @@
 import type { Block, DefinitionItem, Inline, ListItem, Meta, TDoc } from "../core/ast.js";
 import { inlineText } from "../core/ast.js";
 import type { Diagnostics } from "../core/diagnostics.js";
-import { sanitizeText } from "../core/sanitize.js";
+import { sanitizeLabel, sanitizeText } from "../core/sanitize.js";
 import { processHref, type SanitizeOpts } from "../core/href.js";
 import { DIRECTIVE_REGISTRY } from "../teml/directives.js";
 import {
@@ -131,7 +131,7 @@ function mapImageLeaf(el: Element, opts: MapOptions, diags: Diagnostics): Block 
     return { type: "leaf", name: "image", attrs: { src: href, ...(alt ? { alt } : {}) } };
   }
   if (rawSrc) {
-    diags.warn("link-dropped", `unsafe image src '${rawSrc.slice(0, 40)}' dropped`);
+    diags.warn("link-dropped", `unsafe image src '${sanitizeLabel(rawSrc).slice(0, 40)}' dropped`);
   }
   const label = alt || sanitizeText(rawSrc) || "image";
   return {
@@ -149,7 +149,7 @@ function mapInlineImage(el: Element, opts: MapOptions, diags: Diagnostics): Inli
     return [{ type: "link", href, children: [{ type: "text", value: alt || "image" }] }];
   }
   if (rawSrc) {
-    diags.warn("link-dropped", `unsafe image src '${rawSrc.slice(0, 40)}' dropped`);
+    diags.warn("link-dropped", `unsafe image src '${sanitizeLabel(rawSrc).slice(0, 40)}' dropped`);
   }
   const label = alt || sanitizeText(rawSrc) || "image";
   return [{ type: "text", value: `[Image: ${label}]` }];
@@ -376,7 +376,7 @@ function mapDataTemlBlock(
     if (directive === "event" && !attrs.title && text) attrs.title = sanitizeText(text);
     return [{ type: "leaf", name: directive, attrs }];
   }
-  diags.warn("unknown-directive", `unknown HTML data-teml directive '${directive}'`);
+  diags.warn("unknown-directive", `unknown HTML data-teml directive '${sanitizeLabel(directive)}'`);
   return mapBlocks([...el.childNodes], opts, diags);
 }
 
@@ -454,7 +454,11 @@ function mapInlineNodes(nodes: Node[], opts: MapOptions, diags: Diagnostics): In
         if (href) out.push({ type: "link", href, children: kids() });
         else {
           const rawHref = getAttrs(el).href;
-          if (rawHref) diags.warn("link-dropped", `unsafe link '${rawHref.slice(0, 40)}' dropped`);
+          if (rawHref)
+            diags.warn(
+              "link-dropped",
+              `unsafe link '${sanitizeLabel(rawHref).slice(0, 40)}' dropped`,
+            );
           out.push(...kids());
         }
         break;

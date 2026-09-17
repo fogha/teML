@@ -54,6 +54,27 @@ export function sanitizeText(s: string, mode: "prose" | "code" = "prose"): strin
 }
 
 /**
+ * Sanitize a single-line display label — a filename, a warning payload, a
+ * status-bar fragment. Unlike `sanitizeText` this drops newlines and collapses
+ * whitespace runs, because a label must not be able to forge an extra screen
+ * row or a second stderr line. Navigation and link targets keep their raw
+ * string; only labels pass through here.
+ */
+export function sanitizeLabel(s: string): string {
+  return sanitizeText(s, "prose").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Remove control characters from text composed outside the ingestion path.
+ * This is a renderer's last-resort guard, not an ingress sanitizer: it changes
+ * no whitespace, so already-laid-out text keeps its columns. `sanitizeText` and
+ * `sanitizeLabel` remain the ingress chokepoints.
+ */
+export function stripControlChars(s: string): string {
+  return s.replace(STRIP, "");
+}
+
+/**
  * Vet a link target. Returns a safe href or null (drop the link, keep its text).
  * Relative paths and #anchors are allowed; file: only behind the flag.
  */

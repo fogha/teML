@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { sanitizeHref, sanitizeText } from "../../src/core/sanitize.js";
+import { sanitizeHref, sanitizeLabel, sanitizeText } from "../../src/core/sanitize.js";
 
 test("sanitizeText strips ESC and controls, keeps newline", () => {
   expect(sanitizeText("a\x1b[31mb")).toBe("a[31mb");
@@ -52,4 +52,16 @@ test("sanitizeHref rejects a backslash ahead of the scheme separator", () => {
 test("sanitizeText strips line and paragraph separators", () => {
   expect(sanitizeText("a\u2028b\u2029c")).toBe("abc");
   expect(sanitizeHref("https://x.dev/\u2028a")).toBeNull();
+});
+
+// A display label is one line: unlike document text it must not be able to
+// forge an extra screen row or stderr line. Navigation keeps the raw string.
+test("sanitizeLabel strips controls and flattens a label to one line", () => {
+  expect(sanitizeLabel("\x1b[31mevil.md")).toBe("[31mevil.md");
+  expect(sanitizeLabel("a\x07b")).toBe("ab");
+  expect(sanitizeLabel("a\r\nb")).toBe("a b");
+  expect(sanitizeLabel("a\u2028b\u2029c")).toBe("abc");
+  expect(sanitizeLabel("  spaced\tname  ")).toBe("spaced name");
+  expect(sanitizeLabel("a\x7fb\u009bc")).toBe("abc");
+  expect(sanitizeLabel("👩\u200d💻.md")).toBe("👩\u200d💻.md");
 });

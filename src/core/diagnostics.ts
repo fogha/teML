@@ -1,6 +1,8 @@
 // core/diagnostics.ts — warnings accumulate here and are printed to stderr by
 // the CLI. No stage ever writes to stdout except the final backend.
 
+import { sanitizeLabel } from "./sanitize.js";
+
 export type Warning = { code: string; message: string; line?: number };
 
 export class Diagnostics {
@@ -43,7 +45,10 @@ export class Diagnostics {
   print(stream: NodeJS.WritableStream = process.stderr): void {
     for (const w of this.items) {
       const at = w.line != null ? ` (line ${w.line})` : "";
-      stream.write(`teml: warning: ${w.message}${at}\n`);
+      // Warnings quote attacker-influenced text (filenames, rejected URLs), and
+      // stderr is a display surface: flatten to one clean line at the egress so
+      // no call site can forge a second warning or emit a control sequence.
+      stream.write(`teml: warning: ${sanitizeLabel(w.message)}${at}\n`);
     }
   }
 }

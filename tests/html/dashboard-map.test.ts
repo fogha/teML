@@ -213,3 +213,16 @@ test("HTML: inline del/s/mark/kbd unit mappings", () => {
     { type: "span", role: "highlight", children: [{ type: "text", value: "c" }] },
   ]);
 });
+
+// A rejected target is attacker-influenced text that ends up on stderr, so it
+// has to be a display label, not the raw attribute (C01).
+test("HTML: rejected link targets never put control bytes into diagnostics", () => {
+  const { diags } = mapHtml(
+    '<p><a href="\x1b[31mbad">x</a></p><img src="\x1b]0;pwned\x07bad" alt="image">',
+  );
+  const dropped = diags.all().filter((w) => w.code === "link-dropped");
+  expect(dropped.length).toBeGreaterThan(0);
+  for (const warning of dropped) {
+    expect(warning.message).not.toMatch(/[\u0000-\u001f\u007f]/);
+  }
+});

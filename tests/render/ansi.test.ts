@@ -75,6 +75,20 @@ test("OSC8 hyperlinks wrap link text", () => {
   expect(out.includes("\x1b]8;;https://example.com\x1b\\")).toBe(true);
 });
 
+// The renderer is the last gate before the terminal. A control byte that
+// reached a span by a path nobody enumerated must not be emitted as text —
+// while the renderer's own SGR (S-2 single emitter) is untouched.
+test("control bytes in span text are stripped, renderer SGR survives", () => {
+  const out = renderAnsi(
+    [[{ text: "safe\x1b[31mred\x1b]0;pwned\x07", style: { bold: true } }]],
+    caps("truecolor"),
+  );
+  expect(out).not.toContain("\x1b[31mred");
+  expect(out).not.toContain("\x1b]0;");
+  expect(out).toContain("[31mred]0;pwned");
+  expect(out).toContain("\x1b[1m");
+});
+
 test("no SGR when colors none", () => {
   const out = renderAnsi([[{ text: "plain", style: { fg: "red", bold: true } }]], caps("none"));
   expect(out.includes("\x1b[")).toBe(false);

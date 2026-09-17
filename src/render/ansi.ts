@@ -3,6 +3,7 @@
 
 import type { Capabilities, ColorMode } from "../terminal/capabilities.js";
 import { colorsEnabled } from "../terminal/capabilities.js";
+import { stripControlChars } from "../core/sanitize.js";
 import type { Color, NamedColor, Style } from "../terminal/theme.js";
 import { isNamedColorValue } from "../terminal/theme.js";
 import type { Line } from "../render/styledLine.js";
@@ -158,7 +159,10 @@ export function renderAnsiLine(line: Line, caps: Capabilities): string {
       prevKey = key;
       previousStyle = span.style;
     }
-    let body = span.text;
+    // Defense in depth: span text must not carry control bytes even if an
+    // ingress was missed. Strip before OSC 8 wrapping so this file's own
+    // escape sequences survive (S-2 single emitter).
+    let body = stripControlChars(span.text);
     if (span.style.href && caps.hyperlinks && !caps.showUrls && !hasControlChars(span.style.href)) {
       body = osc8(span.style.href, body);
     }
