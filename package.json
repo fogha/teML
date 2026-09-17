@@ -94,7 +94,6 @@
     "@mozilla/readability": "^0.6.0",
     "commander": "^14.0.0",
     "linkedom": "^0.18.12",
-    "mdast-util-to-string": "^4.0.0",
     "parse5": "^8.0.0",
     "remark-directive": "^4.0.0",
     "remark-frontmatter": "^5.0.0",
