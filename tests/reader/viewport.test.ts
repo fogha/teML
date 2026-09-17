@@ -6,9 +6,8 @@ import {
   scrollByLine,
   scrollByPage,
   sliceDocumentLines,
-  statusText,
-  visibleBodyRows,
-} from "../../src/reader/viewport.js";
+} from "../../src/layout/viewport.js";
+import { statusText, visibleBodyRows } from "../../src/reader/viewport.js";
 import type { ReaderModel } from "../../src/reader/model.js";
 
 describe("reader viewport", () => {

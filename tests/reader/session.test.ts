@@ -67,6 +67,45 @@ function effectOf<T extends ReaderEffect["type"]>(
 }
 
 describe("ReaderSession", () => {
+  test("relayout rebuilds search coordinates and preserves the active result", () => {
+    const reader = session();
+    reader.handle({ type: "char", char: "/" });
+    reader.handle({ type: "char", char: "alpha" });
+    reader.handle({ type: "key", key: "enter" });
+    reader.handle({ type: "char", char: "n" });
+    const next = detailed();
+    next.lines = [[], ...next.lines.slice(0, 3), [], ...next.lines.slice(3), [], []];
+    reader.replaceLayout(next, { cols: 20, rows: 4, statusRows: 1 });
+    expect(reader.state().search).toMatchObject({ rows: [2, 6], index: 1 });
+    expect(reader.state().scrollRow).toBeGreaterThanOrEqual(4);
+    reader.handle({ type: "char", char: "n" });
+    expect(reader.state().scrollRow).toBe(2);
+  });
+
+  test("TOC selection stays visible when the terminal is short or resized", () => {
+    const reader = session();
+    const next = detailed();
+    next.headings = Array.from({ length: 12 }, (_, index) => ({
+      id: `h${index}`,
+      level: 1,
+      row: index,
+      text: `Section ${index + 1}`,
+    }));
+    reader.replaceLayout(next);
+    reader.handle({ type: "char", char: "t" });
+    let effects: ReaderEffect[] = [];
+    for (let index = 0; index < 8; index++) effects = reader.handle({ type: "key", key: "down" });
+    const text = (events: ReaderEffect[]) => JSON.stringify(effectOf(events, "frame")?.frame.lines);
+    expect(text(effects)).toContain("▸ Section 9");
+    expect(text(reader.setViewport({ cols: 20, rows: 2, statusRows: 1 }))).toContain("▸ Section 9");
+  });
+
+  test("malformed enabled file links are rejected without throwing", () => {
+    expect(
+      resolveReaderTarget("file:///docs/bad%2Fname.md", docPath("index.teml"), root, true),
+    ).toMatchObject({ kind: "rejected" });
+  });
+
   test("scrolls, pages, and clamps at document boundaries", () => {
     const reader = session();
     reader.handle({ type: "key", key: "down" });

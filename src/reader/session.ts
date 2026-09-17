@@ -16,9 +16,8 @@ import {
   scrollByLine,
   scrollByPage,
   sliceDocumentLines,
-  statusText,
-  visibleBodyRows,
-} from "./viewport.js";
+} from "../layout/viewport.js";
+import { statusText, visibleBodyRows } from "./viewport.js";
 
 export type ReaderEffect =
   | { type: "frame"; frame: ScreenFrame }
@@ -119,7 +118,12 @@ export function resolveReaderTarget(
     }
     if (url.protocol === "file:") {
       if (!allowFileLinks) return { kind: "rejected", reason: "file links are disabled" };
-      const target = path.resolve(fileURLToPath(url));
+      let target: string;
+      try {
+        target = path.resolve(fileURLToPath(url));
+      } catch {
+        return { kind: "rejected", reason: "invalid file link target" };
+      }
       return withinRoot(rootPath, target)
         ? { kind: "local", path: target, anchor: url.hash.slice(1) || undefined }
         : { kind: "rejected", reason: "link is outside the document root" };
@@ -153,6 +157,7 @@ export class ReaderSession {
   private readonly focusStyle: Style;
   private readonly statusStyle: Style;
   private tocIndex = 0;
+  private tocOffset = 0;
   private plainLines: string[];
   private documentLines: Line[];
 
@@ -204,6 +209,22 @@ export class ReaderSession {
     this.documentLines = physicalLines(detailed.lines);
     this.plainLines = physicalPlainLines(this.documentLines);
     this.viewport = viewport;
+    // Row coordinates belong to a particular layout, not to the query. Keep
+    // the active occurrence ordinal while rebuilding its coordinates.
+    const search = this.model.search;
+    if (search) {
+      const rows = searchRows(this.plainLines, search.query);
+      const index = rows.length ? Math.max(0, Math.min(search.index, rows.length - 1)) : -1;
+      this.model.search = { query: search.query, rows, index };
+      if (index >= 0) {
+        this.model.scrollRow = ensureRowVisible(
+          this.model.scrollRow,
+          rows[index]!,
+          this.totalRows(),
+          visibleBodyRows(this.viewport),
+        );
+      }
+    }
     this.clampScroll();
     return [this.frameEffect()];
   }
@@ -340,6 +361,7 @@ export class ReaderSession {
       case "t":
         this.model.mode = "toc";
         this.tocIndex = 0;
+        this.tocOffset = 0;
         break;
       case "b":
         return this.navigateHistory(-1);
@@ -589,16 +611,28 @@ export class ReaderSession {
       return HELP_LINES.map((text, index) => [{ text, style: index === 0 ? { bold: true } : {} }]);
     }
     if (this.model.mode === "toc") {
-      const lines: Line[] = [[{ text: "Table of contents", style: { bold: true } }]];
-      this.detailed.headings.forEach((heading, index) => {
-        const marker = index === this.tocIndex ? "▸ " : "  ";
-        lines.push([
-          {
-            text: `${marker}${"  ".repeat(heading.level - 1)}${heading.text}`,
-            style: index === this.tocIndex ? this.focusStyle : {},
-          },
-        ]);
-      });
+      const bodyRows = visibleBodyRows(this.viewport);
+      const count = this.detailed.headings.length;
+      // On a one-row body the selected heading takes precedence over the title.
+      const showTitle = bodyRows > 1 || count === 0;
+      const visible = Math.max(1, bodyRows - (showTitle ? 1 : 0));
+      this.tocIndex = Math.min(this.tocIndex, Math.max(0, count - 1));
+      this.tocOffset = ensureRowVisible(this.tocOffset, this.tocIndex, count, visible);
+      const lines: Line[] = showTitle
+        ? [[{ text: "Table of contents", style: { bold: true } }]]
+        : [];
+      this.detailed.headings
+        .slice(this.tocOffset, this.tocOffset + visible)
+        .forEach((heading, localIndex) => {
+          const index = this.tocOffset + localIndex;
+          const marker = index === this.tocIndex ? "▸ " : "  ";
+          lines.push([
+            {
+              text: `${marker}${"  ".repeat(heading.level - 1)}${heading.text}`,
+              style: index === this.tocIndex ? this.focusStyle : {},
+            },
+          ]);
+        });
       return lines;
     }
     return null;

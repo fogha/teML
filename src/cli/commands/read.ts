@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { doc, text, type TDoc } from "../../core/ast.js";
 import { Diagnostics } from "../../core/diagnostics.js";
 import { isWindowsDrivePath } from "../../core/href.js";
+import { sanitizeLabel } from "../../core/sanitize.js";
 import { layoutDocumentDetailed } from "../../layout/regions.js";
 import type { LayoutOpts } from "../../layout/opts.js";
 import { ReaderSession, type ReaderEffect } from "../../reader/session.js";
@@ -74,8 +75,10 @@ function directoryDocument(directory: string, root: string): TDoc {
       children: [
         {
           type: "link",
+          // The href is the real path used for navigation; only the label is a
+          // display string, so only the label is sanitized.
           href: path.join(directory, entry.name),
-          children: [text(`${entry.isDirectory() ? "▸ " : "  "}${entry.name}`)],
+          children: [text(`${entry.isDirectory() ? "▸ " : "  "}${sanitizeLabel(entry.name)}`)],
         },
       ],
     });

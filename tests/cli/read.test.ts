@@ -179,4 +179,41 @@ describe("teml read", () => {
     rmSync(dir, { recursive: true, force: true });
     expect(openExternal).toHaveBeenCalledOnce();
   });
+
+  // Windows forbids control characters in filenames, so this ingress can only
+  // be exercised where the filesystem allows it.
+  test.skipIf(process.platform === "win32")(
+    "a filename containing terminal controls renders without them",
+    async () => {
+      const dir = mkdtempSync(join(tmpdir(), "teml-reader-escape-"));
+      const file = join(dir, "\x1b[31mevil.md");
+      writeFileSync(file, "# Safe body\n");
+      const { input, output, chunks } = ttyPair();
+      const running = executeRead(file, { color: false }, { input, output });
+      await waitForOutput(chunks, "evil.md");
+      input.write("q");
+      expect(await running).toBe(0);
+      rmSync(dir, { recursive: true, force: true });
+      const rendered = chunks.join("");
+      expect(rendered).toContain("[31mevil.md");
+      expect(rendered).not.toContain("\x1b[31m");
+    },
+  );
+
+  test.skipIf(process.platform === "win32")(
+    "a directory entry label is sanitized while its href stays a real path",
+    async () => {
+      const dir = mkdtempSync(join(tmpdir(), "teml-reader-dir-escape-"));
+      writeFileSync(join(dir, "\x1b[31mevil.teml"), "# Body\n");
+      const { input, output, chunks } = ttyPair();
+      const running = executeRead(dir, { color: false }, { input, output });
+      await waitForOutput(chunks, "evil.teml");
+      input.write("q");
+      expect(await running).toBe(0);
+      rmSync(dir, { recursive: true, force: true });
+      const rendered = chunks.join("");
+      expect(rendered).toContain("[31mevil.teml");
+      expect(rendered).not.toContain("\x1b[31m");
+    },
+  );
 });
