@@ -43,6 +43,78 @@ def test_reconstructs_growth_change_and_truncation() -> None:
     assert screen.text() == "one"
 
 
+def test_rejected_patch_frame_leaves_rows_and_sequence_unchanged() -> None:
+    screen = ScreenBuffer(PreferredFrame.PLAIN)
+    screen.apply(FullFrame(seq=1, focused_id=None, plain="old\n", ansi=None))
+
+    with pytest.raises(ValueError):
+        screen.apply(
+            PatchFrame(
+                seq=2,
+                focused_id=None,
+                rows=1,
+                patches=(
+                    FramePatch(row=0, plain="new", ansi=None),
+                    FramePatch(row=5, plain="bad", ansi=None),
+                ),
+            )
+        )
+
+    assert screen.text() == "old"
+    assert screen.last_seq == 1
+
+
+def test_rejected_patch_metadata_leaves_committed_state_unchanged() -> None:
+    screen = ScreenBuffer(PreferredFrame.PLAIN)
+    screen.apply(
+        FullFrame(
+            seq=1,
+            focused_id=None,
+            plain="old\n",
+            ansi=None,
+            viewport=ViewportMeta(offset=0, height=1, total=10),
+        )
+    )
+
+    with pytest.raises(ValueError, match="viewport"):
+        screen.apply(
+            PatchFrame(
+                seq=2,
+                focused_id=None,
+                rows=1,
+                patches=(FramePatch(row=0, plain="new", ansi=None),),
+                viewport=ViewportMeta(offset=10, height=1, total=10),
+            )
+        )
+
+    assert screen.text() == "old"
+    assert screen.last_seq == 1
+    assert screen.viewport is not None
+    assert screen.viewport.offset == 0
+
+
+def test_rejected_full_frame_leaves_committed_state_unchanged() -> None:
+    screen = ScreenBuffer(PreferredFrame.PLAIN)
+    screen.apply(FullFrame(seq=1, focused_id=None, plain="old\n", ansi=None))
+
+    with pytest.raises(ValueError, match="scroll region"):
+        screen.apply(
+            FullFrame(
+                seq=2,
+                focused_id="new",
+                plain="new\n",
+                ansi=None,
+                scroll_regions=(
+                    ScrollRegionMeta(id="bad", offset=7, height=2, total=8),
+                ),
+            )
+        )
+
+    assert screen.text() == "old"
+    assert screen.last_seq == 1
+    assert screen.focused_id is None
+
+
 def test_rejects_patch_sequence_gaps() -> None:
     screen = ScreenBuffer(PreferredFrame.ANSI)
     screen.apply(

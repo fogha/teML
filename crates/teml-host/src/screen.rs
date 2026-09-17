@@ -96,7 +96,9 @@ impl ScreenBuffer {
             )));
         }
 
-        if let Some(patches) = &frame.patches {
+        // Validate the whole frame against staged rows before touching any
+        // committed state, so a rejected frame cannot leave partial changes.
+        let staged_rows = if let Some(patches) = &frame.patches {
             if self.last_seq == 0 {
                 return Err(invalid("patch frame arrived before a full frame"));
             }
@@ -111,6 +113,7 @@ impl ScreenBuffer {
                 .ok_or_else(|| invalid("patch frame needs a non-negative rows count"))?;
             let row_count = usize_from(row_count);
 
+            let mut staged = self.rows.clone();
             for patch in patches {
                 let row = usize_from(patch.row);
                 if row >= row_count {
@@ -120,21 +123,28 @@ impl ScreenBuffer {
                 }
                 let text = payload_patch(patch, self.preferred)
                     .ok_or_else(|| invalid(format!("patch row {row} has no usable payload")))?;
-                if self.rows.len() <= row {
-                    self.rows.resize(row + 1, String::new());
+                if staged.len() <= row {
+                    staged.resize(row + 1, String::new());
                 }
-                self.rows[row] = text.to_owned();
+                staged[row] = text.to_owned();
             }
-            self.rows.resize(row_count, String::new());
+            staged.resize(row_count, String::new());
+            staged
         } else {
             let rendered = payload_full(frame, self.preferred)
                 .ok_or_else(|| invalid("full frame has no usable payload"))?;
-            self.rows = split_rows(rendered);
-        }
+            split_rows(rendered)
+        };
 
+        // Metadata is validated against the staged rows; nothing is committed
+        // until every check has passed.
+        let viewport = parse_viewport(frame, staged_rows.len())?;
+        let scroll_regions = parse_scroll_regions(frame)?;
+
+        self.rows = staged_rows;
         self.focused_id = frame.focused_id.clone();
-        self.viewport = parse_viewport(frame, self.rows.len())?;
-        self.scroll_regions = parse_scroll_regions(frame)?;
+        self.viewport = viewport;
+        self.scroll_regions = scroll_regions;
         if let Some(protocol) = frame.protocol {
             self.protocol = Some(protocol);
         }
@@ -360,5 +370,76 @@ mod tests {
                 total: 10,
             })
         );
+    }
+
+    #[test]
+    fn rejected_patch_frame_leaves_rows_and_seq_unchanged() {
+        let mut screen = ScreenBuffer::new(PreferredFrame::Plain);
+        screen.apply(&frame_full(1, "old\n")).expect("full");
+
+        let error = screen
+            .apply(&frame_from_json(json!({
+                "type": "frame",
+                "seq": 2,
+                "focusedId": "name",
+                "rows": 2,
+                "patches": [
+                    {"row": 0, "plain": "new", "ansi": null},
+                    {"row": 5, "plain": "bad", "ansi": null}
+                ]
+            })))
+            .expect_err("out-of-range patch");
+
+        assert!(error.to_string().contains("outside"));
+        assert_eq!(screen.text(), "old");
+        assert_eq!(screen.last_seq(), 1);
+    }
+
+    #[test]
+    fn rejected_patch_viewport_leaves_rows_and_seq_unchanged() {
+        let mut screen = ScreenBuffer::new(PreferredFrame::Plain);
+        screen.apply(&frame_full(1, "old\n")).expect("full");
+
+        let error = screen
+            .apply(&frame_from_json(json!({
+                "type": "frame",
+                "seq": 2,
+                "focusedId": "name",
+                "rows": 1,
+                "patches": [
+                    {"row": 0, "plain": "new", "ansi": null}
+                ],
+                "viewport": {"offset": 0, "height": 5, "total": 10}
+            })))
+            .expect_err("viewport height mismatch");
+
+        assert!(error.to_string().contains("viewport"));
+        assert_eq!(screen.text(), "old");
+        assert_eq!(screen.last_seq(), 1);
+        assert_eq!(screen.viewport(), None);
+    }
+
+    #[test]
+    fn rejected_full_frame_leaves_rows_and_seq_unchanged() {
+        let mut screen = ScreenBuffer::new(PreferredFrame::Plain);
+        screen.apply(&frame_full(1, "old\n")).expect("full");
+
+        let error = screen
+            .apply(&frame_from_json(json!({
+                "type": "frame",
+                "seq": 2,
+                "focusedId": "name",
+                "plain": "new\nbody\n",
+                "ansi": null,
+                "scrollRegions": [
+                    {"id": "panel", "offset": 0, "height": 0, "total": 5}
+                ]
+            })))
+            .expect_err("invalid scroll region");
+
+        assert!(error.to_string().contains("scroll region"));
+        assert_eq!(screen.text(), "old");
+        assert_eq!(screen.last_seq(), 1);
+        assert!(screen.scroll_regions().is_empty());
     }
 }

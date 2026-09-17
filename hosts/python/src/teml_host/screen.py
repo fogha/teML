@@ -76,6 +76,8 @@ class ScreenBuffer:
                 f"non-monotonic frame sequence: {frame.seq} after {self.last_seq}"
             )
 
+        # Validation pass: build the candidate rows and metadata without touching
+        # any committed state, so a rejected frame leaves the buffer unchanged.
         if isinstance(frame, PatchFrame):
             if self.last_seq == 0:
                 raise ValueError("patch frame arrived before a full frame")
@@ -83,34 +85,44 @@ class ScreenBuffer:
                 raise ValueError(
                     f"patch frame sequence gap: expected {self.last_seq + 1}, got {frame.seq}"
                 )
-            for patch in frame.patches:
-                if patch.row < 0 or patch.row >= frame.rows:
-                    raise ValueError(
-                        f"patch row {patch.row} is outside the {frame.rows}-row frame"
-                    )
-                text = _payload(patch, self.preferred)
-                if text is None:
-                    raise ValueError(f"patch row {patch.row} has no usable payload")
-                if len(self.rows) <= patch.row:
-                    self.rows.extend([""] * (patch.row + 1 - len(self.rows)))
-                self.rows[patch.row] = text
-            if len(self.rows) > frame.rows:
-                del self.rows[frame.rows :]
-            elif len(self.rows) < frame.rows:
-                self.rows.extend([""] * (frame.rows - len(self.rows)))
+            rows = self._staged_patch_rows(frame)
         else:
             rendered = _payload(frame, self.preferred)
             if rendered is None:
                 raise ValueError("full frame has no usable payload")
-            self.rows = _split_rows(rendered)
+            rows = _split_rows(rendered)
 
-        self.viewport = _parse_viewport(frame.viewport, len(self.rows))
-        self.scroll_regions = _parse_scroll_regions(frame.scroll_regions)
+        viewport = _parse_viewport(frame.viewport, len(rows))
+        scroll_regions = _parse_scroll_regions(frame.scroll_regions)
+
+        # Commit pass: nothing below can raise.
+        self.rows = rows
+        self.viewport = viewport
+        self.scroll_regions = scroll_regions
         self.focused_id = frame.focused_id
         if isinstance(frame, FullFrame):
             self.protocol = frame.protocol
             self.capabilities = list(frame.capabilities)
         self.last_seq = frame.seq
+
+    def _staged_patch_rows(self, frame: PatchFrame) -> list[str]:
+        rows = list(self.rows)
+        for patch in frame.patches:
+            if patch.row < 0 or patch.row >= frame.rows:
+                raise ValueError(
+                    f"patch row {patch.row} is outside the {frame.rows}-row frame"
+                )
+            text = _payload(patch, self.preferred)
+            if text is None:
+                raise ValueError(f"patch row {patch.row} has no usable payload")
+            if len(rows) <= patch.row:
+                rows.extend([""] * (patch.row + 1 - len(rows)))
+            rows[patch.row] = text
+        if len(rows) > frame.rows:
+            del rows[frame.rows :]
+        elif len(rows) < frame.rows:
+            rows.extend([""] * (frame.rows - len(rows)))
+        return rows
 
     def text(self) -> str:
         return "\n".join(self.rows)

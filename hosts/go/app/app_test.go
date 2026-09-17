@@ -110,3 +110,30 @@ func TestCtrlCEndsTheSessionWithoutAHandler(t *testing.T) {
 		t.Fatalf("values = %v", values)
 	}
 }
+
+// A rejected command answers with `error` and no frame, so the driver must
+// treat the error as that command's completion; waiting for a frame blocks.
+func TestEngineErrorCompletesTheCommandInsteadOfBlocking(t *testing.T) {
+	var errors []string
+
+	values, err := app.RunHeadless(testOptions(t), app.Handlers{
+		OnChange: func(_, _ string, ctx *app.Context) {
+			// The engine rejects an unknown format while decoding, with `error`
+			// and no frame.
+			ctx.Render("<h2>x</h2>", protocol.DocFormat("bogus"))
+		},
+		OnError: func(message string, ctx *app.Context) {
+			errors = append(errors, message)
+			ctx.Exit()
+		},
+	}, app.TypingCommands("X"), 60, 20)
+	if err != nil {
+		t.Fatalf("driver runs against a built engine or TEML_CLI: %v", err)
+	}
+	if len(errors) == 0 {
+		t.Fatal("expected the engine to reject the render")
+	}
+	if values == nil {
+		t.Fatal("values should be a map, not nil")
+	}
+}

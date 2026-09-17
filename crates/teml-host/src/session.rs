@@ -5,9 +5,32 @@ use crate::engine::{
 };
 use crate::protocol::{Command, Event, Frame, FrameFormat, FrameMode};
 use std::fmt;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command as ProcessCommand, Stdio};
+
+/// NDJSON line budget, matching the engine and the Go/Python hosts.
+pub const MAX_NDJSON_LINE_BYTES: usize = 8 * 1024 * 1024;
+
+/// Read one line, bounded by [`MAX_NDJSON_LINE_BYTES`]. `read_line` alone grows
+/// without limit, so a peer that never sends a newline could exhaust memory.
+fn read_line_bounded<R: BufRead>(reader: &mut R) -> Result<Option<String>, SessionError> {
+    let mut line = String::new();
+    let read = reader
+        .take(MAX_NDJSON_LINE_BYTES as u64 + 1)
+        .read_line(&mut line)
+        .map_err(SessionError::Io)?;
+    if read == 0 {
+        return Ok(None);
+    }
+    // `read_line` keeps the terminator, which is not part of the line budget.
+    if line.trim_end_matches(['\n', '\r']).len() > MAX_NDJSON_LINE_BYTES {
+        return Err(SessionError::Protocol(format!(
+            "NDJSON line exceeds the {MAX_NDJSON_LINE_BYTES}-byte limit"
+        )));
+    }
+    Ok(Some(line))
+}
 
 /// Startup options for [`Session::spawn`].
 #[derive(Debug, Clone)]
@@ -141,13 +164,10 @@ impl Session {
 
     /// Read the next event from stdout, skipping blank lines.
     pub fn next_event(&mut self) -> Result<Event, SessionError> {
-        let mut line = String::new();
         loop {
-            line.clear();
-            let read = self.stdout.read_line(&mut line).map_err(SessionError::Io)?;
-            if read == 0 {
+            let Some(line) = read_line_bounded(&mut self.stdout)? else {
                 return Err(SessionError::Protocol("teml closed stdout".into()));
-            }
+            };
             let trimmed = line.trim();
             if !trimmed.is_empty() {
                 return Event::from_line(trimmed).map_err(|error| {
@@ -254,5 +274,32 @@ fn frame_mode_arg(mode: FrameMode) -> &'static str {
     match mode {
         FrameMode::Full => "full",
         FrameMode::Patches => "patches",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn bounded_line_read_rejects_an_oversized_line() {
+        let mut input = Cursor::new(vec![b'x'; MAX_NDJSON_LINE_BYTES + 1]);
+        let error = read_line_bounded(&mut input).expect_err("oversized line must be rejected");
+        assert!(
+            format!("{error}").contains("exceeds"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn bounded_line_read_accepts_a_line_at_the_limit() {
+        let mut data = vec![b'x'; MAX_NDJSON_LINE_BYTES];
+        data.push(b'\n');
+        let mut input = Cursor::new(data);
+        let line = read_line_bounded(&mut input)
+            .expect("a line at the limit is valid")
+            .expect("a line was read");
+        assert_eq!(line.trim().len(), MAX_NDJSON_LINE_BYTES);
     }
 }

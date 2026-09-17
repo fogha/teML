@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from teml_host import Context, run_headless
+from teml_host.app import _Handlers, _drive
+from teml_host.screen import PreferredFrame, ScreenBuffer
 from teml_host.terminal import ScriptedStdinEvents
+from teml_host.types import ErrorEvent, ExitCommand, ExitEvent, RenderCommand
 
 
 @dataclass
@@ -60,4 +63,54 @@ def test_ctrl_c_ends_the_session_without_a_handler(
         size=(60, 20),
         engine=engine_path,
     )
+    assert values == {}
+
+
+def test_an_engine_error_completes_the_command_instead_of_blocking() -> None:
+    """A rejected command answers with `error` and no frame, so the driver must
+    treat the error as that command's completion; waiting for a frame blocks."""
+
+    class StubSource:
+        def __init__(self) -> None:
+            self._commands = [RenderCommand(markup="x")]
+
+        def next_command(self) -> object:
+            return self._commands.pop(0) if self._commands else None
+
+    class StubSession:
+        """Answers only in response to a command, like the real engine: a
+        rejected command yields `error` and nothing else."""
+
+        def __init__(self) -> None:
+            self._pending: list[object] = []
+
+        def send(self, command: object) -> None:
+            if isinstance(command, ExitCommand):
+                self._pending.append(ExitEvent())
+            else:
+                self._pending.append(ErrorEvent(message="render rejected"))
+
+        def next_event(self) -> object:
+            if not self._pending:
+                raise AssertionError("driver blocked after an error instead of completing it")
+            return self._pending.pop(0)
+
+    errors: list[str] = []
+    exits: list[bool] = []
+
+    def on_error(message: str, ctx: Context) -> None:
+        errors.append(message)
+        ctx.exit()
+        exits.append(True)
+
+    values = _drive(
+        StubSession(),  # type: ignore[arg-type]
+        ScreenBuffer(PreferredFrame.ANSI),
+        StubSource(),  # type: ignore[arg-type]
+        _Handlers(on_error=on_error),
+        do_paint=False,
+    )
+
+    assert errors == ["render rejected"]
+    assert exits == [True]
     assert values == {}

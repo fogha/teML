@@ -41,6 +41,85 @@ func TestReconstructsGrowthChangeAndTruncation(t *testing.T) {
 	}
 }
 
+func TestRejectsPatchFrameAtomically(t *testing.T) {
+	screen := NewBuffer(PreferredPlain)
+	if err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 1, FocusedID: nil,
+		Plain: strPtr("old"), ANSI: nil,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 2, FocusedID: nil, Rows: 2,
+		Patches: []protocol.FramePatch{
+			{Row: 0, Plain: strPtr("new"), ANSI: nil},
+			{Row: 5, Plain: strPtr("outside"), ANSI: nil},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected an error for a row outside the frame")
+	}
+	if got := screen.Text(); got != "old" {
+		t.Fatalf("rejected patch frame changed rows: got %q, want %q", got, "old")
+	}
+	if got := screen.LastSeq(); got != 1 {
+		t.Fatalf("rejected patch frame changed sequence: got %d, want 1", got)
+	}
+}
+
+func TestRejectsInvalidViewportAtomically(t *testing.T) {
+	screen := NewBuffer(PreferredPlain)
+	if err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 1, FocusedID: nil,
+		Plain: strPtr("old"), ANSI: nil,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 2, FocusedID: nil,
+		Plain:    strPtr("new\nlonger"),
+		Viewport: &protocol.ViewportMeta{Offset: 0, Height: 1, Total: 5},
+	})
+	if err == nil {
+		t.Fatal("expected an error for invalid viewport bounds")
+	}
+	if got := screen.Text(); got != "old" {
+		t.Fatalf("rejected viewport changed rows: got %q, want %q", got, "old")
+	}
+	if got := screen.LastSeq(); got != 1 {
+		t.Fatalf("rejected viewport changed sequence: got %d, want 1", got)
+	}
+}
+
+func TestRejectsInvalidScrollRegionAtomically(t *testing.T) {
+	screen := NewBuffer(PreferredPlain)
+	if err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 1, FocusedID: nil,
+		Plain: strPtr("old"), ANSI: nil,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 2, FocusedID: nil,
+		Plain: strPtr("new"),
+		ScrollRegions: []protocol.ScrollRegionMeta{
+			{ID: "", Offset: 0, Height: 1, Total: 5},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected an error for a scroll region without an id")
+	}
+	if got := screen.Text(); got != "old" {
+		t.Fatalf("rejected scroll region changed rows: got %q, want %q", got, "old")
+	}
+	if got := screen.LastSeq(); got != 1 {
+		t.Fatalf("rejected scroll region changed sequence: got %d, want 1", got)
+	}
+}
+
 func TestRejectsPatchSequenceGaps(t *testing.T) {
 	screen := NewBuffer(PreferredANSI)
 	if err := screen.Apply(protocol.SessionEvent{

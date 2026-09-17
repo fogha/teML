@@ -60,6 +60,9 @@ func (b *Buffer) Apply(event protocol.SessionEvent) error {
 		return fmt.Errorf("non-monotonic frame sequence: %d after %d", seq, b.lastSeq)
 	}
 
+	// Stage the frame's rows and validate its metadata before committing
+	// anything, so a rejected frame leaves the buffer exactly as it was.
+	var rows []string
 	if event.Patches != nil {
 		if b.lastSeq == 0 {
 			return fmt.Errorf("patch frame arrived before a full frame")
@@ -70,6 +73,7 @@ func (b *Buffer) Apply(event protocol.SessionEvent) error {
 		if event.Rows < 0 {
 			return fmt.Errorf("patch frame needs a non-negative rows count")
 		}
+		rows = append([]string(nil), b.rows...)
 		for _, patch := range event.Patches {
 			if patch.Row < 0 || patch.Row >= event.Rows {
 				return fmt.Errorf("patch row %d is outside the %d-row frame", patch.Row, event.Rows)
@@ -78,27 +82,27 @@ func (b *Buffer) Apply(event protocol.SessionEvent) error {
 			if err != nil {
 				return err
 			}
-			if len(b.rows) <= patch.Row {
-				grow := patch.Row + 1 - len(b.rows)
-				b.rows = append(b.rows, make([]string, grow)...)
+			if len(rows) <= patch.Row {
+				grow := patch.Row + 1 - len(rows)
+				rows = append(rows, make([]string, grow)...)
 			}
-			b.rows[patch.Row] = text
+			rows[patch.Row] = text
 		}
-		if len(b.rows) > event.Rows {
-			b.rows = b.rows[:event.Rows]
-		} else if len(b.rows) < event.Rows {
-			grow := event.Rows - len(b.rows)
-			b.rows = append(b.rows, make([]string, grow)...)
+		if len(rows) > event.Rows {
+			rows = rows[:event.Rows]
+		} else if len(rows) < event.Rows {
+			grow := event.Rows - len(rows)
+			rows = append(rows, make([]string, grow)...)
 		}
 	} else {
 		rendered, err := fullPayload(&event, b.preferred)
 		if err != nil {
 			return err
 		}
-		b.rows = splitRows(rendered)
+		rows = splitRows(rendered)
 	}
 
-	viewport, err := parseViewport(event.Viewport, len(b.rows))
+	viewport, err := parseViewport(event.Viewport, len(rows))
 	if err != nil {
 		return err
 	}
@@ -106,6 +110,8 @@ func (b *Buffer) Apply(event protocol.SessionEvent) error {
 	if err != nil {
 		return err
 	}
+
+	b.rows = rows
 	b.viewport = viewport
 	b.scrollRegions = regions
 	if event.FocusedID != nil {

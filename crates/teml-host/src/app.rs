@@ -213,6 +213,11 @@ fn drive<A: App, E: TerminalEvents>(
                 Event::Error { message } => {
                     let mut ctx = context(&values, &mut queued, &mut exit);
                     app.on_error(&message, &mut ctx);
+                    // A rejected command answers with `error` and no frame, so
+                    // this is that command's completion. Waiting for a frame
+                    // would block forever; anything the handler queued runs on
+                    // the next turn.
+                    break;
                 }
                 // The engine can end the session on its own.
                 Event::Exit => return Ok(values),
@@ -376,5 +381,44 @@ mod tests {
         let values = run_headless(options(), &mut Passive, events, (60, 20))
             .expect("Ctrl+C is a clean end of session");
         assert!(values.is_empty());
+    }
+
+    // A rejected command answers with `error` and no frame, so the driver must
+    // treat the error as that command's completion; waiting for a frame blocks.
+    #[test]
+    fn an_engine_error_completes_the_command_instead_of_blocking() {
+        #[derive(Default)]
+        struct ErrorRecorder {
+            errors: Vec<String>,
+        }
+
+        impl App for ErrorRecorder {
+            fn on_change(&mut self, _id: &str, _value: &str, ctx: &mut Context<'_>) {
+                // Beyond the engine's render budget: rejected while decoding,
+                // which answers with `error` and no frame.
+                ctx.render("x".repeat(4 * 1024 * 1024 + 1), None);
+            }
+
+            fn on_error(&mut self, message: &str, ctx: &mut Context<'_>) {
+                self.errors.push(message.to_string());
+                ctx.exit();
+            }
+        }
+
+        let mut recorder = ErrorRecorder::default();
+        let values = run_headless(
+            options(),
+            &mut recorder,
+            ScriptedEvents::typing("X"),
+            (60, 20),
+        )
+        .expect("driver runs against a built engine or TEML_CLI");
+
+        assert!(
+            !recorder.errors.is_empty(),
+            "expected the engine to reject the oversized render"
+        );
+        // The session survived the rejection and kept the value typed before it.
+        assert_eq!(values.get("service").map(String::as_str), Some("X"));
     }
 }

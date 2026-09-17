@@ -25,51 +25,93 @@ class SessionError(RuntimeError):
     pass
 
 
+def _parse_line(line: bytes) -> dict[str, Any]:
+    try:
+        parsed = json.loads(line.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SessionError(f"invalid event JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise SessionError("event JSON must be an object")
+    return parsed
+
+
+def _oversized_line_event() -> dict[str, Any]:
+    """An oversized line is reported like any other protocol error so the
+    application loop can complete the command and keep the session usable."""
+    return {
+        "type": "error",
+        "message": f"NDJSON line exceeds the {MAX_NDJSON_LINE_BYTES}-byte limit",
+    }
+
+
+def _write_all(stream: BinaryIO, data: bytes) -> None:
+    """Write every byte or fail: a partial write would desync the protocol."""
+    view = memoryview(data)
+    while view:
+        try:
+            written = stream.write(view)
+        except BlockingIOError as exc:
+            raise SessionError("engine stdin is not writable") from exc
+        # `None` and `0` both mean no progress; stop rather than spin.
+        if not written:
+            raise SessionError("short write to the engine")
+        view = view[written:]
+
+
 class _NdjsonReader:
-    __slots__ = ("_stream", "_buffer")
+    __slots__ = ("_stream", "_buffer", "_skipping")
 
     def __init__(self, stream: BinaryIO) -> None:
         self._stream = stream
         self._buffer = b""
+        # Set while dropping the tail of an oversized line. The line's
+        # terminating newline ends the skip, so the session stays usable.
+        self._skipping = False
 
     def read_event(self) -> dict[str, Any]:
         while True:
-            while b"\n" in self._buffer:
-                line_bytes, self._buffer = self._buffer.split(b"\n", 1)
+            if self._skipping:
+                # Drop the oversized line's tail without accumulating it.
+                newline = self._buffer.find(b"\n")
+                if newline == -1:
+                    self._buffer = b""
+                    chunk = self._stream.read(4096)
+                    if chunk == b"":
+                        raise SessionError("teml closed stdout")
+                    self._buffer = chunk
+                    continue
+                self._buffer = self._buffer[newline + 1 :]
+                self._skipping = False
+                continue
+
+            newline = self._buffer.find(b"\n")
+            if newline != -1:
+                line_bytes = self._buffer[:newline]
+                self._buffer = self._buffer[newline + 1 :]
                 line = line_bytes.strip()
                 if not line:
                     continue
                 if len(line) > MAX_NDJSON_LINE_BYTES:
-                    raise SessionError(
-                        f"NDJSON line exceeds the {MAX_NDJSON_LINE_BYTES}-byte limit"
-                    )
-                try:
-                    parsed = json.loads(line.decode("utf-8"))
-                except json.JSONDecodeError as exc:
-                    raise SessionError(f"invalid event JSON: {exc}") from exc
-                if not isinstance(parsed, dict):
-                    raise SessionError("event JSON must be an object")
-                return parsed
+                    return _oversized_line_event()
+                return _parse_line(line)
+
+            # No complete line yet. Only this unterminated remainder is budgeted:
+            # measuring the whole buffer would reject a chunk that carries
+            # several individually valid lines.
+            if len(self._buffer) > MAX_NDJSON_LINE_BYTES:
+                self._buffer = b""
+                self._skipping = True
+                return _oversized_line_event()
+
             chunk = self._stream.read(4096)
             if chunk == b"":
-                if self._buffer:
-                    if len(self._buffer.strip()) > MAX_NDJSON_LINE_BYTES:
-                        raise SessionError(
-                            f"NDJSON line exceeds the {MAX_NDJSON_LINE_BYTES}-byte limit"
-                        )
-                    try:
-                        parsed = json.loads(self._buffer.strip().decode("utf-8"))
-                    except json.JSONDecodeError as exc:
-                        raise SessionError(f"invalid event JSON: {exc}") from exc
-                    if not isinstance(parsed, dict):
-                        raise SessionError("event JSON must be an object")
-                    self._buffer = b""
-                    return parsed
-                raise SessionError("teml closed stdout")
-            if len(self._buffer) + len(chunk) > MAX_NDJSON_LINE_BYTES:
-                raise SessionError(
-                    f"NDJSON line exceeds the {MAX_NDJSON_LINE_BYTES}-byte limit"
-                )
+                line = self._buffer.strip()
+                self._buffer = b""
+                if not line:
+                    raise SessionError("teml closed stdout")
+                if len(line) > MAX_NDJSON_LINE_BYTES:
+                    return _oversized_line_event()
+                return _parse_line(line)
             self._buffer += chunk
 
 
@@ -155,7 +197,7 @@ class Session:
             raise SessionError(
                 f"command exceeds the {MAX_NDJSON_LINE_BYTES}-byte NDJSON limit"
             )
-        self._stdin.write(encoded + b"\n")
+        _write_all(self._stdin, encoded + b"\n")
         self._stdin.flush()
 
     def next_event_raw(self) -> dict[str, Any]:
