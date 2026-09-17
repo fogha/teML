@@ -35,8 +35,8 @@ const processor = unified()
 // the nest — O(depth^2) overall. A hostile document with a few thousand nested
 // fences (tens of KB) can burn tens of seconds of CPU. `parseTeml` guards
 // against this with a cheap pre-scan (see maxContainerNesting) before handing
-// source to the directive-aware processor; `parseToMdast` is the raw/exploratory
-// seam and does not apply the guard.
+// source to the directive-aware processor. The public `parseToMdast` entry
+// point applies the same guard before selecting its processor.
 const MAX_CONTAINER_NESTING = 24;
 const FENCE_LINE = /^ {0,3}(:{3,})(.*)$/;
 

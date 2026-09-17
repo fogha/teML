@@ -231,7 +231,9 @@ export function layoutTable(
     for (let li = 0; li < rowH; li++) {
       const spans: Span[] = [{ text: V + " ", style: borderStyle }];
       for (let c = 0; c < cols; c++) {
-        const cellLine = perCell[c]![li] ?? [];
+        // Ragged rows are legal input: a row may have fewer cells than the
+        // widest row, so its missing columns render as empty cells.
+        const cellLine = perCell[c]?.[li] ?? [];
         spans.push(...alignPad(cellLine, widths[c]!, alignAt(c), m));
         spans.push({ text: c < cols - 1 ? ` ${V} ` : " " + V, style: borderStyle });
       }

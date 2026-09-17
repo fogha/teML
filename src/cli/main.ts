@@ -2,6 +2,7 @@
 // cli/main.ts — Commander entrypoint. stdout = output; stderr = diagnostics (C-2).
 
 import type { Command } from "commander";
+import { isatty } from "node:tty";
 import { readVersion } from "./version.js";
 
 const earlyArgs = process.argv.slice(2);
@@ -140,7 +141,11 @@ async function main(): Promise<void> {
   program.addCommand(runCmd);
   program.addCommand(readCmd);
 
-  if (shouldShowRootHelp(earlyArgs, Boolean(process.stdin.isTTY))) {
+  // `process.stdin.isTTY` initializes the stdin stream and flips a pipe to
+  // non-blocking, which makes the later synchronous read fail with EAGAIN when
+  // the producer is slow (`curl … | teml view`). `isatty(0)` answers the same
+  // question without touching the stream.
+  if (shouldShowRootHelp(earlyArgs, isatty(0))) {
     program.outputHelp();
     return;
   }

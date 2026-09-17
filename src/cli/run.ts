@@ -41,7 +41,7 @@ export function inferFormat(source: string, name: string): "teml" | "markdown" |
  * "the reader has what it wanted", not a failure, so neither may surface as an
  * unhandled exception and a silent exit 2.
  */
-function writeOutput(text: string): void {
+function writeOutput(text: string): Promise<void> {
   const stream = process.stdout;
   if (stream.listenerCount("error") === 0) {
     stream.on("error", (error: NodeJS.ErrnoException) => {
@@ -49,11 +49,20 @@ function writeOutput(text: string): void {
       process.stderr.write(`teml: error: cannot write output: ${error.message}\n`);
     });
   }
-  try {
-    stream.write(text);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EPIPE") throw error;
-  }
+  return new Promise<void>((resolve, reject) => {
+    // Resolve only once the chunk has been handed to the operating system. The
+    // CLI exits immediately afterwards, and `process.exit()` while a pipe write
+    // is still buffered silently truncates the output at the pipe buffer size.
+    const done = (error?: Error | null): void => {
+      if (error && (error as NodeJS.ErrnoException).code !== "EPIPE") reject(error);
+      else resolve();
+    };
+    try {
+      stream.write(text, done);
+    } catch (error) {
+      done(error as Error);
+    }
+  });
 }
 
 export function sanitizeOpts(flags: CliFlags): SanitizeOpts {
@@ -68,34 +77,16 @@ export async function toDoc(
   name: string,
   flags: CliFlags,
 ): Promise<{ doc: TDoc; diags: import("../core/diagnostics.js").Diagnostics }> {
-  const { Diagnostics, normalize } = await import("../core/index.js");
+  const { Diagnostics } = await import("../core/diagnostics.js");
+  const { loadDocumentCompiler } = await import("../document/compiler.js");
   const diags = new Diagnostics();
   const fmt = flags.from ?? inferFormat(source, name);
-  const parseCtx = { sanitize: sanitizeOpts(flags) };
-  let raw: TDoc;
-  const t0 = performance.now();
-  switch (fmt) {
-    case "html": {
-      const { htmlToDoc } = await import("../html/index.js");
-      raw = htmlToDoc(source, { profile: flags.profile, sanitize: parseCtx.sanitize }, diags);
-      break;
-    }
-    case "markdown": {
-      const { parseMarkdown } = await import("../markdown/parse.js");
-      raw = parseMarkdown(source, diags, parseCtx);
-      break;
-    }
-    case "teml":
-    default: {
-      const { parseTeml } = await import("../teml/parse.js");
-      raw = parseTeml(source, diags, parseCtx);
-      break;
-    }
-  }
-  debugLog(flags, `parse(${fmt})`, performance.now() - t0);
-  const t1 = performance.now();
-  const doc = normalize(raw, diags);
-  debugLog(flags, "normalize", performance.now() - t1);
+  const compiler = await loadDocumentCompiler(fmt);
+  const doc = compiler.document(source, diags, {
+    profile: flags.profile,
+    sanitize: sanitizeOpts(flags),
+    onStage: (stage, ms) => debugLog(flags, stage === "parse" ? `parse(${fmt})` : stage, ms),
+  });
   return { doc, diags };
 }
 
@@ -155,14 +146,16 @@ export async function execute(
   switch (command) {
     case "view": {
       const { runView } = await import("./commands/view.js");
-      writeOutput(runView(doc, layoutOpts));
+      await writeOutput(runView(doc, layoutOpts));
       break;
     }
     case "render": {
       const { runRender } = await import("./commands/render.js");
-      writeOutput(
+      await writeOutput(
         runRender(doc, {
-          width: flags.width ?? 80,
+          // Use the clamped capability width, as `view` does: a raw --width can
+          // otherwise be far above MAX_TERMINAL_DIMENSION and stall for minutes.
+          width: caps.width,
           caps,
           diags,
           wrapCode: flags.wrapCode,
@@ -172,11 +165,11 @@ export async function execute(
     }
     case "convert": {
       const { runConvert } = await import("./commands/convert.js");
-      writeOutput(
+      await writeOutput(
         runConvert(doc, {
           to: flags.to ?? "teml",
           diags,
-          width: flags.width ?? 80,
+          width: caps.width,
           caps,
           wrapCode: flags.wrapCode,
         }),
@@ -185,7 +178,7 @@ export async function execute(
     }
     case "inspect": {
       const { runInspect } = await import("./commands/inspect.js");
-      writeOutput(
+      await writeOutput(
         runInspect(doc, {
           ast: flags.ast,
           tokens: flags.tokens,

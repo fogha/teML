@@ -210,3 +210,35 @@ test("layoutTable: direct export matches document path", () => {
   const viaDoc = layoutDocument(doc([block]), o);
   expect(renderPlain(direct)).toBe(renderPlain(viaDoc));
 });
+
+// A ragged Markdown table is ordinary content: GitHub renders it, and the CLI
+// must too rather than throwing on the missing cells.
+test("layoutTable: a row with fewer cells than the widest row renders empty cells", () => {
+  const d = doc([
+    {
+      type: "table",
+      align: [],
+      rows: [
+        { header: true, cells: [[text("A")], [text("B")]] },
+        { header: false, cells: [[text("1")]] },
+      ],
+    },
+  ]);
+  const lines = layoutDocument(d, opts(40));
+  expect(renderPlain(lines)).toContain("1");
+  expect(lines.every((l) => lineWidth(l, { ambiguousWide: false }) <= 40)).toBe(true);
+});
+
+test("layoutTable: a row with more cells than the header pads the header", () => {
+  const d = doc([
+    {
+      type: "table",
+      align: [],
+      rows: [
+        { header: true, cells: [[text("A")], [text("B")]] },
+        { header: false, cells: [[text("1")], [text("2")], [text("3")]] },
+      ],
+    },
+  ]);
+  expect(() => layoutDocument(d, opts(40))).not.toThrow();
+});
