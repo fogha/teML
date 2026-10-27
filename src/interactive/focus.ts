@@ -17,6 +17,10 @@ export type FocusableWidget = {
   attrs: Record<string, string>;
   block?: Extract<Block, { type: "container" }>;
   options?: RadioOption[];
+  /** Enclosing `:::form` id, when this widget belongs to one. Focusable
+   * containers (radio, scroll) can carry it too, so a radio group inside a
+   * form participates in that form's value set. */
+  form?: string;
 };
 
 /**

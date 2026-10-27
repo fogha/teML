@@ -12,6 +12,7 @@
 
 import type { Diagnostics, SanitizeOpts, TDoc } from "../core/index.js";
 import { sanitizeText } from "../core/index.js";
+import { parseValidationRules, validateValue } from "../core/validate.js";
 import { documentCompilers } from "../document/frontends.js";
 import type { LayoutOpts } from "../layout/layout.js";
 import { graphemes } from "../layout/measure.js";
@@ -159,6 +160,9 @@ export class InteractiveSession {
   /** Capability metadata is additive, but only negotiated sessions emit it so
    * the original default-v1 transcript remains byte-identical. */
   private advertiseCapabilities = false;
+  /** Last rendered validation messages, so a reveal that adds (or clears) an
+   * error row can mark exactly the widgets whose row count changed dirty. */
+  private lastFieldErrors: ReadonlyMap<string, string> = new Map();
 
   constructor(doc: TDoc, opts: SessionOptions) {
     this.diags = opts.diags;
@@ -225,6 +229,61 @@ export class InteractiveSession {
     return Object.fromEntries(
       this.focusables.filter((w) => w.name !== "scroll").map((w) => [w.id, widgetValue(w)]),
     );
+  }
+
+  /**
+   * What a `::button`'s `submit` attribute targets.
+   *
+   * `requested` distinguishes "this is not a submit button" from "this is a
+   * submit button whose form does not exist": the first keeps today's `click`,
+   * the second must be a reported error rather than a silently ignored click.
+   */
+  private submitTarget(w: FocusableWidget): { requested: boolean; form?: string } {
+    const raw = w.attrs.submit?.trim();
+    if (raw === undefined || raw.toLowerCase() === "false") return { requested: false };
+    if (raw === "" || raw.toLowerCase() === "true") return { requested: true, form: w.form };
+    return { requested: true, form: raw };
+  }
+
+  /**
+   * The single place any validation rule is interpreted. Called from two
+   * sites only — `activateFocused` to gate a submit, and `frame()` to build the
+   * messages layout draws — so the gate and the display can never disagree
+   * about a rule (docs/architecture.md: the session validates, layout does not).
+   *
+   * Bounded by form membership, so a document with no `:::form` never runs a
+   * rule and keeps byte-identical output.
+   */
+  private computeFieldErrors(): Map<string, string> {
+    const errors = new Map<string, string>();
+    const formIds = this.formIds();
+    if (formIds.size === 0) return errors;
+    for (const w of this.focusables) {
+      if (!w.form || !formIds.has(w.form)) continue;
+      if (!this.widgetState.revealedFields.has(w.id)) continue;
+      if (w.name !== "input" && w.name !== "textarea") continue;
+      const rule = parseValidationRules(w.attrs);
+      if (!rule) continue;
+      const message = validateValue(rule, widgetValue(w));
+      if (message) errors.set(w.id, message);
+    }
+    return errors;
+  }
+
+  /** Ids of every `:::form` currently present in the document. */
+  private formIds(): Set<string> {
+    const ids = new Set<string>();
+    for (const w of this.focusables) {
+      if (w.form) ids.add(w.form);
+    }
+    return ids;
+  }
+
+  /** Hide a field's message as soon as the user edits it: the correction is the
+   * signal, so the error should not survive the keystroke that fixes it. */
+  private markEdited(w: FocusableWidget): void {
+    this.widgetState.revealedFields.delete(w.id);
+    this.markWidgetDirty(w.id);
   }
 
   getCapabilities(): readonly ProtocolCapability[] {
@@ -614,6 +673,7 @@ export class InteractiveSession {
         this.keepTextareaCursorVisible(w);
       }
       this.markWidgetDirty(w.id);
+      this.markEdited(w);
       return [{ type: "change", id: w.id, value }, this.frame()];
     }
 
@@ -628,6 +688,7 @@ export class InteractiveSession {
       this.keepTextareaCursorVisible(w);
     }
     this.markWidgetDirty(w.id);
+    this.markEdited(w);
     return [{ type: "change", id: w.id, value }, this.frame()];
   }
 
@@ -641,6 +702,7 @@ export class InteractiveSession {
       this.widgetState.cursor.set(w.id, 0);
       if (w.name === "textarea") this.widgetState.textareaScrollOffsets.set(w.id, 0);
       this.markWidgetDirty(w.id);
+      this.markEdited(w);
       return [{ type: "change", id: w.id, value: "" }, this.frame()];
     }
 
@@ -656,6 +718,7 @@ export class InteractiveSession {
       this.keepTextareaCursorVisible(w);
     }
     this.markWidgetDirty(w.id);
+    this.markEdited(w);
     return [{ type: "change", id: w.id, value }, this.frame()];
   }
 
@@ -668,6 +731,7 @@ export class InteractiveSession {
       this.widgetState.cursor.set(w.id, 0);
       if (w.name === "textarea") this.widgetState.textareaScrollOffsets.set(w.id, 0);
       this.markWidgetDirty(w.id);
+      this.markEdited(w);
       return [{ type: "change", id: w.id, value: "" }, this.frame()];
     }
 
@@ -682,6 +746,7 @@ export class InteractiveSession {
       this.keepTextareaCursorVisible(w);
     }
     this.markWidgetDirty(w.id);
+    this.markEdited(w);
     return [{ type: "change", id: w.id, value }, this.frame()];
   }
 
@@ -750,6 +815,7 @@ export class InteractiveSession {
     if (w.attrs.value === value) return [this.frame()];
     w.attrs.value = value;
     this.markWidgetDirty(w.id);
+    this.markEdited(w);
     return [{ type: "change", id: w.id, value }, this.frame()];
   }
 
@@ -812,8 +878,11 @@ export class InteractiveSession {
     const w = this.currentWidget();
     if (!w) return [this.frame()];
     switch (w.name) {
-      case "button":
+      case "button": {
+        const target = this.submitTarget(w);
+        if (target.requested) return this.submitForm(target.form);
         return [{ type: "click", id: w.id, values: this.values() }, this.frame()];
+      }
       case "checkbox": {
         const checked = !isChecked(w.attrs);
         w.attrs.checked = String(checked);
@@ -831,6 +900,46 @@ export class InteractiveSession {
       case "scroll":
         return [this.frame()];
     }
+  }
+
+  /**
+   * Activate a submit button in `formId`. On success it emits `submit` *instead
+   * of* `click`, so an activation is exactly one event and a host implementing
+   * both handlers cannot double-fire. On failure it reveals the form's fields
+   * (so the error rows render) and answers with `error`, naming failing ids and
+   * never any value — a masked field must not leak through the error channel.
+   * `error` already completes its command, so host loops keep their discipline.
+   */
+  private submitForm(formId: string | undefined): SessionEvent[] {
+    if (formId === undefined) {
+      return [
+        {
+          type: "error",
+          message: "submit: this button is not inside a :::form and names none",
+        },
+        this.frame(),
+      ];
+    }
+    if (!this.focusables.some((w) => w.form === formId)) {
+      return [
+        { type: "error", message: `submit: no form '${formId}' in this document` },
+        this.frame(),
+      ];
+    }
+    for (const w of this.focusables) {
+      if (w.form === formId) this.widgetState.revealedFields.add(w.id);
+    }
+    const errors = this.computeFieldErrors();
+    if (errors.size > 0) {
+      return [
+        {
+          type: "error",
+          message: `form '${formId}' is invalid: ${[...errors.keys()].join(", ")}`,
+        },
+        this.frame(),
+      ];
+    }
+    return [{ type: "submit", form: formId, values: this.values() }, this.frame()];
   }
 
   /** Resolve a click at `(row, col)` (0-indexed into the last frame) to a widget,
@@ -1153,6 +1262,14 @@ export class InteractiveSession {
     const selectionActive = isText && this.widgetState.untouchedDefault.has(focused.id);
     const cursorPos = isText && !selectionActive ? this.cursorFor(focused) : undefined;
     const hits: WidgetHit[] = [];
+    // Single validation site: the same map gates submit (activateFocused) and
+    // feeds layout. `formIds()` is empty for form-free documents, so this
+    // returns immediately and output stays byte-identical.
+    const fieldErrors = this.computeFieldErrors();
+    for (const id of new Set([...this.lastFieldErrors.keys(), ...fieldErrors.keys()])) {
+      if (this.lastFieldErrors.get(id) !== fieldErrors.get(id)) this.markWidgetDirty(id);
+    }
+    this.lastFieldErrors = fieldErrors;
     const opts: LayoutOpts = {
       width: this.layout.width,
       theme: this.layout.theme,
@@ -1166,6 +1283,7 @@ export class InteractiveSession {
       radioPending: this.widgetState.radioPending,
       textareaScrollOffsets: this.widgetState.textareaScrollOffsets,
       scrollRegionRuntime: this.widgetState.scrollRegionRuntime,
+      fieldErrors,
       hits,
     };
     if (!this.layoutCache) {

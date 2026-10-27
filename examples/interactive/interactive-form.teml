@@ -7,7 +7,11 @@ theme: dark
 
 This compact screen exercises the complete widget model. Use **Tab** to move
 between controls; arrows choose a channel, **Enter** confirms it, and
-**Ctrl+Enter** leaves the multiline field.
+**Ctrl+Enter** leaves the multiline field. The fields live in a `:::form`, so
+**Queue deployment** validates them first and reports one `submit` event
+instead of a `click`.
+
+::::form{id="handoff" label="Deployment request"}
 
 :::radio{id="channel" value="staging"}
 ::option{value="canary" label="Canary · 5% traffic"}
@@ -15,10 +19,21 @@ between controls; arrows choose a channel, **Enter** confirms it, and
 ::option{value="production" label="Production · full rollout"}
 :::
 
-::input{id="owner" label="Release owner" value="Ada"}
+::input{id="owner" label="Release owner" value="Ada" required}
 
-::textarea{id="notes" label="Release notes" placeholder="Risks, checks, and rollback plan…" rows="3"}
+::input{id="ticket" label="Tracking ticket" placeholder="REL-1234" pattern="[A-Z]+-[0-9]+" required}
+
+::input{id="token" label="Rollback token" mask minLength="12"}
+
+::textarea{id="notes" label="Release notes" placeholder="Risks, checks, and rollback plan…" rows="3" maxLength="500"}
 
 ::checkbox{id="approved" label="All pre-flight checks passed"}
 
-::button{id="deploy" label="Queue deployment"}
+::button{id="deploy" label="Queue deployment" submit}
+
+::::
+
+Clear **Release owner** and try again to see the error rows appear — they show
+up only after a failed submit and clear as soon as you edit the field. The
+rollback token is masked on screen (`•` per character) but reaches the host
+intact in the `submit` values.

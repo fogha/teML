@@ -34,6 +34,12 @@ export class WidgetState {
    * backspace clears it. Any edit removes the id. */
   readonly untouchedDefault = new Set<string>();
 
+  /** Ids whose validation message is currently allowed to render. A field is
+   * revealed only when a submit of its form fails; editing it hides the
+   * message again. Kept here rather than on the session so document
+   * transitions prune it with every other id-keyed transient. */
+  readonly revealedFields = new Set<string>();
+
   /** Drop per-widget transient state for ids that no longer resolve to a
    * surviving widget after a document mutation or a `render` swap. */
   pruneTransient(survivingIds: ReadonlySet<string>): void {
@@ -46,6 +52,9 @@ export class WidgetState {
       for (const id of map.keys()) {
         if (!survivingIds.has(id)) map.delete(id);
       }
+    }
+    for (const id of this.revealedFields) {
+      if (!survivingIds.has(id)) this.revealedFields.delete(id);
     }
   }
 }

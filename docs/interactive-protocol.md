@@ -609,6 +609,7 @@ One JSON object per line on stdout.
 | `change` | `id`, `value`                                                                                                                                                                       | An input/textarea value changed, or a radio selection was confirmed                                              |
 | `toggle` | `id`, `checked`                                                                                                                                                                     | A checkbox's checked state changed                                                                               |
 | `click`  | `id`, `values`                                                                                                                                                                      | A button was activated; `values` maps every widget id to its current value (`"true"`/`"false"` for checkboxes)   |
+| `submit` | `form`, `values`                                                                                                                                                                    | A `::button{submit}` in a valid `:::form` was activated. `values` has the same scope as `click.values`. An invalid form emits `error` instead |
 | `error`  | `message`                                                                                                                                                                           | A command line was malformed, unrecognized, a late `configure`, a failed `render`, or a rejected update/mutation |
 | `exit`   | —                                                                                                                                                                                   | The session ended                                                                                                |
 
@@ -683,7 +684,7 @@ Negotiated full frames carry:
 
 ```json
 {
-  "protocol": { "major": 1, "minor": 3 },
+  "protocol": { "major": 1, "minor": 4 },
   "capabilities": [
     "frameFormats",
     "patches",
@@ -697,10 +698,16 @@ Negotiated full frames carry:
     "textarea",
     "scrollRegions",
     "update",
-    "documentMutations"
+    "documentMutations",
+    "mask",
+    "validation",
+    "formSubmit"
   ]
 }
 ```
+
+Protocol 1.4 adds the `submit` event and the three capabilities above; it is an
+additive minor with no command changes.
 
 Major changes may break command/event meaning and are fatal when a host
 requires another major. Minor changes are additive; hosts inspect the finite
@@ -777,8 +784,10 @@ printf '%s\n' \
 
 ## Focusable widgets and ids
 
-Only `button`, `input`, and `checkbox` leaves participate in focus
-navigation. Each needs a stable, unique `id` attribute:
+Focus navigation reaches the focusable leaves `button`, `input`, `checkbox`,
+and `textarea`, and the focusable containers `radio` and `scroll` (see
+`FOCUSABLE_LEAFS`/`FOCUSABLE_CONTAINERS` in `src/teml/directives.ts`). Each
+needs a stable, unique `id` attribute:
 
 - Missing `id` → the widget is skipped from the focus order with an
   `unknown-directive`-style diagnostic on stderr; it still renders, just
@@ -788,7 +797,67 @@ navigation. Each needs a stable, unique `id` attribute:
   payloads always have unambiguous keys.
 
 Tab order follows document order (depth-first, including widgets nested
-inside containers like `card`, `details`, `grid`).
+inside containers like `card`, `details`, `grid`, and `form`).
+
+## Forms, validation, and masked input (protocol 1.4)
+
+`:::form{id="…"}` groups fields so that a submit can be one atomic event, and so
+that field constraints have somewhere to report a failure.
+
+- A `::button{submit}` is a submit control. `submit="true"` (or a bare `submit`)
+  targets the nearest enclosing `:::form`; `submit="<id>"` targets a named form
+  and may sit outside it. A button without `submit` is unchanged.
+- Forms are **not nestable**, and a form inside `:::scroll` is flattened with a
+  `form-nested-form` diagnostic — both because a widget must belong to exactly
+  one form.
+- A form id shares the one id namespace with widgets, so a form and a field
+  cannot collide; a named `submit="<id>"` target must be unambiguous. The
+  addressability walk enforces this: the later duplicate is rejected with a
+  `form-duplicate-id` (form) or `focus-duplicate-id` (widget) diagnostic and
+  loses its id, so a duplicate form's fields stop belonging to any form rather
+  than silently merging under one submit target.
+
+Validation attributes (`required`, `pattern`, `minLength`, `maxLength`, `count`)
+are inert outside a form. An error message becomes visible **only after a failed
+submit**, and is hidden again as soon as that field is edited: there is no
+as-you-type validation. A failing field renders one `role=error` line beneath it.
+
+### The `submit` event
+
+When every field in the form is valid, activation emits **one `submit`** event
+*instead of* `click`:
+
+```json
+{"type":"submit","form":"deploy","values":{"owner":"Ada","accept":"","decline":""}}
+```
+
+`values` has exactly the scope of `click.values` (every focusable widget except
+scroll regions), so a host never has to learn two scoping rules. Emitting only
+one of the two events means a host implementing both handlers cannot double-fire.
+
+When a field is invalid, no `submit` is emitted. The engine reveals that form's
+failing fields and answers with `error`, naming the failing **field ids** and
+never any value — so a masked field cannot leak through the error channel. As
+with every other `error`, that event completes the command; the host must not
+also wait for a frame.
+
+### Adopting forms in a host
+
+`:::form` **is** the opt-in boundary, and there are two consequences worth
+stating plainly:
+
+- A host that implements only `onClick` renders a live, clickable Submit that
+  does nothing. Hosts should check the `formSubmit` capability before rendering
+  a form, and every shipped library surfaces an unrecognized event (through its
+  error channel, or stderr when no handler is installed) rather than dropping
+  it silently — the subprocess hosts also complete the command it answered,
+  since no frame follows.
+- Capability metadata appears only on a pre-negotiated frame 1 or on the
+  `configure` acknowledgement, so a host that never negotiates cannot discover
+  `formSubmit` ahead of time; it learns from the `submit` event itself.
+
+Capabilities `mask`, `validation`, and `formSubmit` are advertised separately so
+a host can adopt masking without adopting validation.
 
 ## Outside a session
 

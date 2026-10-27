@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from teml_host import Context, run_headless
 from teml_host.app import _Handlers, _drive
 from teml_host.screen import PreferredFrame, ScreenBuffer
 from teml_host.terminal import ScriptedStdinEvents
 from teml_host.types import ErrorEvent, ExitCommand, ExitEvent, RenderCommand
+
+
+def _fake_engine() -> str:
+    path = Path(__file__).resolve().parents[3] / "fixtures" / "engine" / "fake-engine.mjs"
+    if not path.is_file():
+        raise FileNotFoundError(f"fake engine missing: {path}")
+    return str(path)
 
 
 @dataclass
@@ -114,3 +122,49 @@ def test_an_engine_error_completes_the_command_instead_of_blocking() -> None:
     assert errors == ["render rejected"]
     assert exits == [True]
     assert values == {}
+
+
+def test_an_unknown_event_completes_the_command_and_surfaces() -> None:
+    """An engine newer than this host may answer a command with an event type
+    the host does not know and no frame. The loop must surface the event and
+    complete the command; waiting for a frame would hang forever. The document
+    name selects the fake engine's scenario."""
+    errors: list[str] = []
+
+    def on_error(message: str, ctx: Context) -> None:
+        errors.append(message)
+        ctx.exit()
+
+    values = run_headless(
+        "unknown-event",
+        on_error=on_error,
+        events=ScriptedStdinEvents.typing("x"),
+        size=(60, 20),
+        engine=_fake_engine(),
+    )
+
+    assert errors == ["unrecognized session event 'future-thing'"]
+    assert values == {}
+
+
+def test_a_submit_event_dispatches_on_submit_with_form_and_values() -> None:
+    submits: list[tuple[str, Values]] = []
+
+    def on_submit(form: str, values: Values, ctx: Context) -> None:
+        submits.append((form, dict(values)))
+        ctx.exit()
+
+    values = run_headless(
+        "submit",
+        on_submit=on_submit,
+        events=ScriptedStdinEvents.typing("x"),
+        size=(60, 20),
+        engine=_fake_engine(),
+    )
+
+    assert len(submits) == 1, "on_submit must fire exactly once"
+    form, submitted = submits[0]
+    assert form == "deploy"
+    assert submitted.get("env") == "prod"
+    # The final values are the submit snapshot.
+    assert values.get("env") == "prod"

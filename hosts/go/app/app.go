@@ -69,6 +69,10 @@ type Handlers struct {
 	OnChange func(id, value string, ctx *Context)
 	OnToggle func(id string, checked bool, ctx *Context)
 	OnClick  func(id string, values Values, ctx *Context)
+	// OnSubmit fires for a ::button{submit} in a :::form whose fields are all
+	// valid. Inside a form it fires instead of OnClick, so a host that only
+	// implements OnClick keeps working on form-free documents.
+	OnSubmit func(form string, values Values, ctx *Context)
 	OnError  func(message string, ctx *Context)
 }
 
@@ -276,6 +280,9 @@ commands:
 			case "click":
 				*values = cloneValues(ev.Values)
 				dispatchClick(handlers, ev.ID, cloneValues(ev.Values), values, &queued, &exit)
+			case "submit":
+				*values = cloneValues(ev.Values)
+				dispatchSubmit(handlers, ev.Form, cloneValues(ev.Values), values, &queued, &exit)
 			case "error":
 				dispatchError(handlers, ev.Message, values, &queued, &exit)
 				// A rejected command answers with `error` and no frame, so this
@@ -284,6 +291,20 @@ commands:
 				continue commands
 			case "exit":
 				return cloneValues(*values), nil
+			default:
+				// Forward compatibility: a newer engine may emit an event type
+				// this host does not know. Surface it through the same channel
+				// as engine errors, and complete the command rather than
+				// dropping it, or the loop waits forever for a frame that the
+				// engine considers already delivered. This mirrors the Node
+				// host's message.
+				message := fmt.Sprintf("unrecognized session event '%s'", ev.Type)
+				if handlers.OnError != nil {
+					dispatchError(handlers, message, values, &queued, &exit)
+				} else {
+					fmt.Fprintln(os.Stderr, message)
+				}
+				continue commands
 			}
 		}
 	}
@@ -335,6 +356,12 @@ func dispatchToggle(h Handlers, id string, checked bool, values *Values, queued 
 func dispatchClick(h Handlers, id string, snapshot Values, values *Values, queued *[]protocol.Command, exit *bool) {
 	if h.OnClick != nil {
 		h.OnClick(id, snapshot, newContext(values, queued, exit))
+	}
+}
+
+func dispatchSubmit(h Handlers, form string, snapshot Values, values *Values, queued *[]protocol.Command, exit *bool) {
+	if h.OnSubmit != nil {
+		h.OnSubmit(form, snapshot, newContext(values, queued, exit))
 	}
 }
 

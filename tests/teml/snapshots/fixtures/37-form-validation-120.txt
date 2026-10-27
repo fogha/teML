@@ -1,0 +1,19 @@
+▸ Deploy target ────────────────────────────────────────────────────────────────────────────────────────────────────────
+    Release owner: []
+
+    Tag: [release]
+
+    Password: [•••••••]
+
+    ☑ Notify on-call
+
+    [ Accept ]
+
+    [ Decline ]
+
+A second form shows that grouping is per-form, not per-document.
+
+▸ Retry policy ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+    Attempts: [3]
+
+    [ Save ]

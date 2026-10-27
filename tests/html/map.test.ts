@@ -77,7 +77,11 @@ line two</textarea>
   const diags = new Diagnostics();
   const document = parseHtml(source);
   const mapped = normalize(htmlToDocFromRoot(document.body, {}, diags, document), diags);
-  const radio = mapped.blocks.find((block) => block.type === "container" && block.name === "radio");
+  // <form> is now a real container, so the mapped widgets live one level deeper.
+  const form = mapped.blocks.find((block) => block.type === "container" && block.name === "form");
+  expect(form).toBeDefined();
+  const formChildren = form?.type === "container" ? form.children : [];
+  const radio = formChildren.find((block) => block.type === "container" && block.name === "radio");
   expect(radio).toMatchObject({
     type: "container",
     attrs: { id: "plan", value: "pro" },
@@ -86,7 +90,7 @@ line two</textarea>
       { type: "leaf", name: "option", attrs: { value: "pro", label: "Pro" } },
     ],
   });
-  expect(mapped.blocks).toContainEqual({
+  expect(formChildren).toContainEqual({
     type: "leaf",
     name: "textarea",
     attrs: { id: "bio", label: "Bio", rows: "3", value: "line one\nline two" },
@@ -103,5 +107,53 @@ test("map: data-teml scroll keeps id and fixed rows", () => {
     type: "container",
     name: "scroll",
     attrs: { id: "logs", rows: "4" },
+  });
+});
+
+test("map: a password input is masked rather than rendered in cleartext", () => {
+  const document = parseHtml(
+    '<html><body><input id="pw" type="password" value="hunter2" aria-label="Password"></body></html>',
+  );
+  const diags = new Diagnostics();
+  const mapped = normalize(htmlToDocFromRoot(document.body, {}, diags, document), diags);
+  expect(mapped.blocks[0]).toMatchObject({
+    type: "leaf",
+    name: "input",
+    attrs: { id: "pw", mask: "password", value: "hunter2" },
+  });
+});
+
+test("map: HTML constraint attributes become TeML validation attributes", () => {
+  const document = parseHtml(
+    '<html><body><input id="email" required minlength="3" maxlength="40" pattern="[^@]+@[^@]+" aria-label="Email"></body></html>',
+  );
+  const diags = new Diagnostics();
+  const mapped = normalize(htmlToDocFromRoot(document.body, {}, diags, document), diags);
+  expect(mapped.blocks[0]).toMatchObject({
+    type: "leaf",
+    name: "input",
+    attrs: {
+      id: "email",
+      required: "true",
+      minLength: "3",
+      maxLength: "40",
+      pattern: "[^@]+@[^@]+",
+    },
+  });
+});
+
+test("map: a submit control inside a form becomes a TeML form submit", () => {
+  const document = parseHtml(
+    '<html><body><form id="f"><input id="name" aria-label="Name"><button type="submit">Send</button></form></body></html>',
+  );
+  const diags = new Diagnostics();
+  const mapped = normalize(htmlToDocFromRoot(document.body, {}, diags, document), diags);
+  const form = mapped.blocks[0];
+  expect(form).toMatchObject({ type: "container", name: "form", attrs: { id: "f" } });
+  const children = form?.type === "container" ? form.children : [];
+  expect(children).toContainEqual({
+    type: "leaf",
+    name: "button",
+    attrs: { label: "Send", submit: "true" },
   });
 });

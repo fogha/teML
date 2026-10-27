@@ -98,6 +98,30 @@ Not covered: the Reader was driven with TTY-shaped streams rather than a real
 pty (this sandbox denies `/dev/ptmx`), so post-exit termios and SIGWINCH are
 unverified; behaviour is macOS-only; no sustained-load or long-run memory soak.
 
+## Adoption ladder (not yet measured)
+
+The program-level success metrics in [product.md](product.md) are adoption
+metrics, and nothing in this repository currently measures them. That gap is why
+a stretch of protocol and infrastructure work can land while user-facing P0
+requirements sit unimplemented without anyone noticing: the visible numbers here
+are test counts and performance budgets, which measure *engineering quality*, not
+*use*.
+
+| Rung | Question it answers | Where it would be measured |
+| --- | --- | --- |
+| CLI installs | Is anyone installing it? | Registry download counts; release asset fetches |
+| Tools embedding output | Is a real tool's `--report` TeML? | Unsolicited reports; corpus of known embedders |
+| Apps on the protocol | Has anyone built a program on `teml run`? | Host-library dependents per ecosystem |
+| Agent products streaming TeML | Did the agent-native bet land? | Named adopters |
+| Remote endpoints | Was the Wire release used? | Deployments |
+| Registry packages | Is the format the product? | Independent implementations passing conformance |
+
+Filling in even the first rung is a small, independent task: record the numbers
+here with a date, or record explicitly that they are unmeasured and why. The
+target from the original PRD — 1k stars / 5k monthly installs within six months,
+at least three external tools embedding output, at least ten third-party apps on
+the protocol — is retained as direction, not as a commitment.
+
 ## Open correctness work
 
 | Priority / ID | Evidence and required change                                                                                                                                                                                                                                    | Acceptance check                                                                                                           |

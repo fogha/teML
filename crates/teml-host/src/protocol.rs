@@ -10,8 +10,8 @@ use std::collections::HashMap;
 
 /// Protocol version carried on discovery frames.
 pub const PROTOCOL_MAJOR: u32 = 1;
-/// Protocol minor version implemented by this crate (1.3 document mutations).
-pub const PROTOCOL_MINOR: u32 = 3;
+/// Protocol minor version implemented by this crate (1.4 forms and validation).
+pub const PROTOCOL_MINOR: u32 = 4;
 
 pub const CAPABILITY_FRAME_FORMATS: &str = "frameFormats";
 pub const CAPABILITY_PATCHES: &str = "patches";
@@ -26,10 +26,13 @@ pub const CAPABILITY_TEXTAREA: &str = "textarea";
 pub const CAPABILITY_SCROLL_REGIONS: &str = "scrollRegions";
 pub const CAPABILITY_UPDATE: &str = "update";
 pub const CAPABILITY_DOCUMENT_MUTATIONS: &str = "documentMutations";
+pub const CAPABILITY_MASK: &str = "mask";
+pub const CAPABILITY_VALIDATION: &str = "validation";
+pub const CAPABILITY_FORM_SUBMIT: &str = "formSubmit";
 pub const MAX_DOCUMENT_BLOCKS: usize = 10_000;
 pub const MAX_MUTATION_TARGET_CHILDREN: usize = 2_000;
 
-/// Finite capability vocabulary implemented by protocol 1.3.
+/// Finite capability vocabulary implemented by protocol 1.4.
 pub const ENGINE_CAPABILITIES: &[&str] = &[
     CAPABILITY_FRAME_FORMATS,
     CAPABILITY_PATCHES,
@@ -44,6 +47,9 @@ pub const ENGINE_CAPABILITIES: &[&str] = &[
     CAPABILITY_SCROLL_REGIONS,
     CAPABILITY_UPDATE,
     CAPABILITY_DOCUMENT_MUTATIONS,
+    CAPABILITY_MASK,
+    CAPABILITY_VALIDATION,
+    CAPABILITY_FORM_SUBMIT,
 ];
 
 /// Named navigation / editing keys accepted by the engine.
@@ -259,6 +265,14 @@ impl Frame {
 }
 
 /// Engine → host messages (one JSON object per stdout line).
+/// A valid `:::form` submission. `values` matches `Click.values`' scope.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Submit {
+    pub form: String,
+    pub values: HashMap<String, String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Event {
@@ -276,12 +290,20 @@ pub enum Event {
         id: String,
         values: HashMap<String, String>,
     },
+    /// A `::button{submit}` inside a `:::form` whose fields are all valid.
+    /// `values` has the same scope as `Click.values` (every focusable widget).
+    /// An invalid form emits `Error` instead, never `Submit`.
+    #[serde(rename = "submit")]
+    Submit(Submit),
     Error {
         message: String,
     },
     Exit,
-    /// Additive future event types.
-    Unknown,
+    /// Additive future event types. The wire `type` string is preserved so a
+    /// host can surface what it did not understand.
+    Unknown {
+        event_type: String,
+    },
 }
 
 impl PartialEq for Event {
@@ -318,9 +340,10 @@ impl PartialEq for Event {
                     values: b_values,
                 },
             ) => a_id == b_id && a_values == b_values,
+            (Self::Submit(a), Self::Submit(b)) => a == b,
             (Self::Error { message: a }, Self::Error { message: b }) => a == b,
             (Self::Exit, Self::Exit) => true,
-            (Self::Unknown, Self::Unknown) => true,
+            (Self::Unknown { event_type: a }, Self::Unknown { event_type: b }) => a == b,
             _ => false,
         }
     }
@@ -363,12 +386,33 @@ impl Event {
                     .unwrap_or_default();
                 Ok(Self::Click { id, values })
             }
+            Some("submit") => {
+                let form = field_string(&value, "form")?;
+                let values = value
+                    .get("values")
+                    .and_then(Value::as_object)
+                    .map(|map| {
+                        map.iter()
+                            .filter_map(|(key, val)| {
+                                val.as_str().map(|s| (key.clone(), s.to_owned()))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                Ok(Self::Submit(Submit { form, values }))
+            }
             Some("error") => Ok(Self::Error {
                 message: field_string(&value, "message")
                     .unwrap_or_else(|_| "protocol error".into()),
             }),
             Some("exit") => Ok(Self::Exit),
-            Some(_) | None => Ok(Self::Unknown),
+            // A missing `type` is surfaced the same way the Node host does it.
+            Some(other) => Ok(Self::Unknown {
+                event_type: other.to_owned(),
+            }),
+            None => Ok(Self::Unknown {
+                event_type: "unknown".to_owned(),
+            }),
         }
     }
 }
@@ -421,10 +465,10 @@ mod tests {
     }
 
     #[test]
-    fn current_protocol_version_is_one_three() {
+    fn current_protocol_version_is_one_four() {
         assert_eq!(
             ProtocolVersion::CURRENT,
-            ProtocolVersion { major: 1, minor: 3 }
+            ProtocolVersion { major: 1, minor: 4 }
         );
         assert_eq!(
             ENGINE_CAPABILITIES,
@@ -442,6 +486,9 @@ mod tests {
                 "scrollRegions",
                 "update",
                 "documentMutations",
+                "mask",
+                "validation",
+                "formSubmit",
             ]
         );
     }
@@ -507,7 +554,40 @@ mod tests {
     #[test]
     fn unknown_event_type_is_preserved() {
         let event = Event::from_line(r#"{"type":"future","id":"x"}"#).expect("parse");
-        assert_eq!(event, Event::Unknown);
+        assert_eq!(
+            event,
+            Event::Unknown {
+                event_type: "future".to_owned()
+            }
+        );
+    }
+
+    #[test]
+    fn submit_event_decodes_form_and_values() {
+        let event =
+            Event::from_line(r#"{"type":"submit","form":"f","values":{"name":"Ada","accept":""}}"#)
+                .expect("parse");
+        match event {
+            Event::Submit(submit) => {
+                assert_eq!(submit.form, "f");
+                assert_eq!(submit.values.get("name").map(String::as_str), Some("Ada"));
+            }
+            other => panic!("expected Submit, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn submit_event_serializes_with_a_type_tag() {
+        let mut values = HashMap::new();
+        values.insert("name".to_owned(), "Ada".to_owned());
+        let event = Event::Submit(Submit {
+            form: "f".to_owned(),
+            values,
+        });
+        let json: Value = serde_json::from_str(&serde_json::to_string(&event).expect("serialize"))
+            .expect("reparse");
+        assert_eq!(json.get("type").and_then(Value::as_str), Some("submit"));
+        assert_eq!(json.get("form").and_then(Value::as_str), Some("f"));
     }
 
     #[test]

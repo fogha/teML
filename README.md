@@ -1,6 +1,6 @@
 # TeML — Terminal Markup Language
 
-[![Discord](https://img.shields.io/badge/Discord-Join_the_server-5865F2?logo=discord&logoColor=white)](https://discord.gg/Q5ZqPf98t)
+[![Discord](https://img.shields.io/badge/Discord-Join_the_server-5865F2?logo=discord&logoColor=white)](https://discord.gg/xGxyM7Nah)
 
 Build readable terminal documents and interactive CLI interfaces from **TeML**,
 **Markdown**, or semantic **HTML**.
@@ -162,6 +162,7 @@ its key hints when a bounded scroll region has focus.
 | [docs/architecture.md](docs/architecture.md)                                             | Engine boundaries, state ownership, bindings, and distribution        |
 | [docs/host-porting-playbook.md](docs/host-porting-playbook.md)                             | Contract and conformance steps for porting a host to a new language   |
 | [docs/maintenance.md](docs/maintenance.md)                                               | Open findings, refactoring priorities, and verification evidence       |
+| [docs/product.md](docs/product.md)                                                         | Product direction: release themes, non-goals, adoption metrics        |
 | [docs/theming.md](docs/theming.md)                                                         | Themes, roles, ASCII/color fallbacks                                  |
 | [docs/tutorial.md](docs/tutorial.md)                                                       | 5-minute first conversion walkthrough                                 |
 | [CONTRIBUTING.md](CONTRIBUTING.md)                                                         | Dev setup, testing, and PR expectations                               |
@@ -179,6 +180,8 @@ its key hints when a bounded scroll region has focus.
 ## Features (v1)
 
 **TeML:** YAML frontmatter · CommonMark + GFM · `:success/:warning/:error/:info/:muted/:highlight/:kbd` spans · GFM `~~strike~~` · `:::card`, alerts, `:::grid`, `:::details`, `:::figure` · `::kv`, `::metric`, `::progress`, `::event`, `::image`, `::break` · footnotes · definition lists · nested directives · custom frontmatter roles.
+
+**Forms (under `teml run`):** `:::form` grouping · `::button{submit}` emitting one atomic `submit` event · `required`/`pattern`/`minLength`/`maxLength` validation with inline `role=error` feedback · `::input{… mask}` for masked values, including HTML `<input type="password">`.
 
 **Markdown:** CommonMark + GFM import/export with documented lossy mapping for TeML-only constructs.
 
@@ -224,7 +227,7 @@ dependencies are lazy-loaded so TeML-only paths stay fast.
 
 ## Community
 
-Join the [TeML Discord server](https://discord.gg/Q5ZqPf98t) for development
+Join the [TeML Discord server](https://discord.gg/xGxyM7Nah) for development
 discussion, questions, and contributions.
 
 ## License

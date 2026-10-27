@@ -101,6 +101,11 @@ pub trait App {
     /// A button was activated. `values` is the engine's authoritative snapshot.
     fn on_click(&mut self, _id: &str, _values: &Values, _ctx: &mut Context<'_>) {}
 
+    /// A `::button{submit}` inside a `:::form` activated with every field valid.
+    /// Inside a form this fires *instead of* [`App::on_click`]; `values` has the
+    /// same scope as a click snapshot.
+    fn on_submit(&mut self, _form: &str, _values: &Values, _ctx: &mut Context<'_>) {}
+
     /// The engine reported a recoverable protocol error.
     fn on_error(&mut self, _message: &str, _ctx: &mut Context<'_>) {}
 }
@@ -210,6 +215,11 @@ fn drive<A: App, E: TerminalEvents>(
                     let mut ctx = context(&values, &mut queued, &mut exit);
                     app.on_click(&id, &values, &mut ctx);
                 }
+                Event::Submit(submit) => {
+                    values = submit.values;
+                    let mut ctx = context(&values, &mut queued, &mut exit);
+                    app.on_submit(&submit.form, &values, &mut ctx);
+                }
                 Event::Error { message } => {
                     let mut ctx = context(&values, &mut queued, &mut exit);
                     app.on_error(&message, &mut ctx);
@@ -221,7 +231,18 @@ fn drive<A: App, E: TerminalEvents>(
                 }
                 // The engine can end the session on its own.
                 Event::Exit => return Ok(values),
-                Event::Unknown => {}
+                Event::Unknown { event_type } => {
+                    // Forward compatibility: a newer engine may emit an event
+                    // type this host does not know. Surface it through the
+                    // same channel as engine errors, and treat it as the
+                    // command's completion — waiting for a frame would block
+                    // forever, because the engine considers the command
+                    // answered. This mirrors the Node host's message.
+                    let message = format!("unrecognized session event '{event_type}'");
+                    let mut ctx = context(&values, &mut queued, &mut exit);
+                    app.on_error(&message, &mut ctx);
+                    break;
+                }
             }
         }
     }
@@ -253,7 +274,7 @@ fn drain_after_exit(session: &mut Session) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::default_package_scripts;
+    use crate::engine::{default_package_scripts, ExplicitEngine};
     use crate::EngineResolveOptions;
     use crossterm::event::{Event as TerminalEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
     use std::io;
@@ -312,6 +333,29 @@ mod tests {
             no_color: true,
             engine: EngineResolveOptions {
                 package_scripts: default_package_scripts(&manifest_dir()),
+                ..Default::default()
+            },
+        }
+    }
+
+    /// Point the session at the scripted fake engine. The document name is the
+    /// scenario selector; the fake ignores the path's existence.
+    fn fake_engine_options(scenario: &str) -> SessionOptions {
+        SessionOptions {
+            document: scenario.into(),
+            width: 60,
+            height: None,
+            frames: None,
+            mode: None,
+            no_color: true,
+            engine: EngineResolveOptions {
+                explicit: Some(ExplicitEngine {
+                    program: "node".into(),
+                    args: vec![manifest_dir()
+                        .join("../../fixtures/engine/fake-engine.mjs")
+                        .display()
+                        .to_string()],
+                }),
                 ..Default::default()
             },
         }
@@ -420,5 +464,70 @@ mod tests {
         );
         // The session survived the rejection and kept the value typed before it.
         assert_eq!(values.get("service").map(String::as_str), Some("X"));
+    }
+
+    // An engine newer than this host may answer a command with an event type
+    // the host does not know and no frame. The loop must surface the event and
+    // complete the command; waiting for a frame would hang forever.
+    #[test]
+    fn an_unknown_event_completes_the_command_and_surfaces_through_on_error() {
+        #[derive(Default)]
+        struct UnknownRecorder {
+            errors: Vec<String>,
+        }
+
+        impl App for UnknownRecorder {
+            fn on_error(&mut self, message: &str, ctx: &mut Context<'_>) {
+                self.errors.push(message.to_owned());
+                ctx.exit();
+            }
+        }
+
+        let mut recorder = UnknownRecorder::default();
+        let values = run_headless(
+            fake_engine_options("unknown-event"),
+            &mut recorder,
+            ScriptedEvents::typing("x"),
+            (60, 20),
+        )
+        .expect("fake engine session");
+
+        assert_eq!(
+            recorder.errors,
+            vec!["unrecognized session event 'future-thing'".to_owned()],
+            "the unknown event type must be surfaced, not discarded"
+        );
+        assert!(values.is_empty());
+    }
+
+    #[test]
+    fn a_submit_event_dispatches_on_submit_with_form_and_values() {
+        #[derive(Default)]
+        struct SubmitRecorder {
+            submits: Vec<(String, Values)>,
+        }
+
+        impl App for SubmitRecorder {
+            fn on_submit(&mut self, form: &str, values: &Values, ctx: &mut Context<'_>) {
+                self.submits.push((form.to_owned(), values.clone()));
+                ctx.exit();
+            }
+        }
+
+        let mut recorder = SubmitRecorder::default();
+        let values = run_headless(
+            fake_engine_options("submit"),
+            &mut recorder,
+            ScriptedEvents::typing("x"),
+            (60, 20),
+        )
+        .expect("fake engine session");
+
+        assert_eq!(recorder.submits.len(), 1, "on_submit must fire once");
+        let (form, submitted) = &recorder.submits[0];
+        assert_eq!(form, "deploy");
+        assert_eq!(submitted.get("env").map(String::as_str), Some("prod"));
+        // The final values are the submit snapshot.
+        assert_eq!(values.get("env").map(String::as_str), Some("prod"));
     }
 }

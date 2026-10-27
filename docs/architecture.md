@@ -4,7 +4,8 @@ This is the current architecture reference. It consolidates the decisions
 formerly recorded in ADRs 001–006 and the polyglot strategy document; their
 accepted boundaries remain in force. Wire details belong in the
 [interactive protocol](interactive-protocol.md), implementation instructions
-in the [host playbook](host-porting-playbook.md), and unfinished work in the
+in the [host playbook](host-porting-playbook.md), product direction and release
+themes in [product.md](product.md), and unfinished work in the
 repository-only `docs/maintenance.md`. Product milestones are not package versions.
 
 ## One engine, distinct execution modes

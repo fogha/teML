@@ -193,7 +193,8 @@ impl Session {
                 Event::Change { .. }
                 | Event::Toggle { .. }
                 | Event::Click { .. }
-                | Event::Unknown => {}
+                | Event::Submit(_)
+                | Event::Unknown { .. } => {}
             }
         }
     }

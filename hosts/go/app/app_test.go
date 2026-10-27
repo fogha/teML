@@ -60,6 +60,20 @@ func testOptions(t *testing.T) app.RunOptions {
 	}
 }
 
+// fakeEngineOptions points the session at the scripted fake engine. The view
+// name is the scenario selector; the fake ignores the path's existence.
+func fakeEngineOptions(t *testing.T, scenario string) app.RunOptions {
+	t.Helper()
+	return app.RunOptions{
+		ResolveOptions: engine.ResolveOptions{
+			ExplicitPath: filepath.Join(repoRoot(t), "fixtures", "engine", "fake-engine.mjs"),
+		},
+		ViewPath: scenario,
+		Width:    60,
+		NoColor:  true,
+	}
+}
+
 func TestDispatchesChangesDeliversQueuedRequestsAndExitsWithValues(t *testing.T) {
 	var changes [][2]string
 	var errors []string
@@ -135,5 +149,61 @@ func TestEngineErrorCompletesTheCommandInsteadOfBlocking(t *testing.T) {
 	}
 	if values == nil {
 		t.Fatal("values should be a map, not nil")
+	}
+}
+
+// An engine newer than this host may answer a command with an event type the
+// host does not know and no frame. The loop must surface the event and
+// complete the command; waiting for a frame would hang forever.
+func TestUnknownEventCompletesTheCommandAndSurfaces(t *testing.T) {
+	var errors []string
+
+	values, err := app.RunHeadless(fakeEngineOptions(t, "unknown-event"), app.Handlers{
+		OnError: func(message string, ctx *app.Context) {
+			errors = append(errors, message)
+			ctx.Exit()
+		},
+	}, app.TypingCommands("x"), 60, 20)
+	if err != nil {
+		t.Fatalf("fake engine session: %v", err)
+	}
+	if len(errors) != 1 || errors[0] != "unrecognized session event 'future-thing'" {
+		t.Fatalf("errors = %v, want the surfaced unknown event type", errors)
+	}
+	if len(values) != 0 {
+		t.Fatalf("values = %v", values)
+	}
+}
+
+func TestSubmitEventDispatchesOnSubmitWithFormAndValues(t *testing.T) {
+	var submits []struct {
+		form   string
+		values app.Values
+	}
+
+	values, err := app.RunHeadless(fakeEngineOptions(t, "submit"), app.Handlers{
+		OnSubmit: func(form string, snapshot app.Values, ctx *app.Context) {
+			submits = append(submits, struct {
+				form   string
+				values app.Values
+			}{form, snapshot})
+			ctx.Exit()
+		},
+	}, app.TypingCommands("x"), 60, 20)
+	if err != nil {
+		t.Fatalf("fake engine session: %v", err)
+	}
+	if len(submits) != 1 {
+		t.Fatalf("submits = %v, want exactly one dispatch", submits)
+	}
+	if submits[0].form != "deploy" {
+		t.Fatalf("form = %q", submits[0].form)
+	}
+	if submits[0].values["env"] != "prod" {
+		t.Fatalf("submit values = %v", submits[0].values)
+	}
+	// The final values are the submit snapshot.
+	if values["env"] != "prod" {
+		t.Fatalf("final values = %v", values)
 	}
 }

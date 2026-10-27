@@ -251,6 +251,19 @@ class ClickEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class SubmitEvent:
+    """A `::button{submit}` in a `:::form` whose fields are all valid.
+
+    `values` matches `ClickEvent`'s scope (every focusable widget). Inside a
+    form this fires instead of a click event.
+    """
+
+    form: str
+    values: dict[str, str]
+    type: Literal["submit"] = "submit"
+
+
+@dataclass(frozen=True, slots=True)
 class ErrorEvent:
     message: str
     type: Literal["error"] = "error"
@@ -272,6 +285,7 @@ SessionEvent: TypeAlias = Union[
     ChangeEvent,
     ToggleEvent,
     ClickEvent,
+    SubmitEvent,
     ErrorEvent,
     ExitEvent,
     UnknownEvent,
@@ -483,6 +497,13 @@ def parse_event(data: dict[str, Any]) -> SessionEvent:
             raise ValueError("click event needs id and values")
         normalized = {str(key): str(value) for key, value in values.items()}
         return ClickEvent(id=event_id, values=normalized)
+    if event_type == "submit":
+        form = data.get("form")
+        values = data.get("values")
+        if not isinstance(form, str) or not isinstance(values, dict):
+            raise ValueError("submit event needs form and values")
+        normalized = {str(key): str(value) for key, value in values.items()}
+        return SubmitEvent(form=form, values=normalized)
     if event_type == "error":
         message = data.get("message")
         if not isinstance(message, str):

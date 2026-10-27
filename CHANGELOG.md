@@ -4,6 +4,84 @@ All notable changes to this project are documented in this file. Public
 versioning starts at 0.1.0; the v1.0 and v1.5 labels below are earlier internal
 development milestones, not published package versions.
 
+## Unreleased — Forms, validation, and masked input (protocol 1.4)
+
+- Added `:::form{id label}` grouping and `::button{submit}`. Activating a submit
+  control in a form whose fields are all valid emits one atomic
+  `{"type":"submit","form":…,"values":…}` event **instead of** `click`, with the
+  same value scope as `click.values`, so a host learns no second scoping rule and
+  cannot double-fire. Protocol minor 1.3 → 1.4; the command set is unchanged and
+  the new capabilities (`mask`, `validation`, `formSubmit`) are advertised
+  separately, so a host can adopt masking without validation. Forms nest nowhere:
+  a nested form, or one inside `:::scroll`, is flattened with a
+  `form-nested-form` diagnostic.
+
+- Added `::input`/`::textarea` validation: `required`, `pattern`, `minLength`,
+  `maxLength`, and `count`. `pattern` is anchored to the whole value so a partial
+  match cannot pass, and a pattern that fails to compile is dropped with a
+  warning rather than silently never matching. Length counts **Unicode code
+  points** by default, matching JSON Schema, so the engine cannot accept a value
+  the server rejects; `count="graphemes"` opts into user-perceived characters.
+  Constraints are inert outside a form. A failing field renders one `role=error`
+  line and blocks the submit; the message appears only after a failed submit and
+  clears when the field is edited. The session is the sole validator — layout
+  only draws the messages it is given.
+
+- Added `mask` on `::input`/`::textarea`, rendering one `•` (`*` without
+  Unicode) per grapheme and preserving the caret position. **This fixed a
+  cleartext-password defect**: the HTML frontend mapped `<input type="password">`
+  to an ordinary `::input`, so a password value was rendered verbatim in every
+  frame. That now maps to `mask="password"`. Masking is a display transform — the
+  real value still reaches hosts in `change`/`submit`/`click` payloads — and a
+  test asserts it never appears in `plain`, `ansi`, or patch frames.
+
+- Added `schemaToTeml` and `valuesToResponse` (exported from the package root) for
+  MCP elicitation form mode, as pure functions requiring no protocol change.
+  `schemaToTeml` emits a form for the constraints this engine can actually
+  enforce and **refuses** the rest — `minimum`/`maximum`/`multipleOf`,
+  multi-select arrays, and secret-bearing schemas — with a diagnostic rather than
+  silently dropping a constraint the server would then enforce against input the
+  form accepted. `valuesToResponse` coerces by schema type, drops control-button
+  ids, and omits untouched optionals instead of sending `""`.
+
+- Added form, masking, and constraint support to the HTML frontend (`<form>` →
+  `:::form`, submit controls → `submit`, `required`/`minlength`/`maxlength`/
+  `pattern` carried across, `type="password"` masked).
+
+- Added `submit`/`on_submit` to all four host libraries. Fixing the Go and Python
+  loops surfaced a forward-compatibility bug: Go's event `switch` had no
+  `default`, so an event type it did not recognize was dropped *and* skipped the
+  step that completes the command. All three subprocess hosts (Rust, Go, Python)
+  now complete the command an unknown event answers, and every library surfaces
+  the event (`on_error`/stderr with the preserved wire type) instead of
+  discarding it — the Rust loop previously did neither and would have waited
+  forever for a frame that a newer engine considered already delivered; the
+  Node host keeps dispatching, as an in-process host has no frame-wait to
+  abandon. App-level dispatch is regression-tested in every subprocess host
+  against a scripted fake engine (`fixtures/engine/fake-engine.mjs`) for both
+  `submit` and unknown events, which the real engine cannot produce on demand.
+
+- The form-id namespace is now enforced, not just documented: the
+  addressability walk registers `:::form` ids in the same `seen` set as widget
+  ids, so a form/field collision or a duplicate form id warns
+  (`form-duplicate-id` / `focus-duplicate-id`) and the later duplicate loses its
+  id — a duplicate form's fields stop belonging to any form rather than
+  silently merging under one submit target.
+
+- The reference example host handles `submit` (it previously fell through to
+  `default` and showed nothing), `examples/interactive/interactive-form.teml`
+  now demonstrates a real form (radio, `required`, `pattern`, `mask`,
+  `maxLength`, submit), and `pnpm run demo:elicitation` runs a new
+  schema→form→engine→response elicitation example.
+
+- Documentation: restored the product direction as `docs/product.md` (milestones,
+  non-goals, and adoption metrics only — no normative syntax, so it cannot drift
+  from the spec); corrected the fence rule in `docs/spec.md`, which read as
+  depth-from-inside and produced silently mis-nested documents; corrected the
+  focusable-widget list in `docs/interactive-protocol.md`, which omitted
+  `textarea`, `radio`, and `scroll`; added an adoption-ladder section to
+  `docs/maintenance.md` recording that none of the program metrics is measured.
+
 ## v0.3.0 — Handler-driven hosts, registry publishing (2026-07-29)
 
 - Added registry publishing. `teml` was a 404 on npm and `teml-host` a 404 on both

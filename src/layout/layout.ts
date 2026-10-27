@@ -288,6 +288,7 @@ function layoutContainer(
   if (b.name === "details") return layoutDetails(b, opts, indent, layoutBlocks);
   if (b.name === "figure") return layoutFigure(b, opts, indent, layoutBlocks);
   if (b.name === "radio") return layoutRadio(b, opts, indent);
+  if (b.name === "form") return layoutForm(b, opts, indent);
   if (b.name === "scroll") return layoutScroll(b, opts, indent, layoutBlocks);
 
   const dec = decoration(theme, b.name);
@@ -333,6 +334,36 @@ function layoutContainer(
       { text: `[${b.name}]`, style: resolveRole(theme, "muted", diags) },
     ],
     ...inner,
+  ];
+}
+
+function layoutForm(
+  b: Extract<Block, { type: "container" }>,
+  opts: LayoutOpts,
+  indent: number,
+): Line[] {
+  const { width, theme, caps, diags } = opts;
+  const m = measureOpts(opts);
+  const muted = resolveRole(theme, "muted", diags);
+  const label = b.attrs.label?.trim() || b.attrs.id?.trim() || "";
+  const header = `${caps.unicode ? "▸" : ">"}${label ? ` ${label}` : ""}`;
+  const ruleCh = caps.unicode ? "─" : "-";
+  const headerW = cellWidth(header, m);
+  const line: Line = [
+    { text: " ".repeat(indent), style: {} },
+    { text: header, style: muted },
+  ];
+  // Pad the rule to the group width, but never let a long label swallow it.
+  const rule = Math.max(0, width - indent - headerW - 1);
+  if (rule > 0) line.push({ text: ` ${ruleCh.repeat(rule)}`, style: muted });
+  return [
+    line,
+    ...layoutBlocks(
+      b.children,
+      { ...opts, width: Math.max(1, width - indent - 2) },
+      true,
+      indent + 2,
+    ),
   ];
 }
 

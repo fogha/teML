@@ -35,3 +35,26 @@ export {
   type Style,
   type Theme,
 } from "./terminal/theme.js";
+export {
+  schemaToTeml,
+  valuesToResponse,
+  DEFAULT_SECRET_PATTERNS,
+  NON_FIELD_IDS,
+  type ElicitationAction,
+  type ElicitationProperty,
+  type ElicitationSchema,
+  type SchemaToTemlOptions,
+  type SchemaToTemlResult,
+  type SecretPolicy,
+  type ValuesToResponseResult,
+} from "./mcp/elicitation.js";
+export {
+  FORMAT_PATTERNS,
+  isKnownFormat,
+  measureLength,
+  parseValidationRules,
+  validateValue,
+  type KnownFormat,
+  type LengthBasis,
+  type ValidationRule,
+} from "./core/validate.js";

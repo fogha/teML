@@ -7,7 +7,7 @@ from typing import Final, Literal, TypeAlias
 from teml_host.types import ProtocolVersion
 
 PROTOCOL_MAJOR: Final = 1
-PROTOCOL_MINOR: Final = 3
+PROTOCOL_MINOR: Final = 4
 PROTOCOL_VERSION: Final = ProtocolVersion(major=PROTOCOL_MAJOR, minor=PROTOCOL_MINOR)
 
 ProtocolCapability: TypeAlias = Literal[
@@ -24,6 +24,9 @@ ProtocolCapability: TypeAlias = Literal[
     "scrollRegions",
     "update",
     "documentMutations",
+    "mask",
+    "validation",
+    "formSubmit",
 ]
 
 ENGINE_CAPABILITIES: Final[tuple[ProtocolCapability, ...]] = (
@@ -40,6 +43,9 @@ ENGINE_CAPABILITIES: Final[tuple[ProtocolCapability, ...]] = (
     "scrollRegions",
     "update",
     "documentMutations",
+    "mask",
+    "validation",
+    "formSubmit",
 )
 
 CAPABILITY_DOCS: Final[dict[str, str]] = {
@@ -58,6 +64,13 @@ CAPABILITY_DOCS: Final[dict[str, str]] = {
     "documentMutations": (
         "Targeted replace, append, and remove commands over normalized document fragments "
         "(protocol 1.3)."
+    ),
+    "mask": "::input/::textarea may mask their rendered value (protocol 1.4).",
+    "validation": (
+        "required/pattern/minLength/maxLength constraints render inline errors (protocol 1.4)."
+    ),
+    "formSubmit": (
+        ":::form groups fields and a ::button{submit} emits one atomic submit event (protocol 1.4)."
     ),
 }
 

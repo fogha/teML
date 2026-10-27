@@ -51,9 +51,42 @@ func TestUpdateMarshalingPreservesZeroRowPointerSeparateFromUpdate(t *testing.T)
 	}
 }
 
-func TestProtocolVersionMinorThree(t *testing.T) {
-	if protocol.ProtocolMajor != 1 || protocol.ProtocolMinor != 3 {
+func TestProtocolVersionMinorFour(t *testing.T) {
+	if protocol.ProtocolMajor != 1 || protocol.ProtocolMinor != 4 {
 		t.Fatalf("protocol version = %d.%d", protocol.ProtocolMajor, protocol.ProtocolMinor)
+	}
+}
+
+func TestEngineCapabilitiesIncludeForms(t *testing.T) {
+	found := map[protocol.ProtocolCapability]bool{}
+	for _, cap := range protocol.EngineCapabilities {
+		found[cap] = true
+	}
+	for _, want := range []protocol.ProtocolCapability{
+		protocol.CapUpdate,
+		protocol.CapDocumentMutations,
+		protocol.CapMask,
+		protocol.CapValidation,
+		protocol.CapFormSubmit,
+	} {
+		if !found[want] {
+			t.Fatalf("EngineCapabilities missing %s: %#v", want, protocol.EngineCapabilities)
+		}
+	}
+}
+
+func TestDecodeSubmitEvent(t *testing.T) {
+	event, err := protocol.DecodeEvent(
+		`{"type":"submit","form":"f","values":{"name":"Ada","accept":""}}`,
+	)
+	if err != nil {
+		t.Fatalf("decode submit: %v", err)
+	}
+	if event.Type != "submit" || event.Form != "f" {
+		t.Fatalf("unexpected submit event: %#v", event)
+	}
+	if event.Values["name"] != "Ada" {
+		t.Fatalf("submit values lost: %#v", event.Values)
 	}
 }
 

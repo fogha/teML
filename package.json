@@ -87,7 +87,8 @@
     "demo:go-host": "cd hosts/go && go run ./examples/incident-handoff",
     "demo:python-host": "cd hosts/python && PYTHONPATH=src python3 examples/incident_handoff/main.py",
     "demo:chat": "node examples/apps/chat/deepseek-chat.mjs",
-    "demo:settings": "node examples/apps/settings-app.mjs"
+    "demo:settings": "node examples/apps/settings-app.mjs",
+    "demo:elicitation": "node examples/apps/elicitation-demo.mjs"
   },
   "license": "MIT",
   "dependencies": {

@@ -34,6 +34,7 @@ from teml_host.types import (
     RemoveCommand,
     RenderCommand,
     ReplaceCommand,
+    SubmitEvent,
     ToggleEvent,
 )
 
@@ -92,6 +93,7 @@ class Context:
 OnChange = Callable[[str, str, Context], None]
 OnToggle = Callable[[str, bool, Context], None]
 OnClick = Callable[[str, Values, Context], None]
+OnSubmit = Callable[[str, Values, Context], None]
 OnError = Callable[[str, Context], None]
 
 
@@ -100,6 +102,7 @@ class _Handlers:
     on_change: OnChange | None = None
     on_toggle: OnToggle | None = None
     on_click: OnClick | None = None
+    on_submit: OnSubmit | None = None
     on_error: OnError | None = None
 
 
@@ -113,6 +116,7 @@ def run(
     on_change: OnChange | None = None,
     on_toggle: OnToggle | None = None,
     on_click: OnClick | None = None,
+    on_submit: OnSubmit | None = None,
     on_error: OnError | None = None,
     width: int | None = None,
     height: int | None = None,
@@ -130,7 +134,13 @@ def run(
     size = terminal_size()
     spawn_width = width if width is not None else size[0]
     spawn_height = height if height is not None else size[1]
-    handlers = _Handlers(on_change, on_toggle, on_click, on_error)
+    handlers = _Handlers(
+        on_change=on_change,
+        on_toggle=on_toggle,
+        on_click=on_click,
+        on_submit=on_submit,
+        on_error=on_error,
+    )
     with Session.spawn(
         document,
         width=spawn_width,
@@ -153,6 +163,7 @@ def run_headless(
     on_change: OnChange | None = None,
     on_toggle: OnToggle | None = None,
     on_click: OnClick | None = None,
+    on_submit: OnSubmit | None = None,
     on_error: OnError | None = None,
     events: TerminalEvents,
     size: tuple[int, int],
@@ -166,7 +177,13 @@ def run_headless(
     """The same loop without raw mode or painting, driven by an injected source."""
     spawn_width = width if width is not None else size[0]
     spawn_height = height if height is not None else size[1]
-    handlers = _Handlers(on_change, on_toggle, on_click, on_error)
+    handlers = _Handlers(
+        on_change=on_change,
+        on_toggle=on_toggle,
+        on_click=on_click,
+        on_submit=on_submit,
+        on_error=on_error,
+    )
     with Session.spawn(
         document,
         width=spawn_width,
@@ -245,6 +262,11 @@ def _drive(
                 ctx = Context(values, queued, exit_flag)
                 if handlers.on_click is not None:
                     handlers.on_click(event.id, values, ctx)
+            elif isinstance(event, SubmitEvent):
+                values = dict(event.values)
+                ctx = Context(values, queued, exit_flag)
+                if handlers.on_submit is not None:
+                    handlers.on_submit(event.form, values, ctx)
             elif isinstance(event, ErrorEvent):
                 ctx = Context(values, queued, exit_flag)
                 if handlers.on_error is not None:
@@ -255,6 +277,20 @@ def _drive(
                 break
             elif isinstance(event, ExitEvent):
                 return values
+            else:
+                # Forward compatibility: a newer engine may emit an event type
+                # this host does not know. Surface it through the same channel
+                # as engine errors, and complete the command rather than
+                # waiting forever for a frame the engine considers delivered.
+                # This mirrors the Node host's message.
+                event_type = getattr(event, "event_type", None) or "unknown"
+                message = f"unrecognized session event '{event_type}'"
+                ctx = Context(values, queued, exit_flag)
+                if handlers.on_error is not None:
+                    handlers.on_error(message, ctx)
+                else:
+                    print(message, file=sys.stderr)
+                break
 
 
 def _drain_after_exit(session: Session) -> None:

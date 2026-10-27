@@ -79,6 +79,7 @@ function walkAddressable(
   seen: Set<string>,
   diags?: Diagnostics,
   mutationAllowed = true,
+  inForm?: string,
 ): void {
   for (let index = 0; index < blocks.length; index++) {
     const b = blocks[index]!;
@@ -99,7 +100,12 @@ function walkAddressable(
             break;
           }
           seen.add(id);
-          focusables.push({ id, name: b.name as FocusableWidget["name"], attrs: b.attrs });
+          focusables.push({
+            id,
+            name: b.name as FocusableWidget["name"],
+            attrs: b.attrs,
+            ...(inForm ? { form: inForm } : {}),
+          });
           break;
         }
         if (isUpdatableLeaf(b.name)) {
@@ -136,6 +142,7 @@ function walkAddressable(
             seen,
             diags,
             mutationAllowed,
+            inForm,
           );
         break;
       case "quote":
@@ -147,10 +154,20 @@ function walkAddressable(
           seen,
           diags,
           mutationAllowed,
+          inForm,
         );
         break;
       case "footnoteDefinition":
-        walkAddressable(b.children, focusables, updatables, mutationTargets, seen, diags, false);
+        walkAddressable(
+          b.children,
+          focusables,
+          updatables,
+          mutationTargets,
+          seen,
+          diags,
+          false,
+          inForm,
+        );
         break;
       case "container": {
         const focusable = isFocusableContainer(b.name);
@@ -158,6 +175,19 @@ function walkAddressable(
         const id = b.attrs.id?.trim();
 
         if (!focusable) {
+          let formId = id;
+          // A form id shares the one widget id namespace, so a form/field
+          // collision or a duplicate form id is rejected here rather than
+          // silently merging two forms' fields under one submit target.
+          if (b.name === "form" && id) {
+            if (seen.has(id)) {
+              diags?.warn("form-duplicate-id", `duplicate form id '${id}'`);
+              b.attrs.id = "";
+              formId = "";
+            } else {
+              seen.add(id);
+            }
+          }
           if (mutable && id) {
             if (seen.has(id)) {
               diags?.warn("mutation-duplicate-id", `duplicate mutation target id '${id}'`);
@@ -182,6 +212,9 @@ function walkAddressable(
             seen,
             diags,
             mutationAllowed,
+            // A field's form is the nearest enclosing :::form, so the context
+            // has to survive intermediate containers (card, grid, details…).
+            b.name === "form" ? formId || undefined : inForm,
           );
           break;
         }
@@ -207,6 +240,7 @@ function walkAddressable(
           attrs: b.attrs,
           block: b,
           ...(options ? { options } : {}),
+          ...(inForm ? { form: inForm } : {}),
         });
         if (mutable) {
           mutationTargets.push({
@@ -231,6 +265,7 @@ function walkAddressable(
               seen,
               diags,
               mutationAllowed,
+              inForm,
             );
           }
         }

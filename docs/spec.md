@@ -33,7 +33,10 @@ Standard Markdown blocks: headings (levels 1–4; deeper levels clamp with warni
 
 ### Container directives
 
-Fence length = `3 + nesting depth`:
+Fence length is **three or more colons**, and **the outermost fence must be the
+longest**. A container closes at the first closing fence at least as long as its
+own opener, so an inner fence that is longer than its parent's will close the
+parent early and strand every following block outside it — with no diagnostic.
 
 ```markdown
 :::card{title="Summary"}
@@ -41,12 +44,28 @@ Body content
 :::
 ```
 
+Nesting therefore makes the *outer* fence grow:
+
+```markdown
+::::card{title="Outer"}
+
+:::info
+Info inside the card.
+:::
+
+::::
+```
+
+Reading the rule as "depth counted from the inside" produces the broken form
+(`:::card` containing `::::info`) and is the easiest way for a generator to emit
+a silently mis-nested document.
+
 v1 registry:
 
 | Name | Attributes | Renders as |
 | --- | --- | --- |
 | `card` | `id`, `title` | Bordered panel with title bar |
-| `info`, `success`, `warning`, `error`, `note` | `id` | Alert panels with role styling |
+| `info`, `success`, `warning`, `error`, `note` | `id`, `title` | Alert panels with role styling |
 | `definition` | `term` | Definition list block |
 | `grid` | `id`, `columns`, `gap` | Responsive multi-column metric/card layout (1–4 columns; auto-reduces below 18-cell width) |
 | `details` | `id`, `summary`, `open` | Collapsible disclosure (`open="false"` hides body) |
@@ -54,6 +73,7 @@ v1 registry:
 | `footnote` | `id` | Footnote definition block |
 | `radio` | `id`, `value` | One focusable single-choice group containing `::option` leaves |
 | `scroll` | `id`, `rows` | Focusable fixed-height region over cached static child content |
+| `form` | `id`, `label` | Grouping of fields plus a submit button; under `teml run` an activation emits one atomic `submit` event. Not nestable, and not supported inside `scroll` |
 
 Unknown containers are kept with a `unknown-directive` warning.
 
@@ -76,11 +96,39 @@ Unknown containers are kept with a `unknown-directive` warning.
 | `metric` | `id`, `label`, `value`, `role`, `change` | KPI label + bold value (+ optional delta); `id` enables live `update` |
 | `progress` | `id`, `label`, `value`, `max`, `role` | Label, percent, and filled bar (`█`/`░` or `#`/`-`); `id` enables live `update` |
 | `event` | `time`, `title`, `detail`, `role` | Timeline row with marker, time, title, wrapped detail |
-| `button` | `id`, `label` | `[ Label ]`; focusable, clickable under `teml run` |
-| `input` | `id`, `label`, `value`, `placeholder` | `Label: [value]`; focusable, editable under `teml run` |
+| `button` | `id`, `label`, `submit` | `[ Label ]`; focusable, clickable under `teml run`. `submit` makes it a form submit control |
+| `input` | `id`, `label`, `value`, `placeholder`, `mask`, plus validation attrs | `Label: [value]`; focusable, editable under `teml run` |
 | `checkbox` | `id`, `label`, `checked` | `☑`/`☐` (or `[x]`/`[ ]`) + label; focusable, toggleable under `teml run` |
-| `textarea` | `id`, `label`, `value`, `placeholder`, `rows` | Fixed-height multiline editor with internal scrolling under `teml run` |
+| `textarea` | `id`, `label`, `value`, `placeholder`, `rows`, plus validation attrs (no `pattern`) | Fixed-height multiline editor with internal scrolling under `teml run` |
 | `option` | `value`, `label` | Radio option; meaningful only as a child of `:::radio` |
+
+#### Validation attributes
+
+`required`, `pattern`, `minLength`, `maxLength`, and `count` may appear on
+`input` and `textarea` (`pattern` is single-line only). They are **inert outside
+a `:::form`**: grouping is what gives them somewhere to report a failure.
+
+| Attribute | Meaning |
+| --- | --- |
+| `required` | A bare `required`, `required=""`, or `required="true"` rejects a value that is empty or only whitespace |
+| `pattern` | Anchored to the **whole** value (`^(?:pattern)$`), so a partial match does not pass. A pattern that fails to compile is ignored with a `validation-invalid-pattern` warning; the document still renders |
+| `minLength`, `maxLength` | Counted in **Unicode code points** by default, matching JSON Schema. A malformed or negative value is ignored with `validation-invalid-length` |
+| `count` | `"codepoints"` (default) or `"graphemes"`, for authors who mean user-perceived characters rather than the schema's unit |
+
+An empty optional field satisfies `pattern`/`minLength`/`maxLength`; only
+`required` can fail against an empty value. The message a failure renders is
+engine-authored and never echoes the value.
+
+#### Masking
+
+`mask` on `input` or `textarea` replaces every grapheme of the rendered value
+with `•` (`*` without Unicode), preserving the caret position. Any value other
+than `"false"` enables it, so a bare `mask` works; `mask="password"` is the
+conventional spelling. HTML `<input type="password">` maps to `mask="password"`.
+
+**Masking is a display transform only.** The real value stays in the attribute
+and in every `change`/`submit`/`click` payload — it is hidden from the *screen*,
+not from the host.
 
 Radio groups use structure, not comma-separated option strings:
 

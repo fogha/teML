@@ -85,6 +85,11 @@ export type InteractiveAppHandlers = {
   onChange?(id: string, value: string, ctx: InteractiveAppContext): void;
   onToggle?(id: string, checked: boolean, ctx: InteractiveAppContext): void;
   onClick?(id: string, values: Record<string, string>, ctx: InteractiveAppContext): void;
+  /** A `::button{submit}` inside a `:::form` activated with every field valid.
+   * Inside a form this fires *instead of* `onClick`; forms are the opt-in
+   * boundary, so a host with only `onClick` keeps working on form-free
+   * documents. */
+  onSubmit?(form: string, values: Record<string, string>, ctx: InteractiveAppContext): void;
   onError?(message: string, ctx: InteractiveAppContext): void;
 };
 
@@ -314,12 +319,25 @@ export async function runInteractiveApp(
         case "click":
           observe(handlers.onClick?.(event.id, event.values, ctx));
           break;
+        case "submit":
+          observe(handlers.onSubmit?.(event.form, event.values, ctx));
+          break;
         case "error":
           observe(handlers.onError?.(event.message, ctx));
           break;
         case "exit":
           finish();
           break;
+        default: {
+          // Forward compatibility: an engine newer than this host may emit an
+          // event type this switch does not know. Surface it and keep the loop
+          // alive rather than dropping it silently.
+          const unknown = (event as { type?: string }).type ?? "unknown";
+          const message = `unrecognized session event '${unknown}'`;
+          if (handlers.onError) handlers.onError(message, ctx);
+          else if (!settled) process.stderr.write(`${message}\n`);
+          break;
+        }
       }
     }
 

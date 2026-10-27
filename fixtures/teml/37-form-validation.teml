@@ -1,0 +1,19 @@
+---
+title: Form validation and masking
+---
+
+::::form{id="deploy" label="Deploy target"}
+::input{id="owner" label="Release owner" required maxLength="20"}
+::input{id="tag" label="Tag" value="release" pattern="[a-z][a-z0-9-]*"}
+::input{id="password" label="Password" value="hunter2" mask}
+::checkbox{id="notify" label="Notify on-call" checked="true"}
+::button{id="accept" label="Accept" submit="true"}
+::button{id="decline" label="Decline"}
+::::
+
+A second form shows that grouping is per-form, not per-document.
+
+::::form{id="retry" label="Retry policy"}
+::input{id="attempts" label="Attempts" value="3" pattern="[0-9]+"}
+::button{id="retry-accept" label="Save" submit="retry"}
+::::

@@ -201,6 +201,11 @@ function handleEvent(event) {
     case "click":
       lastAction = `✓ Submitted "${event.id}" — ${JSON.stringify(event.values)}`;
       break;
+    case "submit":
+      // A :::form's submit control: event.form is the form id, event.values
+      // has the same scope as a click snapshot.
+      lastAction = `✓ Form "${event.form}" submitted — ${JSON.stringify(event.values)}`;
+      break;
     case "toggle":
     case "change":
       lastAction = null; // editing again — the last submission summary is stale now

@@ -15,6 +15,7 @@ from teml_host import (
     PROTOCOL_VERSION,
     RemoveCommand,
     ReplaceCommand,
+    SubmitEvent,
     UpdateCommand,
     UnknownEvent,
     command_to_json,
@@ -37,11 +38,26 @@ def test_update_command_serializes_props() -> None:
 
 def test_protocol_constants_match_engine() -> None:
     assert PROTOCOL_VERSION.major == 1
-    assert PROTOCOL_VERSION.minor == 3
+    assert PROTOCOL_VERSION.minor == 4
     assert "update" in ENGINE_CAPABILITIES
     assert "documentMutations" in ENGINE_CAPABILITIES
+    assert "mask" in ENGINE_CAPABILITIES
+    assert "validation" in ENGINE_CAPABILITIES
+    assert "formSubmit" in ENGINE_CAPABILITIES
     assert "update" in CAPABILITY_DOCS
     assert "documentMutations" in CAPABILITY_DOCS
+    assert "mask" in CAPABILITY_DOCS
+    assert "validation" in CAPABILITY_DOCS
+    assert "formSubmit" in CAPABILITY_DOCS
+
+
+def test_parse_submit_event() -> None:
+    event = parse_event(
+        {"type": "submit", "form": "f", "values": {"name": "Ada", "accept": ""}}
+    )
+    assert isinstance(event, SubmitEvent)
+    assert event.form == "f"
+    assert event.values["name"] == "Ada"
 
 
 def test_document_mutation_commands_serialize_fragments_and_targets() -> None:
@@ -96,7 +112,7 @@ def test_frame_tolerates_optional_metadata_and_unknown_fields() -> None:
             "focusedId": None,
             "plain": "ok\n",
             "ansi": None,
-            "protocol": {"major": 1, "minor": 3},
+            "protocol": {"major": 1, "minor": 4},
             "capabilities": ["scroll", "future"],
             "futureCapabilityFlag": True,
         }

@@ -31,6 +31,9 @@ type SessionEvent struct {
 	// click
 	Values map[string]string `json:"values,omitempty"`
 
+	// submit
+	Form string `json:"form,omitempty"`
+
 	// error
 	Message string `json:"message,omitempty"`
 }

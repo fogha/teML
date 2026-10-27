@@ -40,6 +40,37 @@ function focusMarker(focused: boolean, unicode: boolean): string {
   return unicode ? "▸ " : "> ";
 }
 
+/** True when the widget declared a mask. A bare `mask` parses to HTML's
+ * empty-string attribute form, which means "on"; only an explicit "false"
+ * turns it off. `password` is the conventional alias. */
+function masked(attrs: Record<string, string>): boolean {
+  const raw = attrs.mask?.trim().toLowerCase();
+  return raw !== undefined && raw !== "false";
+}
+
+/** Replace every grapheme with one mask cell, preserving grapheme count so all
+ * caret arithmetic above stays valid. This is a display transform only: the
+ * real value stays in attrs.value and in every event payload. */
+function maskDisplay(text: string, caps: { unicode: boolean }): string {
+  const ch = caps.unicode ? "•" : "*";
+  return ch.repeat(graphemes(text).length);
+}
+
+/** Inline validation feedback under a field. The session decides *whether* an
+ * error is shown (LayoutOpts.fieldErrors); layout only draws what it is given,
+ * and never validates. Message text is engine-authored and value-free. */
+function errorLines(id: string | undefined, opts: LayoutOpts, indent: number): Line[] {
+  const message = id ? opts.fieldErrors?.get(id) : undefined;
+  if (!message) return [];
+  const marker = opts.caps.unicode ? "✗" : "!";
+  return [
+    [
+      { text: " ".repeat(indent), style: {} },
+      { text: `${marker} ${message}`, style: resolveRole(opts.theme, "error", opts.diags) },
+    ],
+  ];
+}
+
 function widgetLine(
   id: string | undefined,
   marker: string,
@@ -107,6 +138,10 @@ export function layoutInput(
   const fieldStyle = focused ? resolveRole(theme, "focus", diags) : {};
 
   const caret = caps.unicode ? "▏" : "|";
+  const maskedInput = masked(b.attrs);
+  // Masking preserves grapheme count, so a caret index taken against the real
+  // value still addresses the right cell in the masked text.
+  const valueDisplay = maskedInput ? maskDisplay(value, caps) : value;
   const spans: Span[] = [];
   if (label) spans.push({ text: `${label}: `, style: muted });
   spans.push({ text: "[", style: {} });
@@ -115,11 +150,11 @@ export function layoutInput(
       // The whole value is "selected" (untouched default) — highlight it
       // as one span, with no caret, same idea as an OS text field that
       // pre-selects a suggested value so the next keystroke replaces it.
-      spans.push({ text: value, style: fieldStyle });
+      spans.push({ text: valueDisplay, style: fieldStyle });
     } else if (focused) {
       // Cursor position defaults to the end (undefined = static/no session
       // driving this render), same as the old always-append-at-end caret.
-      const chars = graphemes(value);
+      const chars = graphemes(valueDisplay);
       const cursor =
         opts.cursorPos == null ? chars.length : Math.min(chars.length, Math.max(0, opts.cursorPos));
       const before = chars.slice(0, cursor).join("");
@@ -128,7 +163,7 @@ export function layoutInput(
       spans.push({ text: caret, style: fieldStyle });
       if (after) spans.push({ text: after, style: fieldStyle });
     } else {
-      spans.push({ text: value, style: fieldStyle });
+      spans.push({ text: valueDisplay, style: fieldStyle });
     }
   } else if (placeholder) {
     spans.push({ text: placeholder, style: muted });
@@ -138,7 +173,10 @@ export function layoutInput(
   }
   spans.push({ text: "]", style: {} });
 
-  return widgetLine(b.attrs.id?.trim(), focusMarker(focused, caps.unicode), spans, opts, indent);
+  const id = b.attrs.id?.trim();
+  const lines = widgetLine(id, focusMarker(focused, caps.unicode), spans, opts, indent);
+  lines.push(...errorLines(id, opts, indent));
+  return lines;
 }
 
 export function layoutCheckbox(
@@ -232,6 +270,7 @@ export function layoutTextarea(
   const bracketed = fieldWidth >= 3;
   const contentWidth = Math.max(1, fieldWidth - (bracketed ? 2 : 0));
   const value = b.attrs.value ?? "";
+  const maskedTextarea = masked(b.attrs);
   const visual = textareaVisualLines(value, contentWidth, m);
   const cursor =
     focused && !opts.selectionActive
@@ -262,6 +301,10 @@ export function layoutTextarea(
     const visualIndex = offset + row;
     const line = visual[visualIndex];
     let display = line ? chars.slice(line.start, line.end).join("") : "";
+    // Mask before the caret splice below: wrapping above still derives from the
+    // real value, so visual line breaks stay correct and the caret stays
+    // grapheme-indexed.
+    if (maskedTextarea) display = maskDisplay(display, opts.caps);
     let style = fieldStyle;
     if (!value && row === 0 && b.attrs.placeholder) {
       display = b.attrs.placeholder;
@@ -298,5 +341,6 @@ export function layoutTextarea(
       { text: bracketed ? "]" : "", style: genericMetadata },
     ]);
   }
+  lines.push(...errorLines(id, opts, indent));
   return lines;
 }

@@ -11,10 +11,13 @@ import { DEFAULT_TEXTAREA_ROWS, MAX_TEXTAREA_ROWS } from "../layout/textarea.js"
 type NormalizeContext = {
   inRadio?: boolean;
   inScroll?: boolean;
+  /** Id of the nearest enclosing `:::form`, inherited by descendant fields. */
+  inForm?: string;
 };
 
 export type NormalizeFragmentContext = {
   inScroll?: boolean;
+  inForm?: string;
 };
 
 function mergeText(nodes: Inline[]): Inline[] {
@@ -210,12 +213,26 @@ function normalizeBlock(
         diags?.warn("scroll-nested-scroll", "nested scroll regions are not supported");
         return normalizeBlocks(b.children, diags, { ...context, inScroll: true });
       }
+      // Forms are a flat grouping: a nested form, or a form inside a scroll
+      // region (which already renders its widgets static), is flattened so the
+      // widget-to-form mapping stays unambiguous.
+      if (b.name === "form" && (context.inForm || context.inScroll)) {
+        diags?.warn(
+          "form-nested-form",
+          context.inForm
+            ? "nested :::form is not supported; these fields stay in the outer form"
+            : ":::form inside :::scroll is not supported; its fields are static",
+        );
+        return normalizeBlocks(b.children, diags, context);
+      }
       const childContext: NormalizeContext =
         b.name === "radio"
           ? { ...context, inRadio: true }
           : b.name === "scroll"
             ? { inScroll: true }
-            : context;
+            : b.name === "form"
+              ? { ...context, inForm: b.attrs.id?.trim() || undefined }
+              : context;
       let children = normalizeBlocks(b.children, diags, childContext);
       let attrs = { ...b.attrs };
       if (context.inScroll && isFocusableContainer(b.name) && attrs.id) {

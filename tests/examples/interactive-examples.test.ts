@@ -52,22 +52,32 @@ test("interactive-form example completes the composite widget journey", async ()
   session.handle({ type: "key", key: "tab" });
   session.handle({ type: "char", char: "Mina" });
   session.handle({ type: "key", key: "tab" });
+  session.handle({ type: "char", char: "REL-42" });
+  session.handle({ type: "key", key: "tab" });
+  session.handle({ type: "char", char: "s3cr3t-rollforward" });
+  session.handle({ type: "key", key: "tab" });
   session.handle({ type: "char", char: "Ready\nMonitoring" });
   session.handle({ type: "key", key: "enter", modifiers: { ctrl: true } });
   session.handle({ type: "key", key: "enter" });
   session.handle({ type: "key", key: "tab" });
 
-  const submitted = session.handle({ type: "key", key: "enter" })[0];
+  // The button is a submit control inside the form, so a valid activation is
+  // one atomic submit — never a click alongside it.
+  const events = session.handle({ type: "key", key: "enter" });
+  const submitted = events[0];
   expect(submitted).toMatchObject({
-    type: "click",
-    id: "deploy",
+    type: "submit",
+    form: "handoff",
     values: {
       channel: "production",
       owner: "Mina",
+      ticket: "REL-42",
+      token: "s3cr3t-rollforward",
       notes: "Ready\nMonitoring",
       approved: "true",
     },
   });
+  expect(events.some((event) => event.type === "click")).toBe(false);
 });
 
 test("log-viewer example exposes a focusable bounded region", async () => {

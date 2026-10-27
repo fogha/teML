@@ -50,4 +50,9 @@ export type LayoutOpts = {
   hits?: WidgetHit[];
   /** Additive Reader metadata collector; omitted by the v1 layout API. */
   regions?: SemanticRegions;
+  /** Session-owned, id-keyed validation messages rendered under each field.
+   * Layout only *reads* this — the session is the sole validator
+   * (core/validate.ts, docs/architecture.md). Absent means nothing is shown,
+   * and output stays byte-identical to the unvalidated render. */
+  fieldErrors?: ReadonlyMap<string, string>;
 };

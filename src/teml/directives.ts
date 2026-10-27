@@ -1,6 +1,10 @@
 // teml/directives.ts — v1 directive registry and attribute sanitization (F-2).
 
 import { sanitizeText } from "../core/sanitize.js";
+import { VALIDATION_ATTRS } from "../core/validate.js";
+
+/** `pattern` is single-line text semantics; a textarea does not take one. */
+const TEXTAREA_VALIDATION_ATTRS = VALIDATION_ATTRS.filter((attr) => attr !== "pattern");
 
 export type DirectiveSpec = {
   attrs?: readonly string[];
@@ -23,6 +27,7 @@ export const DIRECTIVE_REGISTRY = {
     figure: { attrs: ["id", "caption"] },
     radio: { attrs: ["id", "value"] },
     scroll: { attrs: ["id", "rows"] },
+    form: { attrs: ["id", "label"] },
   },
   leafs: {
     kv: {},
@@ -31,10 +36,14 @@ export const DIRECTIVE_REGISTRY = {
     metric: { attrs: ["id", "label", "value", "role", "change"] },
     progress: { attrs: ["id", "label", "value", "max", "role"] },
     event: { attrs: ["time", "title", "detail", "role"] },
-    button: { attrs: ["id", "label"] },
-    input: { attrs: ["id", "label", "placeholder", "value"] },
+    button: { attrs: ["id", "label", "submit"] },
+    input: {
+      attrs: ["id", "label", "placeholder", "value", "mask", ...VALIDATION_ATTRS],
+    },
     checkbox: { attrs: ["id", "label", "checked"] },
-    textarea: { attrs: ["id", "label", "placeholder", "value", "rows"] },
+    textarea: {
+      attrs: ["id", "label", "placeholder", "value", "rows", ...TEXTAREA_VALIDATION_ATTRS],
+    },
     option: { attrs: ["value", "label"] },
   },
   inline: {

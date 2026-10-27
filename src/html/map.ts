@@ -246,7 +246,24 @@ function mapNativeButton(el: Element, attrs: Record<string, string>): Block {
   const text = collapseWhitespace(textOfElement(el)).trim();
   const label = text || attrs.value;
   if (label) leafAttrs.label = sanitizeText(label);
+  // A submit control inside a <form> becomes TeML's form submit. Outside a
+  // form there is nothing to submit, so it stays an ordinary button.
+  if ((attrs.type ?? "").toLowerCase() === "submit" && el.closest("form")) {
+    leafAttrs.submit = "true";
+  }
   return { type: "leaf", name: "button", attrs: leafAttrs };
+}
+
+/** HTML constraint attributes → TeML validation attributes. A JS regex literal
+ * is not a JSON Schema pattern, so only the HTML-native constraint attributes
+ * are carried across. */
+function validationAttrs(attrs: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (attrs.required !== undefined) out.required = "true";
+  if (attrs.minlength) out.minLength = sanitizeText(attrs.minlength);
+  if (attrs.maxlength) out.maxLength = sanitizeText(attrs.maxlength);
+  if (attrs.pattern) out.pattern = sanitizeText(attrs.pattern);
+  return out;
 }
 
 /** Map <input>: checkbox/button-like types delegate to their own leaf; hidden/radio are skipped (v1 scope). */
@@ -264,7 +281,11 @@ function mapNativeInput(el: Element): Block | null {
   if (label) leafAttrs.label = label;
   if (attrs.placeholder) leafAttrs.placeholder = sanitizeText(attrs.placeholder);
   if (attrs.value) leafAttrs.value = sanitizeText(attrs.value);
-  return { type: "leaf", name: "input", attrs: leafAttrs };
+  // `type="password"` must not render its value in cleartext. TeML's mask is a
+  // display transform only, so the value still reaches hosts — but it never
+  // reaches the screen.
+  if (type === "password") leafAttrs.mask = "password";
+  return { type: "leaf", name: "input", attrs: { ...leafAttrs, ...validationAttrs(attrs) } };
 }
 
 function mapNativeTextarea(el: Element): Block {
@@ -277,7 +298,9 @@ function mapNativeTextarea(el: Element): Block {
   if (attrs.rows) leafAttrs.rows = sanitizeText(attrs.rows);
   const value = sanitizeText((el.textContent ?? "").replace(/\r\n?/g, "\n"));
   if (value) leafAttrs.value = value;
-  return { type: "leaf", name: "textarea", attrs: leafAttrs };
+  const constraints = validationAttrs(attrs);
+  delete constraints.pattern; // a textarea does not take one
+  return { type: "leaf", name: "textarea", attrs: { ...leafAttrs, ...constraints } };
 }
 
 function coalesceRadioGroups(blocks: Block[], diags: Diagnostics): Block[] {
@@ -681,6 +704,24 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
         name: containerRule.directive,
         attrs,
         children,
+      });
+      continue;
+    }
+
+    // A <form> becomes a real grouping so the host gets one atomic `submit`
+    // for the whole form instead of a per-button `click`.
+    if (tag === "form") {
+      flushInline();
+      const formAttrs = getAttrs(el);
+      const id = sanitizeText(formAttrs.id || formAttrs.name || "");
+      const attrs: Record<string, string> = {};
+      if (id) attrs.id = id;
+      if (formAttrs["aria-label"]) attrs.label = sanitizeText(formAttrs["aria-label"]);
+      blocks.push({
+        type: "container",
+        name: "form",
+        attrs,
+        children: mapBlocks([...el.childNodes], opts, diags),
       });
       continue;
     }
