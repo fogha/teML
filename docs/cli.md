@@ -93,7 +93,7 @@ preserves widget state, and returns a complete resynchronization frame before
 patch delivery resumes.
 
 Interactive documents may contain buttons, single-line inputs, checkboxes,
-radio groups, fixed-height textareas, and bounded `:::scroll` regions. Hosts
+radio groups, fixed or auto-growing textareas, and bounded `:::scroll` regions. Hosts
 forward wheel/trackpad movement as coalesced
 `{"type":"scroll","rows":3}` commands (positive down); reference hosts fall
 back to PageUp/PageDown when an older engine does not advertise `scroll`.

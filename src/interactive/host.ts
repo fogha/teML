@@ -23,6 +23,7 @@ import type { TerminalInputEvent } from "../terminal/client/input.js";
 import { createTerminalDriver, type TerminalDriver } from "../terminal/client/driver.js";
 import { applyMetaRoles, loadTheme } from "../terminal/theme.js";
 import { InteractiveSession, type SessionLayoutConfig } from "./session.js";
+import { LatestResizeScheduler } from "./resize-scheduler.js";
 import { ATTACH_BINDING_SINK, bindings, type Bindings } from "./bindings.js";
 import type { Command, DocFormat, SessionEvent } from "./protocol.js";
 import { MAX_SCROLL_ROWS } from "./protocol.js";
@@ -176,13 +177,18 @@ export async function runInteractiveApp(
     // Setup callbacks can finish the app before driver acquisition returns.
     let driver: TerminalDriver | undefined;
     let detachBindings: (() => void) | undefined;
-    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
     let wheelTimer: ReturnType<typeof setTimeout> | undefined;
     let pendingWheelRows = 0;
-    let lastResize = { width: layout.width, height: layout.height ?? 24 };
     /** Commands a handler asked for while its own command was being dispatched. */
     const queued: Command[] = [];
     let dispatching = false;
+    const resizeScheduler = new LatestResizeScheduler((next) => {
+      try {
+        send({ type: "resize", width: next.width, height: next.height });
+      } finally {
+        resizeScheduler.complete();
+      }
+    });
 
     const dispatchInput = (event: TerminalInputEvent): void => {
       if (settled) return;
@@ -229,27 +235,20 @@ export async function runInteractiveApp(
       const reservedRows = reservedFooterRows(options.footer, terminalWidth);
       return {
         width: Math.min(options.width ?? Number.MAX_SAFE_INTEGER, terminalWidth),
-        height: Math.max(1, (outputTty.rows ?? lastResize.height + reservedRows) - reservedRows),
+        height: Math.max(
+          1,
+          (outputTty.rows ?? (layout.height ?? 24) + reservedRows) - reservedRows,
+        ),
       };
-    };
-
-    const flushResize = (): void => {
-      resizeTimer = undefined;
-      if (settled) return;
-      const next = dimensions();
-      if (next.width === lastResize.width && next.height === lastResize.height) return;
-      lastResize = next;
-      send({ type: "resize", width: next.width, height: next.height });
     };
 
     const onResize = (): void => {
       if (!liveResizeEnabled || settled) return;
-      if (resizeTimer) clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(flushResize, 75);
+      resizeScheduler.request(dimensions());
     };
 
     const cleanup = (): void => {
-      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeScheduler.stop();
       if (wheelTimer) clearTimeout(wheelTimer);
       queued.length = 0;
       detachBindings?.();

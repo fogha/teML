@@ -70,7 +70,7 @@ can actually tab/type/click through a form. It also prints a persistent
 confirmation banner under the form after a `click` event, so submitting is
 visibly obvious (not just a value in the JSON stream). The primary journey
 (`examples/interactive/interactive-form.teml`) combines a radio group, defaulted input,
-fixed-height textarea, checkbox, and button. It demonstrates pending radio
+auto-growing textarea, checkbox, and button. It demonstrates pending radio
 selection, select-on-focus editing, multiline input, and contextual
 Ctrl+Enter navigation in one compact screen.
 
@@ -319,8 +319,10 @@ for what that looks like.
 
 For a textarea, wrapping derives a visual `(line,column)` from that canonical
 grapheme offset at the current width. Up/Down preserve a preferred terminal-cell
-column, resize/reflow never rewrites the canonical cursor, and the widget keeps
-exactly its declared number of content rows by scrolling internally.
+column, and resize/reflow never rewrites the canonical cursor. By default,
+`rows` fixes the content height. With `autoGrow`, `rows` is the minimum and the
+widget grows with visual lines up to `maxRows` (100 by default), then scrolls
+internally. Native HTML textareas use `data-auto-grow` and `data-max-rows`.
 
 ### "Select on focus" for untouched default values
 
@@ -440,6 +442,36 @@ a height-only change reuses cached lines but still emits a full resync frame.
 If the host paints a footer or other chrome below TeML's frame, subtract those
 reserved rows before sending `height`; pointer coordinates are relative to the
 frame origin, not the chrome.
+
+#### Resize reliability target
+
+The following behavior is the accepted implementation target. The current
+runtime does not yet satisfy every requirement.
+
+- Hosts process the latest terminal dimensions during continuous resizing,
+  targeting at most 30 resize redraws per second. Slower rendering may reduce
+  this rate. The final dimensions must always be rendered.
+- Hosts retain only the latest pending dimensions and allow at most one
+  resize command to await completion.
+- Reflow preserves values, selections, focus, validation state, and cursor
+  positions in the underlying text.
+- The engine measures the new widget geometry before adjusting internal
+  scrolling and the document viewport to keep the active editing position
+  visible.
+- Each completed resize emits one full frame. Subsequent patches use that
+  frame as their baseline.
+- Hosts prevent pointer activation against geometry invalidated by resizing.
+- Hosts subtract footer and status-area rows from the available content area.
+- Below the supported terminal size, hosts show a notice that fits, retain
+  application state, suspend editing and pointer activation, and keep exit
+  available. Recovery forces a full redraw, even when dimensions match the
+  size used before the notice.
+- Resize policy remains internal initially. Public preferences are introduced
+  only when their alternative behaviors are implemented and tested.
+
+Exact reading-position anchoring across paragraph reflow is deferred.
+Existing explicit startup widths below 20 columns remain a separate
+compatibility case.
 
 ### Viewport-bounded frames
 

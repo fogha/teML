@@ -19,6 +19,7 @@ import { dirname, join } from "node:path";
 import stringWidth from "string-width";
 import { applyFrame, createFrameState, frameText } from "./interactive-frame.mjs";
 import { createInputDecoder } from "../../dist/terminal/client/input.js";
+import { LatestResizeScheduler } from "../../dist/interactive/resize-scheduler.js";
 
 const file = process.argv[2];
 if (!file) {
@@ -88,7 +89,6 @@ const MOUSE_OFF = "\x1b[?1000l\x1b[?1006l";
 // Reserve stable rows for the key-hint line and optional action banner so
 // viewport frames plus host chrome never push content into scrollback.
 let cleaned = false;
-let resizeTimer;
 let escapeTimer;
 let wheelTimer;
 let pendingWheelRows = 0;
@@ -96,7 +96,7 @@ let capabilities = null;
 function cleanup() {
   if (cleaned) return;
   cleaned = true;
-  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeScheduler.stop();
   if (escapeTimer) clearTimeout(escapeTimer);
   if (wheelTimer) clearTimeout(wheelTimer);
   process.stdout.removeListener("resize", onResize);
@@ -111,7 +111,9 @@ function cleanup() {
 // editing again, so it can't go stale silently.
 let lastAction = null;
 const screen = createFrameState("ansi");
-let lastSize = { width: initialWidth, height: initialHeight };
+const resizeScheduler = new LatestResizeScheduler((next) => {
+  send({ type: "resize", ...next });
+});
 
 function statusLine(text) {
   const limit = Math.max(1, process.stdout.columns ?? 80);
@@ -150,19 +152,12 @@ function currentSize() {
 
 function sendCurrentSize() {
   if (!liveResizeEnabled || cleaned || child.stdin.destroyed) return;
-  const next = currentSize();
-  if (lastSize?.width === next.width && lastSize?.height === next.height) return;
-  lastSize = next;
-  send({ type: "resize", ...next });
+  resizeScheduler.request(currentSize());
 }
 
 function onResize() {
   if (!liveResizeEnabled || cleaned) return;
-  if (resizeTimer) clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => {
-    resizeTimer = undefined;
-    sendCurrentSize();
-  }, 75);
+  sendCurrentSize();
 }
 
 let outBuffer = "";
@@ -196,6 +191,7 @@ function handleEvent(event) {
       process.stdout.write(frameText(screen));
       process.stdout.write(`\n\x1b[2m${statusLine(interactionHint())}\x1b[0m\n`);
       if (lastAction) process.stdout.write(`\n\x1b[1;32m${statusLine(lastAction)}\x1b[0m\n`);
+      if (!("patches" in event)) resizeScheduler.complete();
       break;
     }
     case "click":
@@ -263,7 +259,7 @@ function dispatchInput(event) {
       });
       break;
     case "resize":
-      send({ type: "resize", width: event.cols, height: event.rows });
+      onResize();
       break;
     default:
       break;

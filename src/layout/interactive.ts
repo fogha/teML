@@ -14,7 +14,7 @@ import { resolveRole } from "../terminal/theme.js";
 import { radioOptions } from "../interactive/radio.js";
 import type { LayoutOpts } from "./opts.js";
 import { cellWidth, graphemes, truncateToWidth, type MeasureOpts } from "./measure.js";
-import { graphemeToTextareaVisual, textareaRows, textareaVisualLines } from "./textarea.js";
+import { graphemeToTextareaVisual, textareaVisibleRows, textareaVisualLines } from "./textarea.js";
 import { wrapSpans } from "./wrap.js";
 
 function measureOpts(opts: LayoutOpts): MeasureOpts {
@@ -261,7 +261,6 @@ export function layoutTextarea(
   const id = b.attrs.id?.trim();
   const interactiveId = opts.interactiveDisabled ? undefined : id;
   const focused = isFocused(id, opts);
-  const rows = textareaRows(b.attrs.rows);
   const m = measureOpts(opts);
   const available = Math.max(1, opts.width - indent);
   const marker = available >= 5 ? focusMarker(focused, opts.caps.unicode) : "";
@@ -272,6 +271,7 @@ export function layoutTextarea(
   const value = b.attrs.value ?? "";
   const maskedTextarea = masked(b.attrs);
   const visual = textareaVisualLines(value, contentWidth, m);
+  const rows = textareaVisibleRows(b.attrs, visual.length);
   const cursor =
     focused && !opts.selectionActive
       ? graphemeToTextareaVisual(value, opts.cursorPos ?? graphemes(value).length, visual, m)

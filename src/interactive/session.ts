@@ -20,7 +20,7 @@ import { hitAt, type WidgetHit } from "../layout/hits.js";
 import {
   graphemeToTextareaVisual,
   keepTextareaCursorVisible as clampTextareaScroll,
-  textareaRows,
+  textareaVisibleRows,
   textareaVisualLines,
   textareaVisualToGrapheme,
 } from "../layout/textarea.js";
@@ -377,7 +377,7 @@ export class InteractiveSession {
       this.layout.height = clampTerminalHeight(height);
     }
     this.ensureFocusedVisible = true;
-    return [this.frame(true)];
+    return [this.frame(true, true)];
   }
 
   private currentWidget(): FocusableWidget | undefined {
@@ -416,6 +416,7 @@ export class InteractiveSession {
     hits: readonly WidgetHit[],
     totalRows: number,
     visibleRows: number,
+    activeRow?: number,
   ): void {
     if (!this.focusedId) return;
     const focused = hits.filter((hit) => hit.id === this.focusedId);
@@ -425,6 +426,8 @@ export class InteractiveSession {
     this.scrollOffset = ensureRowVisible(this.scrollOffset, first, totalRows, visibleRows);
     if (last - first + 1 <= visibleRows) {
       this.scrollOffset = ensureRowVisible(this.scrollOffset, last, totalRows, visibleRows);
+    } else if (activeRow !== undefined) {
+      this.scrollOffset = ensureRowVisible(this.scrollOffset, activeRow, totalRows, visibleRows);
     }
   }
 
@@ -445,30 +448,37 @@ export class InteractiveSession {
     this.widgetState.cursor.set(w.id, Math.max(0, Math.min(len, pos + delta)));
   }
 
-  private textareaContentWidth(id: string): number {
-    const hit = this.lastHits.find(
+  private textareaContentWidth(id: string, hits: readonly WidgetHit[] = this.lastHits): number {
+    const hit = hits.find(
       (candidate) => candidate.id === id && candidate.kind === "textareaContent",
     );
     return Math.max(1, hit ? hit.colEnd - hit.colStart : this.layout.width - 4);
   }
 
-  private textareaGeometry(w: FocusableWidget): {
+  private textareaGeometry(
+    w: FocusableWidget,
+    hits: readonly WidgetHit[] = this.lastHits,
+  ): {
     value: string;
     lines: ReturnType<typeof textareaVisualLines>;
     rows: number;
   } {
     const value = w.attrs.value ?? "";
+    const lines = textareaVisualLines(value, this.textareaContentWidth(w.id, hits), {
+      ambiguousWide: this.layout.caps.ambiguousWide,
+    });
     return {
       value,
-      lines: textareaVisualLines(value, this.textareaContentWidth(w.id), {
-        ambiguousWide: this.layout.caps.ambiguousWide,
-      }),
-      rows: textareaRows(w.attrs.rows),
+      lines,
+      rows: textareaVisibleRows(w.attrs, lines.length),
     };
   }
 
-  private keepTextareaCursorVisible(w: FocusableWidget): void {
-    const geometry = this.textareaGeometry(w);
+  private keepTextareaCursorVisible(
+    w: FocusableWidget,
+    hits: readonly WidgetHit[] = this.lastHits,
+  ): number {
+    const geometry = this.textareaGeometry(w, hits);
     const cursor = graphemeToTextareaVisual(geometry.value, this.cursorFor(w), geometry.lines, {
       ambiguousWide: this.layout.caps.ambiguousWide,
     });
@@ -477,6 +487,7 @@ export class InteractiveSession {
       w.id,
       clampTextareaScroll(current, cursor.line, geometry.lines.length, geometry.rows),
     );
+    return cursor.line;
   }
 
   private handleKey(key: KeyName, modifiers?: KeyModifiers): SessionEvent[] {
@@ -1256,7 +1267,7 @@ export class InteractiveSession {
     return [this.frame(true)];
   }
 
-  private frame(forceFull = false): SessionEvent {
+  private frame(forceFull = false, reflow = false): SessionEvent {
     const focused = this.currentWidget();
     const isText = focused?.name === "input" || focused?.name === "textarea";
     const selectionActive = isText && this.widgetState.untouchedDefault.has(focused.id);
@@ -1293,6 +1304,34 @@ export class InteractiveSession {
     }
     this.dirtyWidgetIds.clear();
 
+    let activeRow: number | undefined;
+    if (focused?.name === "textarea" && !selectionActive) {
+      let cursorLine: number;
+      if (reflow) {
+        const previousOffset = this.widgetState.textareaScrollOffsets.get(focused.id) ?? 0;
+        cursorLine = this.keepTextareaCursorVisible(focused, this.layoutCache.hits());
+        if ((this.widgetState.textareaScrollOffsets.get(focused.id) ?? 0) !== previousOffset) {
+          this.layoutCache.update(opts, new Set([focused.id]));
+        }
+      } else {
+        const geometry = this.textareaGeometry(focused, this.layoutCache.hits());
+        cursorLine = graphemeToTextareaVisual(
+          geometry.value,
+          this.cursorFor(focused),
+          geometry.lines,
+          { ambiguousWide: this.layout.caps.ambiguousWide },
+        ).line;
+      }
+      activeRow = this.layoutCache
+        .hits()
+        .find(
+          (hit) =>
+            hit.id === focused.id &&
+            hit.kind === "textareaContent" &&
+            hit.value === String(cursorLine),
+        )?.row;
+    }
+
     const physical = this.layoutCache.physicalLines();
     const totalRows = physical.length;
     const visibleRows = this.layout.height;
@@ -1302,7 +1341,7 @@ export class InteractiveSession {
     if (viewportActive) {
       this.scrollOffset = clampScrollRow(this.scrollOffset, totalRows, visibleRows);
       if (this.ensureFocusedVisible) {
-        this.keepFocusedWidgetVisible(this.layoutCache.hits(), totalRows, visibleRows);
+        this.keepFocusedWidgetVisible(this.layoutCache.hits(), totalRows, visibleRows, activeRow);
       }
       lines = sliceDocumentLines(physical, this.scrollOffset, visibleRows);
       viewport = {

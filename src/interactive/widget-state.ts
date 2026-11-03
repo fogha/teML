@@ -17,7 +17,7 @@ export class WidgetState {
   /** Preferred terminal-cell column for textarea vertical navigation. */
   readonly preferredCol = new Map<string, number>();
 
-  /** Internal scroll offset for each fixed-height textarea. */
+  /** Internal scroll offset for each textarea whose content exceeds its visible rows. */
   readonly textareaScrollOffsets = new Map<string, number>();
 
   /** Pending (not yet confirmed) radio selection, keyed by radio group id. */

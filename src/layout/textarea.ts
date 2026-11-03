@@ -17,6 +17,17 @@ export function textareaRows(raw: string | undefined): number {
   return Math.max(1, Math.min(MAX_TEXTAREA_ROWS, parsed));
 }
 
+export function textareaVisibleRows(attrs: Record<string, string>, visualRows: number): number {
+  const minimum = textareaRows(attrs.rows);
+  const autoGrow = attrs.autoGrow !== undefined && attrs.autoGrow.trim().toLowerCase() !== "false";
+  if (!autoGrow) return minimum;
+  const parsedMax = Number(attrs.maxRows);
+  const maximum = Number.isInteger(parsedMax)
+    ? Math.max(minimum, Math.min(MAX_TEXTAREA_ROWS, parsedMax))
+    : MAX_TEXTAREA_ROWS;
+  return Math.min(maximum, Math.max(minimum, visualRows));
+}
+
 /** Hard-wrap text by terminal cells while retaining grapheme offsets into the
  * canonical value. Newline graphemes delimit visual lines but are not drawn. */
 export function textareaVisualLines(

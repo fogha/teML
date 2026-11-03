@@ -147,6 +147,29 @@ test("textarea contributes a fixed number of content rows", () => {
   expect(out).toContain("[one");
 });
 
+test("auto-growing textarea uses content rows up to maxRows", () => {
+  const d = doc([
+    {
+      type: "leaf",
+      name: "textarea",
+      attrs: {
+        id: "bio",
+        label: "Bio",
+        rows: "1",
+        autoGrow: "true",
+        maxRows: "2",
+        value: "one\ntwo\nthree",
+      },
+    },
+  ]);
+  const lines = layoutDocument(d, opts());
+  expect(lines).toHaveLength(3);
+  const out = renderPlain(lines);
+  expect(out).toContain("one");
+  expect(out).toContain("two");
+  expect(out).not.toContain("three");
+});
+
 test("widgets respect the viewport width invariant at pathological widths", () => {
   for (const width of [40, 10, 3]) {
     const d = doc([

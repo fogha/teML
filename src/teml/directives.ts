@@ -42,7 +42,16 @@ export const DIRECTIVE_REGISTRY = {
     },
     checkbox: { attrs: ["id", "label", "checked"] },
     textarea: {
-      attrs: ["id", "label", "placeholder", "value", "rows", ...TEXTAREA_VALIDATION_ATTRS],
+      attrs: [
+        "id",
+        "label",
+        "placeholder",
+        "value",
+        "rows",
+        "autoGrow",
+        "maxRows",
+        ...TEXTAREA_VALIDATION_ATTRS,
+      ],
     },
     option: { attrs: ["value", "label"] },
   },

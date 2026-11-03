@@ -97,6 +97,19 @@ line two</textarea>
   });
 });
 
+test("map: native textarea preserves opt-in auto-grow bounds", () => {
+  const document = parseHtml(
+    '<textarea id="bio" rows="2" data-auto-grow data-max-rows="6">notes</textarea>',
+  );
+  const diags = new Diagnostics();
+  const mapped = normalize(htmlToDocFromRoot(document, {}, diags, document), diags);
+  expect(mapped.blocks[0]).toMatchObject({
+    type: "leaf",
+    name: "textarea",
+    attrs: { id: "bio", rows: "2", autoGrow: "true", maxRows: "6", value: "notes" },
+  });
+});
+
 test("map: data-teml scroll keeps id and fixed rows", () => {
   const document = parseHtml(
     '<html><body><div data-teml="scroll" data-id="logs" data-rows="4"><p>Log</p></div></body></html>',

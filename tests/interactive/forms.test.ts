@@ -142,6 +142,18 @@ test("an invalid submit emits error with field ids and reveals the inline error"
   expect(frame.plain).toContain("required");
 });
 
+test("resize preserves revealed validation state", () => {
+  const session = startSession(FORM);
+  session.start();
+  focusSubmit(session);
+  send(session, { type: "key", key: "enter" });
+
+  const resized = frameOf(session.handle({ type: "resize", width: 24, height: 12 }));
+  expect(resized.plain).toContain("required");
+  expect(resized.focusedId).toBe("accept");
+  expect(session.values()).toMatchObject({ owner: "", tag: "release" });
+});
+
 test("editing a revealed field hides its error again", () => {
   const session = startSession(FORM);
   session.start();

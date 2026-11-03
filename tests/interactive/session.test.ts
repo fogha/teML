@@ -1183,6 +1183,90 @@ test("textarea preserves newlines, consumes vertical keys, and Ctrl+Enter advanc
   expect(session.getFocusedId()).toBe("submit");
 });
 
+test("auto-growing textarea expands and contracts without breaking focus or pointer activation", () => {
+  const source = `::textarea{id="bio" rows=2 autoGrow maxRows=4}
+
+::button{id="submit" label="Submit"}
+`;
+  const session = new InteractiveSession(formDoc(source), sessionOptions());
+  session.start();
+  const initial = frameOf(session.handle({ type: "char", char: "one\ntwo" }));
+  const buttonRow = (frame: FullFrame) =>
+    splitRows(frame.plain!).findIndex((line) => line.includes("[ Submit ]"));
+  const initialButtonRow = buttonRow(initial);
+
+  const grown = frameOf(session.handle({ type: "char", char: "\nthree\nfour" }));
+  expect(buttonRow(grown)).toBe(initialButtonRow + 2);
+  expect(grown.plain).toContain("four▏");
+
+  const clicked = session.handle({ type: "pointer", row: buttonRow(grown), col: 0 });
+  expect(clicked[0]).toMatchObject({ type: "click", id: "submit" });
+  session.handle({ type: "key", key: "shiftTab" });
+  expect(session.getFocusedId()).toBe("bio");
+
+  let shrunk: FullFrame | undefined;
+  for (let index = 0; index < 11; index++) {
+    shrunk = frameOf(session.handle({ type: "key", key: "backspace" }));
+  }
+  expect(session.values().bio).toBe("one\ntwo");
+  expect(buttonRow(shrunk!)).toBe(initialButtonRow);
+});
+
+test("auto-growing textarea caps at maxRows and retains internal scrolling", () => {
+  const session = new InteractiveSession(
+    formDoc('::textarea{id="bio" rows=1 autoGrow maxRows=2}'),
+    sessionOptions(),
+  );
+  session.start();
+  const capped = frameOf(session.handle({ type: "char", char: "one\ntwo\nthree" }));
+  expect(capped.plain).not.toContain("one");
+  expect(capped.plain).toContain("two");
+  expect(capped.plain).toContain("three▏");
+
+  const scrolled = frameOf(session.handle({ type: "scroll", rows: -1 }));
+  expect(scrolled.plain).toContain("one");
+  expect(scrolled.plain).toContain("two");
+  expect(scrolled.plain).not.toContain("three");
+});
+
+test("auto-growing textarea recomputes its height after terminal reflow", () => {
+  const source = `::textarea{id="bio" rows=1 autoGrow maxRows=8}
+
+::button{id="submit" label="Submit"}
+`;
+  const session = new InteractiveSession(
+    formDoc(source),
+    sessionOptions({
+      layout: { width: 40, height: 20, theme: loadTheme("dark"), caps: caps() },
+    }),
+  );
+  session.start();
+  const initial = frameOf(session.handle({ type: "char", char: "a".repeat(40) }));
+  const buttonRow = (frame: FullFrame) =>
+    splitRows(frame.plain!).findIndex((line) => line.includes("[ Submit ]"));
+
+  const narrowed = frameOf(session.handle({ type: "resize", width: 20, height: 20 }));
+  expect(buttonRow(narrowed)).toBeGreaterThan(buttonRow(initial));
+  expect(narrowed.plain).toContain("▏");
+
+  const widened = frameOf(session.handle({ type: "resize", width: 80, height: 20 }));
+  expect(buttonRow(widened)).toBeLessThan(buttonRow(initial));
+  expect(widened.plain).toContain("▏");
+});
+
+test("auto-growing textarea keeps its cursor visible when it exceeds the document viewport", () => {
+  const session = new InteractiveSession(
+    formDoc('::textarea{id="bio" rows=1 autoGrow maxRows=8}'),
+    sessionOptions({
+      layout: { width: 40, height: 3, theme: loadTheme("dark"), caps: caps() },
+    }),
+  );
+  session.start();
+  const grown = frameOf(session.handle({ type: "char", char: "one\ntwo\nthree\nfour\nfive" }));
+  expect(grown.viewport?.height).toBe(3);
+  expect(grown.plain).toContain("five▏");
+});
+
 test("textarea pointer coordinates ignore the painted caret cell", () => {
   const session = new InteractiveSession(
     formDoc(`::textarea{id="bio" value="abcdef" rows=1}`),
@@ -1197,6 +1281,35 @@ test("textarea pointer coordinates ignore the painted caret cell", () => {
   session.handle({ type: "pointer", row: 0, col: dColumn });
   session.handle({ type: "char", char: "X" });
   expect(session.values().bio).toBe("abcXdef");
+});
+
+test("resize uses the new textarea geometry to keep its cursor visible", () => {
+  const session = new InteractiveSession(
+    formDoc('::textarea{id="bio" rows=2}'),
+    sessionOptions({
+      layout: { width: 40, height: 10, theme: loadTheme("dark"), caps: caps() },
+    }),
+  );
+  session.start();
+  session.handle({ type: "char", char: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN" });
+
+  const resized = frameOf(session.handle({ type: "resize", width: 20, height: 10 }));
+  expect(resized.plain).toContain("GHIJKLMN▏");
+});
+
+test("resize keeps the active cursor row visible when a textarea exceeds the document viewport", () => {
+  const session = new InteractiveSession(
+    formDoc('::textarea{id="bio" rows=5}'),
+    sessionOptions({
+      layout: { width: 40, height: 3, theme: loadTheme("dark"), caps: caps() },
+    }),
+  );
+  session.start();
+  session.handle({ type: "char", char: "a".repeat(79) });
+
+  const resized = frameOf(session.handle({ type: "resize", width: 20, height: 3 }));
+  expect(resized.viewport?.height).toBe(3);
+  expect(resized.plain).toContain("▏");
 });
 
 test("scroll commands update a focused region, emit bounded metadata, and bubble residual rows", () => {

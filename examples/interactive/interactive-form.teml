@@ -25,7 +25,7 @@ instead of a `click`.
 
 ::input{id="token" label="Rollback token" mask minLength="12"}
 
-::textarea{id="notes" label="Release notes" placeholder="Risks, checks, and rollback plan…" rows="3" maxLength="500"}
+::textarea{id="notes" label="Release notes" placeholder="Risks, checks, and rollback plan…" rows="3" autoGrow maxRows="8" maxLength="500"}
 
 ::checkbox{id="approved" label="All pre-flight checks passed"}
 

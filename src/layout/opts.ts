@@ -39,7 +39,7 @@ export type LayoutOpts = {
   selectionActive?: boolean;
   /** Pending option index per radio group; pending values are session-only. */
   radioPending?: ReadonlyMap<string, number>;
-  /** First visible visual line per fixed-height textarea. */
+  /** First visible visual line per textarea. */
   textareaScrollOffsets?: ReadonlyMap<string, number>;
   /** Session-owned inner layout caches and offsets for scroll containers. */
   scrollRegionRuntime?: Map<string, ScrollRegionRuntime>;

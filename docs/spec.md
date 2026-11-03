@@ -99,7 +99,7 @@ Unknown containers are kept with a `unknown-directive` warning.
 | `button` | `id`, `label`, `submit` | `[ Label ]`; focusable, clickable under `teml run`. `submit` makes it a form submit control |
 | `input` | `id`, `label`, `value`, `placeholder`, `mask`, plus validation attrs | `Label: [value]`; focusable, editable under `teml run` |
 | `checkbox` | `id`, `label`, `checked` | `☑`/`☐` (or `[x]`/`[ ]`) + label; focusable, toggleable under `teml run` |
-| `textarea` | `id`, `label`, `value`, `placeholder`, `rows`, plus validation attrs (no `pattern`) | Fixed-height multiline editor with internal scrolling under `teml run` |
+| `textarea` | `id`, `label`, `value`, `placeholder`, `rows`, `autoGrow`, `maxRows`, plus validation attrs (no `pattern`) | Multiline editor; fixed-height by default, optionally content-growing with internal scrolling under `teml run` |
 | `option` | `value`, `label` | Radio option; meaningful only as a child of `:::radio` |
 
 #### Validation attributes
@@ -245,10 +245,13 @@ rendered via the theme's `focus` role plus a fixed-width textual marker
 (`▸`/`>`), preserving the single-emitter rule.
 
 A radio group is one tab stop; arrow keys move a pending marker and
-Space/Enter confirms it. A textarea keeps a grapheme cursor across reflow,
-uses Enter for newline and Ctrl+Enter to advance focus, and contributes a
-fixed number of content rows. A scroll region contains static content only in
-this version; nested controls are diagnosed and made inert.
+Space/Enter confirms it. A textarea keeps a grapheme cursor across reflow and
+uses Enter for newline and Ctrl+Enter to advance focus. By default, `rows` is
+its fixed content height. With `autoGrow`, `rows` is the minimum and the height
+follows wrapped content up to `maxRows` (100 by default); further content
+scrolls internally. Native HTML textareas opt in with `data-auto-grow` and
+`data-max-rows`. A scroll region contains static content only in this version;
+nested controls are diagnosed and made inert.
 
 ## Speech backend
 

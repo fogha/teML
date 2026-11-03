@@ -296,6 +296,10 @@ function mapNativeTextarea(el: Element): Block {
   if (label) leafAttrs.label = label;
   if (attrs.placeholder) leafAttrs.placeholder = sanitizeText(attrs.placeholder);
   if (attrs.rows) leafAttrs.rows = sanitizeText(attrs.rows);
+  if (attrs["data-auto-grow"] !== undefined) {
+    leafAttrs.autoGrow = sanitizeText(attrs["data-auto-grow"] || "true");
+  }
+  if (attrs["data-max-rows"]) leafAttrs.maxRows = sanitizeText(attrs["data-max-rows"]);
   const value = sanitizeText((el.textContent ?? "").replace(/\r\n?/g, "\n"));
   if (value) leafAttrs.value = value;
   const constraints = validationAttrs(attrs);

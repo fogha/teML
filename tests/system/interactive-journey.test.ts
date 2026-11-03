@@ -479,7 +479,7 @@ test("the in-process Node host handles callbacks, rerender, resize, submit, and 
   output.emit("resize");
   await delay(200);
   const resized = chunks.join("");
-  expect(resized.match(/\x1b\[2J/g)).toHaveLength(1);
+  expect(resized.match(/\x1b\[2J/g)).toHaveLength(2);
   expect(resized).toContain("Ada");
 
   input.write("\t\r"); // checkbox -> submit -> activate

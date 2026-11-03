@@ -277,6 +277,23 @@ function normalizeBlock(
           "textarea",
           diags,
         );
+        if (attrs.maxRows !== undefined) {
+          const minimum = Number(attrs.rows);
+          const parsed = Number(attrs.maxRows);
+          if (!Number.isInteger(parsed) || parsed < minimum || parsed > MAX_TEXTAREA_ROWS) {
+            const fallback =
+              Number.isInteger(parsed) && parsed >= 1 && parsed < minimum
+                ? minimum
+                : MAX_TEXTAREA_ROWS;
+            diags?.warn(
+              "textarea-invalid-max-rows",
+              `textarea maxRows must be an integer from ${minimum} to ${MAX_TEXTAREA_ROWS}; using ${fallback}`,
+            );
+            attrs.maxRows = String(fallback);
+          } else {
+            attrs.maxRows = String(parsed);
+          }
+        }
         if (attrs.value !== undefined) {
           attrs.value = sanitizeText(attrs.value.replace(/\r\n?/g, "\n"));
         }
