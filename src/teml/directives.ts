@@ -39,7 +39,17 @@ export const DIRECTIVE_REGISTRY = {
     event: { attrs: ["time", "title", "detail", "role"] },
     button: { attrs: ["id", "label", "submit"] },
     input: {
-      attrs: ["id", "label", "placeholder", "value", "mask", ...VALIDATION_ATTRS],
+      attrs: [
+        "id",
+        "label",
+        "placeholder",
+        "value",
+        "mask",
+        "width",
+        "padding",
+        "margin",
+        ...VALIDATION_ATTRS,
+      ],
     },
     checkbox: { attrs: ["id", "label", "checked"] },
     textarea: {
@@ -51,6 +61,9 @@ export const DIRECTIVE_REGISTRY = {
         "rows",
         "autoGrow",
         "maxRows",
+        "width",
+        "padding",
+        "margin",
         ...TEXTAREA_VALIDATION_ATTRS,
       ],
     },

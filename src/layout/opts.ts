@@ -10,6 +10,17 @@ import type { WidgetHit } from "./hits.js";
 import type { SemanticRegions } from "./regions.js";
 import type { CanvasSurface } from "./canvas.js";
 
+export type FieldLayoutConfig = {
+  /** Maximum outer box width in terminal cells; defaults to available width. */
+  width?: number;
+  /** Horizontal cells between a border and its content. Default: 1. */
+  paddingX?: number;
+  /** Blank rows inside the top and bottom borders. Default: 0. */
+  paddingY?: number;
+  /** Blank rows before and after the field. Default: 0. */
+  marginY?: number;
+};
+
 export type ScrollRegionRuntime = {
   offset: number;
   rows: number;
@@ -23,6 +34,8 @@ export type ScrollRegionRuntime = {
 
 export type LayoutOpts = {
   width: number;
+  /** Shared defaults for input/textarea boxes; markup can override per field. */
+  fields?: FieldLayoutConfig;
   theme: Theme;
   caps: Capabilities;
   diags: Diagnostics;

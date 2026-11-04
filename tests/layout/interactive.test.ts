@@ -169,6 +169,54 @@ test("auto-growing textarea uses content rows up to maxRows", () => {
   expect(out).not.toContain("three");
 });
 
+test("input width, padding, and margin are configurable", () => {
+  const d = doc([
+    {
+      type: "leaf",
+      name: "input",
+      attrs: {
+        id: "name",
+        label: "Name",
+        value: "Ada",
+        width: "12",
+        padding: "1",
+        margin: "1",
+      },
+    },
+  ]);
+  expect(renderPlain(layoutDocument(d, opts())).split("\n")).toEqual([
+    "",
+    "  Name",
+    "  ┌──────────┐",
+    "  │          │",
+    "  │ Ada      │",
+    "  │          │",
+    "  └──────────┘",
+    "",
+    "",
+  ]);
+});
+
+test("app-level field defaults control vertical padding and margins", () => {
+  const d = doc([
+    { type: "leaf", name: "input", attrs: { id: "name", label: "Name", value: "Ada" } },
+  ]);
+  const out = renderPlain(
+    layoutDocument(d, opts({ fields: { width: 16, paddingX: 2, paddingY: 1, marginY: 1 } })),
+  );
+  expect(out.split("\n")).toEqual([
+    "",
+    "  Name",
+    "  ┌──────────────┐",
+    "  │              │",
+    "  │  Ada         │",
+    "  │              │",
+    "  └──────────────┘",
+    "",
+    "",
+  ]);
+});
+
 test("widgets respect the viewport width invariant at pathological widths", () => {
   for (const width of [40, 10, 3]) {
     const d = doc([

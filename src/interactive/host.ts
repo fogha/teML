@@ -119,6 +119,8 @@ export type InteractiveAppOptions = {
   width?: number;
   sanitize?: SanitizeOpts;
   handlers?: InteractiveAppHandlers;
+  /** Default width and spacing for input/textarea boxes. */
+  fields?: SessionLayoutConfig["fields"];
   /** Extra line(s) written under every frame — e.g. key hints. */
   footer?: string;
   /** Enable SGR mouse click-to-focus/activate. Default: true. */
@@ -182,6 +184,7 @@ export async function runInteractiveApp(
     height: Math.max(1, terminalRows - footerRows),
     theme,
     caps,
+    fields: options.fields,
   };
   const liveResizeEnabled = options.width == null || options.width >= MIN_TERMINAL_WIDTH;
 

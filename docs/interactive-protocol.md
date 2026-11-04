@@ -920,6 +920,7 @@ import { runInteractiveApp } from "teml/interactive";
 
 const values = await runInteractiveApp(formHtml, {
   format: "html", // or "markdown" / "teml"; default "html"
+  fields: { width: 48, paddingX: 1, paddingY: 0, marginY: 0 },
   footer: "Tab to move, Enter/Space to activate, Ctrl+C to quit",
   handlers: {
     onChange(id, value, ctx) {
@@ -945,6 +946,12 @@ keypresses/clicks into the same `Command`s described above, and calls
 `InteractiveSession.handle()` directly — the session behavior (focus order,
 cursor movement, "select on focus", click hit-testing) is byte-for-byte the
 same engine `teml run` uses, just without the wire format in between.
+
+The optional `fields` object sets app-wide outer `width`, `paddingX`,
+`paddingY`, and `marginY` for input/textarea boxes. Markup `width`, `padding`,
+and `margin` attributes override those defaults per field; terminal constraints
+always clamp the final box. Textarea `rows`, `autoGrow`, and `maxRows` control
+content height independently.
 
 `ctx.render(newSource, format?)` swaps in a different document — e.g. to
 show a validation error inline, or move to another "screen" of a

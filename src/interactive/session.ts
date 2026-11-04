@@ -92,6 +92,7 @@ export type SessionLayoutConfig = {
   caps: Capabilities;
   wrapCode?: boolean;
   showUrls?: boolean;
+  fields?: LayoutOpts["fields"];
 };
 
 export type SessionOptions = {
@@ -1319,6 +1320,7 @@ export class InteractiveSession {
       textareaScrollOffsets: this.widgetState.textareaScrollOffsets,
       scrollRegionRuntime: this.widgetState.scrollRegionRuntime,
       canvas: this.canvases(),
+      fields: this.layout.fields,
       fieldErrors,
       hits,
     };
