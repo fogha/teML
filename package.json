@@ -88,7 +88,8 @@
     "demo:python-host": "cd hosts/python && PYTHONPATH=src python3 examples/incident_handoff/main.py",
     "demo:chat": "node examples/apps/chat/deepseek-chat.mjs",
     "demo:settings": "node examples/apps/settings-app.mjs",
-    "demo:elicitation": "node examples/apps/elicitation-demo.mjs"
+    "demo:elicitation": "node examples/apps/elicitation-demo.mjs",
+    "demo:snake-prototype": "node examples/apps/snake-prototype.mjs"
   },
   "license": "MIT",
   "dependencies": {
