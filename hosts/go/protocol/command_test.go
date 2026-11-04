@@ -51,8 +51,8 @@ func TestUpdateMarshalingPreservesZeroRowPointerSeparateFromUpdate(t *testing.T)
 	}
 }
 
-func TestProtocolVersionMinorFour(t *testing.T) {
-	if protocol.ProtocolMajor != 1 || protocol.ProtocolMinor != 4 {
+func TestProtocolVersionMinorFive(t *testing.T) {
+	if protocol.ProtocolMajor != 1 || protocol.ProtocolMinor != 5 {
 		t.Fatalf("protocol version = %d.%d", protocol.ProtocolMajor, protocol.ProtocolMinor)
 	}
 }

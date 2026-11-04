@@ -104,6 +104,20 @@ test("TeML→Markdown→TeML: content-stable after degradation", () => {
   expect(doc2.blocks.some((b) => b.type === "table")).toBe(true);
 });
 
+test("Markdown code spans and link destinations preserve semantics across round trips", () => {
+  for (const source of [
+    "``a`b``",
+    "`C:\\temp`",
+    "[x](<https://example.com/a b>)",
+    "[x](https://example.com/a_(b))",
+  ]) {
+    const before = normalize(parseMarkdown(source));
+    const serialized = serializeMarkdown(before, new Diagnostics());
+    const after = normalize(parseMarkdown(serialized));
+    expect(after, `${source} -> ${serialized}`).toEqual(before);
+  }
+});
+
 test("Markdown link href safety rechecked on serialize", () => {
   const d = new Diagnostics();
   const doc: ReturnType<typeof normalize> = normalize({

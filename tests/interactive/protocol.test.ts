@@ -105,7 +105,7 @@ test("decodeCommand accepts bounded signed scroll rows", () => {
 
 test("protocol metadata is finite and tolerant of unknown future capabilities", () => {
   const metadata = protocolMetadata();
-  expect(metadata.protocol).toEqual({ major: 1, minor: 4 });
+  expect(metadata.protocol).toEqual({ major: 1, minor: 5 });
   expect(metadata.capabilities).toEqual(ENGINE_CAPABILITIES);
   expect(metadata.capabilities).toContain("documentMutations");
   const parsed = readProtocolMetadata({

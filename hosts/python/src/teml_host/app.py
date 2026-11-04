@@ -271,10 +271,11 @@ def _drive(
                 ctx = Context(values, queued, exit_flag)
                 if handlers.on_error is not None:
                     handlers.on_error(event.message, ctx)
-                # A rejected command answers with `error` and no frame, so this
-                # is that command's completion. Waiting for a frame would block
-                # forever; anything the handler queued runs on the next turn.
-                break
+                # Malformed input completes with an error alone. A semantic
+                # rejection carries frame=True and its unchanged frame is the
+                # command's completion; consume it before sending another command.
+                if not event.frame:
+                    break
             elif isinstance(event, ExitEvent):
                 return values
             else:

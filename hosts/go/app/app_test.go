@@ -115,6 +115,43 @@ func TestDispatchesChangesDeliversQueuedRequestsAndExitsWithValues(t *testing.T)
 	}
 }
 
+func TestRejectedMutationPreservesSubsequentCallbacksAndValues(t *testing.T) {
+	for _, mode := range []protocol.FrameMode{protocol.FrameFull, protocol.FramePatches} {
+		t.Run(string(mode), func(t *testing.T) {
+			var changes []string
+			var errors []string
+			opts := testOptions(t)
+			opts.Mode = mode
+
+			values, err := app.RunHeadless(opts, app.Handlers{
+				OnChange: func(_, value string, ctx *app.Context) {
+					changes = append(changes, value)
+					if len(changes) == 1 {
+						ctx.Remove("missing")
+					} else {
+						ctx.Exit()
+					}
+				},
+				OnError: func(message string, _ *app.Context) {
+					errors = append(errors, message)
+				},
+			}, app.TypingCommands("AB"), 60, 20)
+			if err != nil {
+				t.Fatalf("driver runs against a built engine or TEML_CLI: %v", err)
+			}
+			if len(changes) != 2 || changes[0] != "A" || changes[1] != "AB" {
+				t.Fatalf("changes = %v", changes)
+			}
+			if len(errors) != 1 || errors[0] != "unknown mutation target 'missing'" {
+				t.Fatalf("errors = %v", errors)
+			}
+			if values["service"] != "AB" {
+				t.Fatalf("values = %v", values)
+			}
+		})
+	}
+}
+
 func TestCtrlCEndsTheSessionWithoutAHandler(t *testing.T) {
 	values, err := app.RunHeadless(testOptions(t), app.Handlers{}, app.NewScriptedCommands(protocol.Exit()), 60, 20)
 	if err != nil {

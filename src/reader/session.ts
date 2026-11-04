@@ -130,6 +130,12 @@ export function resolveReaderTarget(
     }
     return { kind: "rejected", reason: `unsupported link scheme '${url.protocol}'` };
   }
+  if (path.isAbsolute(href) || isWindowsDrivePath(href)) {
+    const target = path.resolve(href);
+    return withinRoot(rootPath, target)
+      ? { kind: "local", path: target }
+      : { kind: "rejected", reason: "link is outside the document root" };
+  }
   const hashIndex = href.indexOf("#");
   const pathname = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
   const anchor = hashIndex >= 0 ? href.slice(hashIndex + 1) : undefined;

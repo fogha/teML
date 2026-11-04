@@ -29,11 +29,31 @@ export function escapeTemlText(s: string, ctx: EscapeContext = "prose"): string 
   }
 }
 
-/** Minimum fence length for a code block (>=3, longer if content contains backticks). */
-export function codeFenceLength(value: string): number {
+function longestBacktickRun(value: string): number {
   let max = 0;
   const re = /`+/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(value))) max = Math.max(max, m[0].length);
-  return Math.max(3, max + 1);
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(value))) max = Math.max(max, match[0].length);
+  return max;
+}
+
+export function serializeCodeSpan(value: string): string {
+  const delimiter = "`".repeat(longestBacktickRun(value) + 1);
+  const padded =
+    value.startsWith("`") ||
+    value.endsWith("`") ||
+    (value.startsWith(" ") && value.endsWith(" ") && value.trim().length > 0);
+  const padding = padded ? " " : "";
+  return `${delimiter}${padding}${value}${padding}${delimiter}`;
+}
+
+export function serializeLinkDestination(href: string): string {
+  const escaped = href.replace(/\\/g, "\\\\");
+  if (!/[\s()<>]/.test(href)) return escaped;
+  return `<${escaped.replace(/</g, "\\<").replace(/>/g, "\\>")}>`;
+}
+
+/** Minimum fence length for a code block (>=3, longer if content contains backticks). */
+export function codeFenceLength(value: string): number {
+  return Math.max(3, longestBacktickRun(value) + 1);
 }

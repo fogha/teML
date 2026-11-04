@@ -62,7 +62,7 @@ export type FrameMode = "full" | "patches";
 
 /** Protocol compatibility is independent from the Node package version.
  * Major changes are breaking; minor changes are additive and capability-gated. */
-export const PROTOCOL_VERSION = { major: 1, minor: 4 } as const;
+export const PROTOCOL_VERSION = { major: 1, minor: 5 } as const;
 export type ProtocolVersion = { major: number; minor: number };
 
 export type ProtocolCapability =
@@ -81,7 +81,8 @@ export type ProtocolCapability =
   | "documentMutations"
   | "mask"
   | "validation"
-  | "formSubmit";
+  | "formSubmit"
+  | "errorCompletion";
 
 /** Finite capability vocabulary emitted by this engine version. */
 export const ENGINE_CAPABILITIES: readonly ProtocolCapability[] = [
@@ -101,6 +102,7 @@ export const ENGINE_CAPABILITIES: readonly ProtocolCapability[] = [
   "mask",
   "validation",
   "formSubmit",
+  "errorCompletion",
 ];
 
 /** Messages the host sends to teml on stdin, one JSON object per line. */
@@ -186,7 +188,7 @@ export type SessionEvent =
    * widget) so a host never has to learn two scoping rules. A form with an
    * invalid field emits `error` instead, never `submit`. */
   | { type: "submit"; form: string; values: Record<string, string> }
-  | { type: "error"; message: string }
+  | { type: "error"; message: string; frame?: boolean }
   | { type: "exit" };
 
 export type DecodeResult = { ok: true; command: Command } | { ok: false; error: string };

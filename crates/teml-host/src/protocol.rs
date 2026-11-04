@@ -10,8 +10,8 @@ use std::collections::HashMap;
 
 /// Protocol version carried on discovery frames.
 pub const PROTOCOL_MAJOR: u32 = 1;
-/// Protocol minor version implemented by this crate (1.4 forms and validation).
-pub const PROTOCOL_MINOR: u32 = 4;
+/// Protocol minor version implemented by this crate (1.5 error completion).
+pub const PROTOCOL_MINOR: u32 = 5;
 
 pub const CAPABILITY_FRAME_FORMATS: &str = "frameFormats";
 pub const CAPABILITY_PATCHES: &str = "patches";
@@ -29,10 +29,11 @@ pub const CAPABILITY_DOCUMENT_MUTATIONS: &str = "documentMutations";
 pub const CAPABILITY_MASK: &str = "mask";
 pub const CAPABILITY_VALIDATION: &str = "validation";
 pub const CAPABILITY_FORM_SUBMIT: &str = "formSubmit";
+pub const CAPABILITY_ERROR_COMPLETION: &str = "errorCompletion";
 pub const MAX_DOCUMENT_BLOCKS: usize = 10_000;
 pub const MAX_MUTATION_TARGET_CHILDREN: usize = 2_000;
 
-/// Finite capability vocabulary implemented by protocol 1.4.
+/// Finite capability vocabulary implemented by protocol 1.5.
 pub const ENGINE_CAPABILITIES: &[&str] = &[
     CAPABILITY_FRAME_FORMATS,
     CAPABILITY_PATCHES,
@@ -50,6 +51,7 @@ pub const ENGINE_CAPABILITIES: &[&str] = &[
     CAPABILITY_MASK,
     CAPABILITY_VALIDATION,
     CAPABILITY_FORM_SUBMIT,
+    CAPABILITY_ERROR_COMPLETION,
 ];
 
 /// Named navigation / editing keys accepted by the engine.
@@ -297,6 +299,8 @@ pub enum Event {
     Submit(Submit),
     Error {
         message: String,
+        #[serde(default)]
+        frame: bool,
     },
     Exit,
     /// Additive future event types. The wire `type` string is preserved so a
@@ -341,7 +345,16 @@ impl PartialEq for Event {
                 },
             ) => a_id == b_id && a_values == b_values,
             (Self::Submit(a), Self::Submit(b)) => a == b,
-            (Self::Error { message: a }, Self::Error { message: b }) => a == b,
+            (
+                Self::Error {
+                    message: a,
+                    frame: a_frame,
+                },
+                Self::Error {
+                    message: b,
+                    frame: b_frame,
+                },
+            ) => a == b && a_frame == b_frame,
             (Self::Exit, Self::Exit) => true,
             (Self::Unknown { event_type: a }, Self::Unknown { event_type: b }) => a == b,
             _ => false,
@@ -404,6 +417,7 @@ impl Event {
             Some("error") => Ok(Self::Error {
                 message: field_string(&value, "message")
                     .unwrap_or_else(|_| "protocol error".into()),
+                frame: value.get("frame").and_then(Value::as_bool).unwrap_or(false),
             }),
             Some("exit") => Ok(Self::Exit),
             // A missing `type` is surfaced the same way the Node host does it.
@@ -465,10 +479,10 @@ mod tests {
     }
 
     #[test]
-    fn current_protocol_version_is_one_four() {
+    fn current_protocol_version_is_one_five() {
         assert_eq!(
             ProtocolVersion::CURRENT,
-            ProtocolVersion { major: 1, minor: 4 }
+            ProtocolVersion { major: 1, minor: 5 }
         );
         assert_eq!(
             ENGINE_CAPABILITIES,
@@ -489,6 +503,7 @@ mod tests {
                 "mask",
                 "validation",
                 "formSubmit",
+                "errorCompletion",
             ]
         );
     }

@@ -167,6 +167,20 @@ test("TeML round-trip fuzz: 200 seeded valid ASTs", () => {
   }
 });
 
+test("inline code and link destinations preserve semantics across round trips", () => {
+  for (const source of [
+    "``a`b``",
+    "`C:\\temp`",
+    "[x](<https://example.com/a b>)",
+    "[x](https://example.com/a_(b))",
+  ]) {
+    const before = normalize(parseTeml(source));
+    const serialized = serializeTeml(before);
+    const after = normalize(parseTeml(serialized));
+    expect(after, `${source} -> ${serialized}`).toEqual(before);
+  }
+});
+
 test("serializeTeml: frontmatter includes lang and roles", () => {
   const doc: TDoc = {
     meta: {

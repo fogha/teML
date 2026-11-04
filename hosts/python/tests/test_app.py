@@ -61,6 +61,35 @@ def test_dispatches_changes_delivers_queued_requests_and_exits_with_values(
     assert values.get("other") == "Y"
 
 
+def test_rejected_mutation_preserves_subsequent_callbacks_and_values(
+    engine_path: str,
+    view_path: str,
+) -> None:
+    for mode in ("full", "patches"):
+        recorder = Recorder()
+
+        def on_change(id: str, value: str, ctx: Context) -> None:
+            recorder.changes.append((id, value))
+            if len(recorder.changes) == 1:
+                ctx.remove("missing")
+            else:
+                ctx.exit()
+
+        values = run_headless(
+            view_path,
+            on_change=on_change,
+            on_error=lambda message, ctx: recorder.errors.append(message),
+            events=ScriptedStdinEvents.typing("AB"),
+            size=(60, 20),
+            mode=mode,
+            engine=engine_path,
+        )
+
+        assert recorder.changes == [("service", "A"), ("service", "AB")], mode
+        assert recorder.errors == ["unknown mutation target 'missing'"], mode
+        assert values.get("service") == "AB", mode
+
+
 def test_ctrl_c_ends_the_session_without_a_handler(
     engine_path: str,
     view_path: str,

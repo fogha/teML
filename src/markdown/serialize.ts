@@ -5,7 +5,7 @@ import { inlineText } from "../core/ast.js";
 import type { Diagnostics } from "../core/diagnostics.js";
 import { sanitizeHref, sanitizeText } from "../core/sanitize.js";
 import { isAlertContainer, isShorthandInlineRole } from "../teml/directives.js";
-import { codeFenceLength } from "../teml/escape.js";
+import { codeFenceLength, serializeCodeSpan, serializeLinkDestination } from "../teml/escape.js";
 
 function lossy(diags: Diagnostics, message: string): void {
   diags.warnOnce("markdown-lossy-conversion", message);
@@ -36,7 +36,7 @@ function serializeMdInline(nodes: Inline[], diags: Diagnostics): string {
         out += `~~${serializeMdInline(n.children, diags)}~~`;
         break;
       case "code":
-        out += "`" + n.value.replace(/`/g, "\\`") + "`";
+        out += serializeCodeSpan(n.value);
         break;
       case "link": {
         const href = sanitizeHref(n.href);
@@ -45,13 +45,13 @@ function serializeMdInline(nodes: Inline[], diags: Diagnostics): string {
           diags.warn("link-dropped", "unsafe link target dropped in Markdown output");
           out += label;
         } else {
-          out += `[${label}](${href})`;
+          out += `[${label}](${serializeLinkDestination(href)})`;
         }
         break;
       }
       case "span":
         if (n.role === "kbd") {
-          out += "`" + inlineText(n.children).replace(/`/g, "\\`") + "`";
+          out += serializeCodeSpan(inlineText(n.children));
         } else if (isShorthandInlineRole(n.role)) {
           lossy(diags, `span role '${n.role}' degraded to plain text in Markdown output`);
           out += serializeMdInline(n.children, diags);

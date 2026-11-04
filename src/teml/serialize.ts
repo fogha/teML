@@ -3,7 +3,12 @@
 import { stringify as yamlStringify } from "yaml";
 import type { Align, Block, Inline, ListItem, Meta, RoleStyle, TDoc } from "../core/index.js";
 import { isShorthandInlineRole } from "./directives.js";
-import { codeFenceLength, escapeTemlText } from "./escape.js";
+import {
+  codeFenceLength,
+  escapeTemlText,
+  serializeCodeSpan,
+  serializeLinkDestination,
+} from "./escape.js";
 
 function serializeInline(nodes: Inline[], ctx: "prose" | "link" | "tableCell" = "prose"): string {
   let out = "";
@@ -25,11 +30,13 @@ function serializeInline(nodes: Inline[], ctx: "prose" | "link" | "tableCell" = 
         out += `~~${serializeInline(n.children, ctx)}~~`;
         break;
       case "code":
-        out += "`" + escapeTemlText(n.value, "codeInline") + "`";
+        out += serializeCodeSpan(n.value);
         break;
-      case "link":
-        out += `[${serializeInline(n.children, "link")}](${escapeTemlText(n.href, "prose")})`;
+      case "link": {
+        const href = serializeLinkDestination(n.href).replace(/#/g, "\\#");
+        out += `[${serializeInline(n.children, "link")}](${href})`;
         break;
+      }
       case "span": {
         const children = serializeInline(n.children, ctx);
         if (isShorthandInlineRole(n.role)) {

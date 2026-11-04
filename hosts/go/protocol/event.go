@@ -36,6 +36,7 @@ type SessionEvent struct {
 
 	// error
 	Message string `json:"message,omitempty"`
+	Frame   bool   `json:"frame,omitempty"`
 }
 
 // IsFrame reports whether the event carries a terminal frame payload.

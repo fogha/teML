@@ -285,10 +285,12 @@ commands:
 				dispatchSubmit(handlers, ev.Form, cloneValues(ev.Values), values, &queued, &exit)
 			case "error":
 				dispatchError(handlers, ev.Message, values, &queued, &exit)
-				// A rejected command answers with `error` and no frame, so this
-				// is that command's completion. Waiting for a frame would block
-				// forever; anything the handler queued runs on the next turn.
-				continue commands
+				// Malformed input completes with an error alone. A semantic
+				// rejection carries frame=true and its unchanged frame is the
+				// command's completion; consume it before sending another command.
+				if !ev.Frame {
+					continue commands
+				}
 			case "exit":
 				return cloneValues(*values), nil
 			default:

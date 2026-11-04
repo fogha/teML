@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file. Public
 versioning starts at 0.1.0; the v1.0 and v1.5 labels below are earlier internal
 development milestones, not published package versions.
 
+## Unreleased — Error completion and host correctness (protocol 1.5)
+
+- Added `frame` to `error` events and the `errorCompletion` capability. Semantic
+  rejections retain their unchanged following frame (`frame:true`); malformed
+  input completes without one (`frame:false`). Python, Go, and Rust consume the
+  correct completion event, preventing rejected commands from dropping later input.
+
+- Python terminal input now preserves fragmented UTF-8, consecutive mouse and
+  keyboard sequences, bare Escape, Shift+Tab, Delete, and page navigation.
+
+- TeML and Markdown serialization preserves inline-code backticks/backslashes and
+  link destinations containing spaces or parentheses. Reader opens absolute
+  directory-entry paths literally, including filenames with `#`, `%`, and `%20`.
+
 ## Unreleased — Forms, validation, and masked input (protocol 1.4)
 
 - Added `:::form{id label}` grouping and `::button{submit}`. Activating a submit

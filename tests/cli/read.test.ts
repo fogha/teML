@@ -138,6 +138,23 @@ describe("teml read", () => {
     expect(chunks.join("")).not.toContain("b.txt");
   });
 
+  test("opens directory entries with literal #, %, and %20 filename characters", async () => {
+    const names = ["normal.md", "report#1.md", "report%.md", "report%20name.md"];
+    for (const [index, name] of names.entries()) {
+      const dir = mkdtempSync(join(tmpdir(), "teml-reader-special-"));
+      const marker = `OPENED_DOCUMENT_${index}`;
+      writeFileSync(join(dir, name), `# ${marker}\n`);
+      const { input, output, chunks } = ttyPair();
+      const running = executeRead(dir, { color: false }, { input, output });
+      await waitForOutput(chunks, name);
+      input.write("\t\r");
+      await waitForOutput(chunks, marker);
+      input.write("q");
+      expect(await running, name).toBe(0);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("prints document diagnostics after the terminal is restored", async () => {
     const dir = mkdtempSync(join(tmpdir(), "teml-reader-diags-"));
     const file = join(dir, "doc.teml");

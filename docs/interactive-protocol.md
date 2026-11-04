@@ -144,12 +144,13 @@ by exactly one new `frame` (except `exit`, which produces only the `exit`
 event). Malformed or unknown command lines produce an `error` without a
 frame.
 
-`error` is the verdict for the command it answers, not a preamble to a frame:
-it completes that command. A host read loop must stop waiting for a frame when
-it receives one — waiting consumes the *next* command's frame, or blocks forever
-when nothing else is pending. The session stays usable, and any command the
-error handler queues runs next. The same rule covers an oversized line (see
-Resource limits).
+Every `error` carries a `frame` boolean in protocol 1.5. `frame:false` completes
+the command immediately, including malformed input and oversized lines.
+`frame:true` marks a semantic rejection and is followed by an unchanged frame;
+the host must consume that frame before sending another command. Stopping at
+such an error leaves its frame to be misread as the next command's response.
+Older engines omit the field, which hosts treat as `false`. The session stays
+usable, and any command the error handler queues runs after completion.
 
 ## Commands (host → teml)
 
@@ -642,7 +643,7 @@ One JSON object per line on stdout.
 | `toggle` | `id`, `checked`                                                                                                                                                                     | A checkbox's checked state changed                                                                               |
 | `click`  | `id`, `values`                                                                                                                                                                      | A button was activated; `values` maps every widget id to its current value (`"true"`/`"false"` for checkboxes)   |
 | `submit` | `form`, `values`                                                                                                                                                                    | A `::button{submit}` in a valid `:::form` was activated. `values` has the same scope as `click.values`. An invalid form emits `error` instead |
-| `error`  | `message`                                                                                                                                                                           | A command line was malformed, unrecognized, a late `configure`, a failed `render`, or a rejected update/mutation |
+| `error`  | `message`, `frame`                                                                                                                                                                  | A command line was malformed, unrecognized, a late `configure`, a failed `render`, or a rejected update/mutation. `frame` tells the host whether an unchanged frame follows |
 | `exit`   | —                                                                                                                                                                                   | The session ended                                                                                                |
 
 ### Full frames
@@ -716,7 +717,7 @@ Negotiated full frames carry:
 
 ```json
 {
-  "protocol": { "major": 1, "minor": 4 },
+  "protocol": { "major": 1, "minor": 5 },
   "capabilities": [
     "frameFormats",
     "patches",
@@ -733,13 +734,16 @@ Negotiated full frames carry:
     "documentMutations",
     "mask",
     "validation",
-    "formSubmit"
+    "formSubmit",
+    "errorCompletion"
   ]
 }
 ```
 
 Protocol 1.4 adds the `submit` event and the three capabilities above; it is an
-additive minor with no command changes.
+additive minor with no command changes. Protocol 1.5 adds `error.frame` and the
+`errorCompletion` capability so hosts can distinguish terminal errors from
+semantic rejections with a following frame.
 
 Major changes may break command/event meaning and are fatal when a host
 requires another major. Minor changes are additive; hosts inspect the finite

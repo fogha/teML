@@ -67,8 +67,10 @@ export async function runInteractive(
   };
 
   const writeEvents = async (events: ReturnType<InteractiveSession["start"]>): Promise<boolean> => {
+    const hasFrame = events.some((event) => event.type === "frame");
     for (const event of events) {
-      if (!(await write(encodeEvent(event)))) return false;
+      const outgoing = event.type === "error" ? { ...event, frame: hasFrame } : event;
+      if (!(await write(encodeEvent(outgoing)))) return false;
     }
     return true;
   };
@@ -116,7 +118,7 @@ export async function runInteractive(
     stderr.write(`teml: error: interactive session failed: ${message}\n`);
     if (!outputFailed) {
       try {
-        stdout.write(encodeEvent({ type: "error", message }));
+        stdout.write(encodeEvent({ type: "error", message, frame: false }));
       } catch {
         // The channel is already gone; the stderr line is the only record.
       }

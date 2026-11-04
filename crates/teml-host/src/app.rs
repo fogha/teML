@@ -220,14 +220,15 @@ fn drive<A: App, E: TerminalEvents>(
                     let mut ctx = context(&values, &mut queued, &mut exit);
                     app.on_submit(&submit.form, &values, &mut ctx);
                 }
-                Event::Error { message } => {
+                Event::Error { message, frame } => {
                     let mut ctx = context(&values, &mut queued, &mut exit);
                     app.on_error(&message, &mut ctx);
-                    // A rejected command answers with `error` and no frame, so
-                    // this is that command's completion. Waiting for a frame
-                    // would block forever; anything the handler queued runs on
-                    // the next turn.
-                    break;
+                    // Malformed input completes with an error alone. A semantic
+                    // rejection carries frame=true and its unchanged frame is
+                    // the command's completion; consume it before another command.
+                    if !frame {
+                        break;
+                    }
                 }
                 // The engine can end the session on its own.
                 Event::Exit => return Ok(values),
@@ -275,6 +276,7 @@ fn drain_after_exit(session: &mut Session) {
 mod tests {
     use super::*;
     use crate::engine::{default_package_scripts, ExplicitEngine};
+    use crate::protocol::FrameMode;
     use crate::EngineResolveOptions;
     use crossterm::event::{Event as TerminalEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
     use std::io;
@@ -405,6 +407,48 @@ mod tests {
         // The second lands in the document the handler rendered.
         assert_eq!(recorder.changes[1], ("other".to_string(), "Y".to_string()));
         assert_eq!(values.get("other").map(String::as_str), Some("Y"));
+    }
+
+    #[test]
+    fn rejected_mutation_preserves_subsequent_callbacks_and_values() {
+        #[derive(Default)]
+        struct RejectionRecorder {
+            changes: Vec<String>,
+            errors: Vec<String>,
+        }
+
+        impl App for RejectionRecorder {
+            fn on_change(&mut self, _id: &str, value: &str, ctx: &mut Context<'_>) {
+                self.changes.push(value.to_string());
+                if self.changes.len() == 1 {
+                    ctx.remove("missing");
+                } else {
+                    ctx.exit();
+                }
+            }
+
+            fn on_error(&mut self, message: &str, _ctx: &mut Context<'_>) {
+                self.errors.push(message.to_string());
+            }
+        }
+
+        for mode in [FrameMode::Full, FrameMode::Patches] {
+            let mut recorder = RejectionRecorder::default();
+            let values = run_headless(
+                SessionOptions {
+                    mode: Some(mode),
+                    ..options()
+                },
+                &mut recorder,
+                ScriptedEvents::typing("AB"),
+                (60, 20),
+            )
+            .expect("driver runs against a built engine or TEML_CLI");
+
+            assert_eq!(recorder.changes, ["A", "AB"]);
+            assert_eq!(recorder.errors, ["unknown mutation target 'missing'"]);
+            assert_eq!(values.get("service").map(String::as_str), Some("AB"));
+        }
     }
 
     #[test]

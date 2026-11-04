@@ -266,6 +266,7 @@ class SubmitEvent:
 @dataclass(frozen=True, slots=True)
 class ErrorEvent:
     message: str
+    frame: bool = False
     type: Literal["error"] = "error"
 
 
@@ -506,9 +507,12 @@ def parse_event(data: dict[str, Any]) -> SessionEvent:
         return SubmitEvent(form=form, values=normalized)
     if event_type == "error":
         message = data.get("message")
+        frame = data.get("frame", False)
         if not isinstance(message, str):
             raise ValueError("error event needs a message string")
-        return ErrorEvent(message=message)
+        if not isinstance(frame, bool):
+            raise ValueError("error event frame must be a boolean")
+        return ErrorEvent(message=message, frame=frame)
     if event_type == "exit":
         return ExitEvent()
     return UnknownEvent(event_type=event_type if isinstance(event_type, str) else None)
@@ -582,7 +586,10 @@ def event_to_dict(event: SessionEvent) -> dict[str, Any]:
     if isinstance(event, ClickEvent):
         return {"type": "click", "id": event.id, "values": event.values}
     if isinstance(event, ErrorEvent):
-        return {"type": "error", "message": event.message}
+        payload = {"type": "error", "message": event.message}
+        if event.frame:
+            payload["frame"] = True
+        return payload
     if isinstance(event, ExitEvent):
         return {"type": "exit"}
     if isinstance(event, UnknownEvent):

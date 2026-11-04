@@ -94,7 +94,36 @@ test("an unexpected failure reports to stderr and to the host before exiting", a
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line) as Record<string, unknown>);
-  expect(events.at(-1)).toEqual({ type: "error", message: "stdin exploded" });
+  expect(events.at(-1)).toEqual({ type: "error", message: "stdin exploded", frame: false });
+});
+
+test("error events declare whether an unchanged frame follows", async () => {
+  const stdin = Readable.from([
+    '{"type":"remove","target":"missing"}\nnot-json\n{"type":"exit"}\n',
+  ]);
+  const stdout = new SlowOutput();
+  const status = await runInteractive(
+    normalize(parseTeml('::input{id="name"}')),
+    {
+      diags: new Diagnostics(),
+      layout: { width: 40, theme: loadTheme("dark"), caps },
+      frames: "plain",
+      mode: "patches",
+    },
+    stdin,
+    stdout,
+  );
+
+  expect(status).toBe(0);
+  const events = stdout
+    .text()
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+  expect(events.filter((event) => event.type === "error")).toEqual([
+    { type: "error", message: "unknown mutation target 'missing'", frame: true },
+    { type: "error", message: expect.stringContaining("malformed JSON"), frame: false },
+  ]);
 });
 
 test("runInteractive reports an oversized line once and accepts later commands", async () => {

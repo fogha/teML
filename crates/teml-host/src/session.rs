@@ -182,7 +182,7 @@ impl Session {
         loop {
             match self.next_event()? {
                 Event::Frame(frame) => return Ok(frame),
-                Event::Error { message } => {
+                Event::Error { message, .. } => {
                     return Err(SessionError::Protocol(format!("protocol error: {message}")));
                 }
                 Event::Exit => {

@@ -244,27 +244,35 @@ def _key_command(
     return KeyCommand(key=key)
 
 
-def map_terminal_bytes(
-    data: bytes,
-    read_until_idle: Callable[[bytes], bytes],
-) -> Command | None:
-    if not data:
-        return None
+def _escape_sequence_length(data: bytes | bytearray) -> int:
+    if len(data) == 1:
+        return 1
+    if data.startswith(b"\x1b[<"):
+        for index in range(3, len(data)):
+            if data[index] in (ord("M"), ord("m")):
+                return index + 1
+        return 0
+    if data.startswith(b"\x1bO"):
+        return 3 if len(data) >= 3 else 0
+    if data.startswith(b"\x1b["):
+        for index in range(2, len(data)):
+            byte = data[index]
+            if byte == ord("~") or chr(byte).isalpha():
+                return index + 1
+            if byte not in (ord(";"), ord("<")) and not chr(byte).isdigit():
+                return index
+        return 0
+    return 1
+
+
+def _map_complete_terminal_bytes(data: bytes) -> Command | None:
     mouse = decode_sgr_mouse(data)
     if mouse is not None:
         return mouse
-    if data[0] == 3:
-        return ExitCommand()
-    if data[0] == 9:
-        return _key_command("tab")
+    if data == b"\x1b":
+        return _key_command("escape")
     if data == b"\x1b[Z":
         return _key_command("shiftTab")
-    if data[0] in (13, 10):
-        return _key_command("enter")
-    if data[0] == 127:
-        return _key_command("backspace")
-    if data == b"\x1b":
-        data = read_until_idle(data)
     if data.startswith(b"\x1b"):
         seq = data.decode("utf-8", errors="replace")
         mapping: dict[str, KeyName] = {
@@ -284,13 +292,21 @@ def map_terminal_bytes(
             f"\x1bOH": "home",
             f"\x1bOF": "end",
         }
-        for index in range(1, 13):
+        for index in (1, 2, 4, 7, 8, 9, 10, 11, 12):
             mapping[f"{CSI}{index}~"] = f"f{index}"  # type: ignore[assignment]
         if seq in mapping:
             return _key_command(mapping[seq])
         if seq == f"{CSI}1;5H":
             return _key_command("home", ctrl=True)
         return None
+    if data[0] == 3:
+        return ExitCommand()
+    if data[0] == 9:
+        return _key_command("tab")
+    if data[0] in (13, 10):
+        return _key_command("enter")
+    if data[0] == 127:
+        return _key_command("backspace")
     if len(data) == 1 and data[0] < 32:
         letter = chr(data[0] + 96)
         if letter == "c":
@@ -302,9 +318,20 @@ def map_terminal_bytes(
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         return None
-    if not text or text == "\x03":
-        return ExitCommand()
-    return CharCommand(char=text)
+    return CharCommand(char=text) if text else None
+
+
+def map_terminal_bytes(
+    data: bytes,
+    read_until_idle: Callable[[bytes], bytes],
+) -> Command | None:
+    if not data:
+        return None
+    if data == b"\x1b":
+        data = read_until_idle(data)
+    if data.startswith(b"\x1b") and _escape_sequence_length(data) != len(data):
+        return None
+    return _map_complete_terminal_bytes(data)
 
 
 @dataclass(slots=True)
@@ -315,24 +342,45 @@ class TerminalInput:
     last_size: tuple[int, int]
     supports_scroll: bool
     _pending: bytes | None = field(default=None, init=False)
+    _buffer: bytearray = field(default_factory=bytearray, init=False)
 
     def next_command(self) -> Command | None:
         if self._pending is not None:
-            data = self._pending
+            self._buffer.extend(self._pending)
             self._pending = None
-        else:
+        elif not self._buffer:
             if not self.events.poll(0.05):
                 return None
             if self.events.take_resize():
                 return self._coalesced_resize()
-            data = self.events.read_bytes()
+            self._buffer.extend(self.events.read_bytes())
+        if self._buffer[0] == 27 and len(self._buffer) == 1:
+            sequence = self.events.read_until_idle(bytes(self._buffer))
+            self._buffer.clear()
+            self._buffer.extend(sequence)
+        elif self.events.poll(0):
+            self._buffer.extend(self.events.read_bytes())
 
-        command = map_terminal_bytes(data, self.events.read_until_idle)
-        if command is None:
+        first = self._buffer[0]
+        if first == 27:
+            length = _escape_sequence_length(self._buffer)
+        elif first < 0x80:
+            length = 1
+        elif 0xC2 <= first <= 0xDF:
+            length = 2
+        elif 0xE0 <= first <= 0xEF:
+            length = 3
+        elif 0xF0 <= first <= 0xF4:
+            length = 4
+        else:
+            length = 1
+        if length == 0 or len(self._buffer) < length:
             return None
-        if isinstance(command, ScrollCommand):
-            if self.supports_scroll:
-                return command
+
+        data = bytes(self._buffer[:length])
+        del self._buffer[:length]
+        command = _map_complete_terminal_bytes(data)
+        if isinstance(command, ScrollCommand) and not self.supports_scroll:
             return map_scroll(command.rows, supports_scroll=False)
         return command
 
