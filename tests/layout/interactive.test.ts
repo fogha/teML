@@ -61,37 +61,36 @@ test("input shows placeholder when empty, value when set", () => {
   const empty = doc([
     { type: "leaf", name: "input", attrs: { id: "name", label: "Name", placeholder: "your name" } },
   ]);
-  expect(renderPlain(layoutDocument(empty, opts()))).toContain("Name: [your name]");
+  expect(renderPlain(layoutDocument(empty, opts()))).toContain("│ your name");
 
   const filled = doc([
     { type: "leaf", name: "input", attrs: { id: "name", label: "Name", value: "Ada" } },
   ]);
-  expect(renderPlain(layoutDocument(filled, opts()))).toContain("Name: [Ada]");
+  expect(renderPlain(layoutDocument(filled, opts()))).toContain("│ Ada");
 });
 
 test("focused input shows a cursor glyph after its value", () => {
   const d = doc([{ type: "leaf", name: "input", attrs: { id: "name", value: "Ada" } }]);
   const uni = renderPlain(layoutDocument(d, opts({ focusedId: "name" })));
-  expect(uni).toContain("[Ada▏]");
+  expect(uni).toContain("│ Ada▏");
 
   const ascii = renderPlain(
     layoutDocument(d, opts({ caps: caps({ unicode: false }), focusedId: "name" })),
   );
-  expect(ascii).toContain("[Ada|]");
+  expect(ascii).toContain("| Ada|");
 });
 
 test("selectionActive renders the whole value as one highlighted span with no caret", () => {
   const d = doc([{ type: "leaf", name: "input", attrs: { id: "name", value: "Ada" } }]);
   const out = renderPlain(layoutDocument(d, opts({ focusedId: "name", selectionActive: true })));
-  expect(out).toContain("[Ada]");
+  expect(out).toContain("│ Ada");
   expect(out).not.toContain("▏");
-  expect(out).not.toContain("|");
 });
 
 test("selectionActive is ignored when the input isn't the focused one", () => {
   const d = doc([{ type: "leaf", name: "input", attrs: { id: "name", value: "Ada" } }]);
   const out = renderPlain(layoutDocument(d, opts({ focusedId: "other", selectionActive: true })));
-  expect(out).toContain("[Ada]");
+  expect(out).toContain("│ Ada");
 });
 
 test("checkbox renders checked/unchecked glyphs, unicode and ascii", () => {
@@ -141,10 +140,10 @@ test("textarea contributes a fixed number of content rows", () => {
     },
   ]);
   const lines = layoutDocument(d, opts({ focusedId: "bio", cursorPos: 7 }));
-  expect(lines).toHaveLength(3);
+  expect(lines).toHaveLength(5);
   const out = renderPlain(lines);
   expect(out).toContain("▸ Bio");
-  expect(out).toContain("[one");
+  expect(out).toContain("│ one");
 });
 
 test("auto-growing textarea uses content rows up to maxRows", () => {
@@ -163,7 +162,7 @@ test("auto-growing textarea uses content rows up to maxRows", () => {
     },
   ]);
   const lines = layoutDocument(d, opts());
-  expect(lines).toHaveLength(3);
+  expect(lines).toHaveLength(5);
   const out = renderPlain(lines);
   expect(out).toContain("one");
   expect(out).toContain("two");

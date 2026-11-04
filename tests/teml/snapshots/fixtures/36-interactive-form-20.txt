@@ -16,10 +16,15 @@ no focus marker,
 same as any other
 leaf directive.
 
-  Name: [your name]
+  Name
+  ┌────────────────┐
+  │ your name      │
+  └────────────────┘
 
-  Email:
-  [ada@example.com]
+  Email
+  ┌────────────────┐
+  │ ada@example.c… │
+  └────────────────┘
 
   ☑ I agree to the
   terms
@@ -30,8 +35,10 @@ leaf directive.
   [ Submit ]
 
 ┌─ Nested in a car…┐
-│   Also           │
-│   focusable: []  │
+│   Also focusable │
+│   ┌────────────┐ │
+│   │            │ │
+│   └────────────┘ │
 │                  │
 │   [ OK ]         │
 └──────────────────┘

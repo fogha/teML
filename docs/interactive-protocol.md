@@ -382,7 +382,7 @@ exact containment in the widget's per-row half-open cell interval
 activates it too, exactly like `enter`. Clicking a radio option focuses its
 group and confirms that option. Clicking textarea content repositions its
 grapheme cursor using the clicked terminal-cell column; clicking its label or
-brackets only focuses it.
+border only focuses it.
 Clicking an input just focuses it (the cursor is not repositioned to the
 exact clicked character; it stays wherever it already was, or moves to the
 end if the input had never been focused before). A click outside every widget
@@ -684,7 +684,7 @@ With `configure.mode: "patches"`, routine interaction emits row-level diffs:
   "seq": 4,
   "focusedId": "name",
   "rows": 8,
-  "patches": [{ "row": 2, "plain": "Name: [Ada|]", "ansi": null }]
+  "patches": [{ "row": 2, "plain": "│ Ada|", "ansi": null }]
 }
 ```
 

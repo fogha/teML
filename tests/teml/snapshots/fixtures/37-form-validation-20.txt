@@ -1,11 +1,18 @@
 ▸ Deploy target ────
-    Release owner:
-    []
+    Release owner
+    ┌────────────┐
+    │            │
+    └────────────┘
 
-    Tag: [release]
+    Tag
+    ┌────────────┐
+    │ release    │
+    └────────────┘
 
-    Password:
-    [•••••••]
+    Password
+    ┌────────────┐
+    │ •••••••    │
+    └────────────┘
 
     ☑ Notify
     on-call
@@ -20,6 +27,9 @@ per-form, not
 per-document.
 
 ▸ Retry policy ─────
-    Attempts: [3]
+    Attempts
+    ┌────────────┐
+    │ 3          │
+    └────────────┘
 
     [ Save ]

@@ -28,7 +28,7 @@ test("the NDJSON runtime completes a negotiated, patched, resized, submitted, an
   try {
     const baseline = runSession(
       form.file,
-      [{ type: "resize", width: 20, height: 12 }, { type: "exit" }],
+      [{ type: "resize", width: 20, height: 24 }, { type: "exit" }],
       ["--frames", "plain"],
     );
     const submitRow = findRow(frames(baseline.events).at(-1)?.plain, "Submit");
@@ -45,6 +45,7 @@ test("the NDJSON runtime completes a negotiated, patched, resized, submitted, an
       { type: "char", char: "!" },
       { type: "key", key: "tab" },
       { type: "key", key: "enter" },
+      { type: "resize", width: 20, height: 24 },
       { type: "pointer", row: submitRow, col: 0 },
       {
         type: "render",
@@ -73,7 +74,7 @@ test("the NDJSON runtime completes a negotiated, patched, resized, submitted, an
     expect(patchFrames[1].patches).toBeUndefined(); // configure acknowledgement
     expect(patchFrames.slice(2, 4).every((frame) => frame.patches != null)).toBe(true);
     const resizeFrame = patchFrames.find(
-      (frame) => frame.patches == null && frame.plain?.includes("[Ad▏a]"),
+      (frame) => frame.patches == null && frame.plain?.includes("│ Ad▏a"),
     );
     const renderFrame = patchFrames.find(
       (frame) => frame.patches == null && frame.plain?.includes("DONE"),

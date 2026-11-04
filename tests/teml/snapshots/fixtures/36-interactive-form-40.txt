@@ -10,9 +10,15 @@ controls with no focus
 marker, same as any other leaf
 directive.
 
-  Name: [your name]
+  Name
+  ┌────────────────────────────────────┐
+  │ your name                          │
+  └────────────────────────────────────┘
 
-  Email: [ada@example.com]
+  Email
+  ┌────────────────────────────────────┐
+  │ ada@example.com                    │
+  └────────────────────────────────────┘
 
   ☑ I agree to the terms
 
@@ -21,7 +27,10 @@ directive.
   [ Submit ]
 
 ┌─ Nested in a card ───────────────────┐
-│   Also focusable: []                 │
+│   Also focusable                     │
+│   ┌────────────────────────────────┐ │
+│   │                                │ │
+│   └────────────────────────────────┘ │
 │                                      │
 │   [ OK ]                             │
 └──────────────────────────────────────┘

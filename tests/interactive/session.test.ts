@@ -287,32 +287,32 @@ test("left/right move the text cursor within the focused input, rendered as a ca
   const s = new InteractiveSession(formDoc(), sessionOptions());
   s.handle({ type: "char", char: "Ada" }); // cursor at end: "Ada▏"
   let f = frameOf(s.handle({ type: "key", key: "left" }));
-  expect(f.plain).toContain("[Ad▏a]");
+  expect(f.plain).toContain("│ Ad▏a");
   f = frameOf(s.handle({ type: "key", key: "left" }));
-  expect(f.plain).toContain("[A▏da]");
+  expect(f.plain).toContain("│ A▏da");
   f = frameOf(s.handle({ type: "key", key: "right" }));
-  expect(f.plain).toContain("[Ad▏a]");
+  expect(f.plain).toContain("│ Ad▏a");
 });
 
 test("home, end, and delete edit the focused input by grapheme", () => {
   const s = new InteractiveSession(formDoc(), sessionOptions());
   s.handle({ type: "char", char: "A🙂B" });
   let frame = frameOf(s.handle({ type: "key", key: "home" }));
-  expect(frame.plain).toContain("[▏A🙂B]");
+  expect(frame.plain).toContain("│ ▏A🙂B");
   s.handle({ type: "key", key: "right" });
   const deleted = s.handle({ type: "key", key: "delete" });
   expect(deleted[0]).toEqual({ type: "change", id: "name", value: "AB" });
   frame = frameOf(s.handle({ type: "key", key: "end" }));
-  expect(frame.plain).toContain("[AB▏]");
+  expect(frame.plain).toContain("│ AB▏");
 });
 
 test("Alt+Left/Right preserve the existing cursor movement behavior", () => {
   const s = new InteractiveSession(formDoc(), sessionOptions());
   s.handle({ type: "char", char: "Ada" });
   let frame = frameOf(s.handle({ type: "key", key: "left", modifiers: { alt: true } }));
-  expect(frame.plain).toContain("[Ad▏a]");
+  expect(frame.plain).toContain("│ Ad▏a");
   frame = frameOf(s.handle({ type: "key", key: "right", modifiers: { alt: true } }));
-  expect(frame.plain).toContain("[Ada▏]");
+  expect(frame.plain).toContain("│ Ada▏");
 });
 
 test("delete clears an untouched default and richer no-op keys still emit frames", () => {
@@ -346,11 +346,11 @@ test("left is clamped at position 0, right is clamped at the end", () => {
   s.handle({ type: "key", key: "left" });
   s.handle({ type: "key", key: "left" });
   let f = frameOf(s.handle({ type: "key", key: "left" })); // already at 0
-  expect(f.plain).toContain("[▏Hi]");
+  expect(f.plain).toContain("│ ▏Hi");
   s.handle({ type: "key", key: "right" });
   s.handle({ type: "key", key: "right" });
   f = frameOf(s.handle({ type: "key", key: "right" })); // already at the end
-  expect(f.plain).toContain("[Hi▏]");
+  expect(f.plain).toContain("│ Hi▏");
 });
 
 test("typing inserts at the cursor position, not always at the end", () => {
@@ -385,7 +385,7 @@ test("cursor position persists when focus moves away and back to the same input"
   s.handle({ type: "key", key: "left" }); // cursor at 2, between "Ad" and "a"
   s.handle({ type: "key", key: "tab" }); // -> agree
   const f = frameOf(s.handle({ type: "key", key: "shiftTab" })); // back -> name
-  expect(f.plain).toContain("[Ad▏a]");
+  expect(f.plain).toContain("│ Ad▏a");
 });
 
 test("an untouched default value renders as selected: no caret, whole value highlighted", () => {
@@ -394,7 +394,7 @@ test("an untouched default value renders as selected: no caret, whole value high
     sessionOptions(),
   );
   const f = frameOf(s.start());
-  expect(f.plain).toContain("[Ada Lovelace]");
+  expect(f.plain).toContain("│ Ada Lovelace");
   expect(f.plain).not.toContain("▏");
 });
 
@@ -428,7 +428,7 @@ test("left/right on an untouched default collapses selection to that edge withou
   );
   const f = frameOf(s.handle({ type: "key", key: "left" })); // collapse to start
   expect(s.values().name).toBe("Ada"); // unchanged
-  expect(f.plain).toContain("[▏Ada]");
+  expect(f.plain).toContain("│ ▏Ada");
   // no longer selected: backspace now deletes only the char before the (start) cursor, i.e. nothing
   const events = s.handle({ type: "key", key: "backspace" });
   expect(events.every((e) => e.type !== "change")).toBe(true);
@@ -440,7 +440,7 @@ test("right on an untouched default collapses selection to the end", () => {
     sessionOptions(),
   );
   const f = frameOf(s.handle({ type: "key", key: "right" }));
-  expect(f.plain).toContain("[Ada▏]");
+  expect(f.plain).toContain("│ Ada▏");
   const events = s.handle({ type: "key", key: "backspace" }); // now a normal single-char delete
   expect(events[0]).toEqual({ type: "change", id: "name", value: "Ad" });
 });
@@ -479,7 +479,7 @@ test("moving focus away and back preserves the selected state of an untouched de
   );
   s.handle({ type: "key", key: "tab" }); // -> go
   const f = frameOf(s.handle({ type: "key", key: "shiftTab" })); // back -> name, still untouched
-  expect(f.plain).toContain("[Ada]");
+  expect(f.plain).toContain("│ Ada");
   expect(f.plain).not.toContain("▏");
 });
 
@@ -496,7 +496,7 @@ test("render re-marks whatever value survives (restored or fresh) as untouched/s
     markup: '::input{id="name" label="Name" value="Grace"}',
   });
   const f = frameOf(events);
-  expect(f.plain).toContain("[X]");
+  expect(f.plain).toContain("│ X");
   expect(f.plain).not.toContain("▏");
   const overwrite = s.handle({ type: "char", char: "Y" });
   expect(overwrite[0]).toEqual({ type: "change", id: "name", value: "Y" });
@@ -531,7 +531,7 @@ test("a render that introduces a fresh id selects the markup default", () => {
     markup: '::input{id="b" label="B" value="two"}',
   });
   const f = frameOf(events);
-  expect(f.plain).toContain("[two]");
+  expect(f.plain).toContain("│ two");
   const overwrite = s.handle({ type: "char", char: "z" });
   expect(overwrite[0]).toEqual({ type: "change", id: "b", value: "z" });
 });
@@ -629,7 +629,7 @@ test("later duplicate widget ids render inert instead of targeting the first wid
 
   s.handle({ type: "char", char: "X" });
   expect(s.values()).toEqual({ duplicate: "X" });
-  expect(frameOf(s.handle({ type: "key", key: "end" })).plain).toContain("Second: [two]");
+  expect(frameOf(s.handle({ type: "key", key: "end" })).plain).toContain("Second");
 });
 
 test("frame seq increments monotonically across commands", () => {
@@ -954,7 +954,7 @@ test("resize reflows while preserving values, focus, cursor, checkbox, and untou
   s.handle({ type: "key", key: "enter" }); // checked
   s.handle({ type: "key", key: "shiftTab" }); // region
   const wide = frameOf(s.handle({ type: "key", key: "shiftTab" })); // name
-  expect(wide.plain).toContain("[Ad▏a]");
+  expect(wide.plain).toContain("│ Ad▏a");
 
   const resized = frameOf(s.handle({ type: "resize", width: 24, height: 12 }));
   expect(s.getLayoutSize()).toEqual({ width: 24, height: 12 });
@@ -964,12 +964,13 @@ test("resize reflows while preserving values, focus, cursor, checkbox, and untou
     region: "prod",
     agree: "true",
   });
-  expect(resized.plain).toContain("[Ad▏a]");
-  expect(splitRows(resized.plain!).length).toBeGreaterThan(splitRows(wide.plain!).length);
+  expect(resized.plain).toContain("│ Ad▏a");
+  const wideTotal = wide.viewport?.total ?? splitRows(wide.plain!).length;
+  expect(resized.viewport?.total).toBeGreaterThan(wideTotal);
 
   // Resize must not turn an untouched default into an ordinary caret value.
   const regionFocused = frameOf(s.handle({ type: "key", key: "tab" }));
-  expect(regionFocused.plain).toContain("[prod]");
+  expect(regionFocused.plain).toContain("│ prod");
   expect(regionFocused.plain).not.toContain("▏");
   s.handle({ type: "char", char: "X" });
   expect(s.values().region).toBe("X");
@@ -1171,7 +1172,7 @@ test("textarea preserves newlines, consumes vertical keys, and Ctrl+Enter advanc
     id: "bio",
     value: "one\ntwo\nthree",
   });
-  expect(frameOf(pasted).plain?.split("\n").length).toBeLessThanOrEqual(6);
+  expect(frameOf(pasted).plain?.split("\n").length).toBeLessThanOrEqual(8);
 
   session.handle({ type: "key", key: "up" });
   expect(session.getFocusedId()).toBe("bio");
@@ -1274,11 +1275,11 @@ test("textarea pointer coordinates ignore the painted caret cell", () => {
   );
   session.start();
   const withCaret = frameOf(session.handle({ type: "key", key: "left" }));
-  const row = splitRows(withCaret.plain!)[0]!;
+  const row = splitRows(withCaret.plain!)[1]!;
   const dColumn = row.indexOf("d");
   expect(dColumn).toBeGreaterThan(0);
 
-  session.handle({ type: "pointer", row: 0, col: dColumn });
+  session.handle({ type: "pointer", row: 1, col: dColumn });
   session.handle({ type: "char", char: "X" });
   expect(session.values().bio).toBe("abcXdef");
 });

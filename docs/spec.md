@@ -98,7 +98,7 @@ Unknown containers are kept with a `unknown-directive` warning.
 | `progress` | `id`, `label`, `value`, `max`, `role` | Label, percent, and filled bar (`█`/`░` or `#`/`-`); `id` enables live `update` |
 | `event` | `time`, `title`, `detail`, `role` | Timeline row with marker, time, title, wrapped detail |
 | `button` | `id`, `label`, `submit` | `[ Label ]`; focusable, clickable under `teml run`. `submit` makes it a form submit control |
-| `input` | `id`, `label`, `value`, `placeholder`, `mask`, plus validation attrs | `Label: [value]`; focusable, editable under `teml run` |
+| `input` | `id`, `label`, `value`, `placeholder`, `mask`, plus validation attrs | Label above a light box around the value; focusable, editable under `teml run` |
 | `checkbox` | `id`, `label`, `checked` | `☑`/`☐` (or `[x]`/`[ ]`) + label; focusable, toggleable under `teml run` |
 | `textarea` | `id`, `label`, `value`, `placeholder`, `rows`, `autoGrow`, `maxRows`, plus validation attrs (no `pattern`) | Multiline editor; fixed-height by default, optionally content-growing with internal scrolling under `teml run` |
 | `option` | `value`, `label` | Radio option; meaningful only as a child of `:::radio` |

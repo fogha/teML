@@ -9,7 +9,7 @@
 
 import type { Block } from "../core/index.js";
 import type { Line, Span } from "../render/styledLine.js";
-import { lineWidth } from "../render/styledLine.js";
+import { lineWidth, padLine } from "../render/styledLine.js";
 import { resolveRole } from "../terminal/theme.js";
 import { radioOptions } from "../interactive/radio.js";
 import type { LayoutOpts } from "./opts.js";
@@ -105,6 +105,91 @@ function widgetLine(
   ]);
 }
 
+function boxMetrics(opts: LayoutOpts, indent: number, focused: boolean) {
+  const m = measureOpts(opts);
+  const available = Math.max(1, opts.width - indent);
+  const marker = available >= 5 ? focusMarker(focused, opts.caps.unicode) : "";
+  const markerW = cellWidth(marker, m);
+  const boxWidth = Math.max(1, available - markerW);
+  return {
+    m,
+    available,
+    marker,
+    markerW,
+    boxWidth,
+    contentWidth: Math.max(1, boxWidth - 4),
+    showBox: boxWidth >= 5,
+  };
+}
+
+function boxedField(
+  opts: LayoutOpts,
+  indent: number,
+  focused: boolean,
+  label: string | undefined,
+  content: Line[],
+  metadata: Span["style"],
+): Line[] {
+  const { m, available, marker, markerW, contentWidth, showBox } = boxMetrics(
+    opts,
+    indent,
+    focused,
+  );
+  const lines: Line[] = [];
+  if (label) {
+    lines.push([
+      { text: " ".repeat(indent), style: metadata },
+      { text: marker, style: metadata },
+      {
+        text: truncateToWidth(label, Math.max(1, available - markerW), "…", m),
+        style: metadata,
+      },
+    ]);
+  }
+  if (!showBox) {
+    lines.push(
+      ...content.map((line, index) => [
+        { text: " ".repeat(indent), style: metadata },
+        { text: label || index > 0 ? " ".repeat(markerW) : marker, style: metadata },
+        ...clampLine(line, Math.max(1, available - markerW), m),
+      ]),
+    );
+    return lines;
+  }
+
+  const top = opts.caps.unicode ? "┌" : "+";
+  const bottom = opts.caps.unicode ? "└" : "+";
+  const vertical = opts.caps.unicode ? "│" : "|";
+  const horizontal = opts.caps.unicode ? "─" : "-";
+  lines.push([
+    { text: " ".repeat(indent), style: metadata },
+    { text: label ? " ".repeat(markerW) : marker, style: metadata },
+    {
+      text: `${top}${horizontal.repeat(contentWidth + 2)}${opts.caps.unicode ? "┐" : "+"}`,
+      style: metadata,
+    },
+  ]);
+  for (const line of content) {
+    const padded = padLine(clampLine(line, contentWidth, m), contentWidth, {}, m);
+    lines.push([
+      { text: " ".repeat(indent), style: metadata },
+      { text: " ".repeat(markerW), style: metadata },
+      { text: `${vertical} `, style: metadata },
+      ...padded,
+      { text: ` ${vertical}`, style: metadata },
+    ]);
+  }
+  lines.push([
+    { text: " ".repeat(indent), style: metadata },
+    { text: " ".repeat(markerW), style: metadata },
+    {
+      text: `${bottom}${horizontal.repeat(contentWidth + 2)}${opts.caps.unicode ? "┘" : "+"}`,
+      style: metadata,
+    },
+  ]);
+  return lines;
+}
+
 export function layoutButton(
   b: Extract<Block, { type: "leaf" }>,
   opts: LayoutOpts,
@@ -143,8 +228,6 @@ export function layoutInput(
   // value still addresses the right cell in the masked text.
   const valueDisplay = maskedInput ? maskDisplay(value, caps) : value;
   const spans: Span[] = [];
-  if (label) spans.push({ text: `${label}: `, style: muted });
-  spans.push({ text: "[", style: {} });
   if (value) {
     if (focused && opts.selectionActive) {
       // The whole value is "selected" (untouched default) — highlight it
@@ -171,10 +254,10 @@ export function layoutInput(
   } else if (focused) {
     spans.push({ text: caret, style: fieldStyle });
   }
-  spans.push({ text: "]", style: {} });
-
   const id = b.attrs.id?.trim();
-  const lines = widgetLine(id, focusMarker(focused, caps.unicode), spans, opts, indent);
+  const content = widgetLine(id, "", spans, opts, 0);
+  const metadata = content[0]?.[0]?.style ?? {};
+  const lines = boxedField(opts, indent, focused, label, content, metadata);
   lines.push(...errorLines(id, opts, indent));
   return lines;
 }
@@ -262,12 +345,7 @@ export function layoutTextarea(
   const interactiveId = opts.interactiveDisabled ? undefined : id;
   const focused = isFocused(id, opts);
   const m = measureOpts(opts);
-  const available = Math.max(1, opts.width - indent);
-  const marker = available >= 5 ? focusMarker(focused, opts.caps.unicode) : "";
-  const markerW = cellWidth(marker, m);
-  const fieldWidth = Math.max(1, available - markerW);
-  const bracketed = fieldWidth >= 3;
-  const contentWidth = Math.max(1, fieldWidth - (bracketed ? 2 : 0));
+  const { contentWidth } = boxMetrics(opts, indent, focused);
   const value = b.attrs.value ?? "";
   const maskedTextarea = masked(b.attrs);
   const visual = textareaVisualLines(value, contentWidth, m);
@@ -286,17 +364,6 @@ export function layoutTextarea(
     : {};
   const lines: Line[] = [];
   const label = b.attrs.label?.trim();
-  if (label) {
-    lines.push([
-      { text: " ".repeat(indent), style: genericMetadata },
-      { text: marker, style: genericMetadata },
-      {
-        text: truncateToWidth(label, Math.max(1, available - markerW), "…", m),
-        style: { ...muted, ...genericMetadata },
-      },
-    ]);
-  }
-
   for (let row = 0; row < rows; row++) {
     const visualIndex = offset + row;
     const line = visual[visualIndex];
@@ -328,19 +395,15 @@ export function layoutTextarea(
           interactiveValue: String(visualIndex),
         }
       : {};
-    const rowMarker = !label && row === 0 ? marker : " ".repeat(markerW);
     lines.push([
-      { text: " ".repeat(indent), style: genericMetadata },
-      { text: rowMarker, style: genericMetadata },
-      { text: bracketed ? "[" : "", style: genericMetadata },
       { text: display, style: { ...style, ...contentMetadata } },
       {
         text: " ".repeat(Math.max(0, contentWidth - used)),
         style: contentMetadata,
       },
-      { text: bracketed ? "]" : "", style: genericMetadata },
     ]);
   }
-  lines.push(...errorLines(id, opts, indent));
-  return lines;
+  const boxed = boxedField(opts, indent, focused, label, lines, genericMetadata);
+  boxed.push(...errorLines(id, opts, indent));
+  return boxed;
 }

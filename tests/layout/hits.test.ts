@@ -101,8 +101,17 @@ test("a widget inside an open details block is offset by the summary line", () =
   ]);
   const o = opts();
   const lines = layoutDocument(d, o);
-  expect(o.hits).toEqual([{ id: "f", row: 1, colStart: 0, colEnd: 13 }]);
-  assertHitsMatchLines(lines, o.hits!, () => "Field:");
+  expect(o.hits).toEqual([
+    { id: "f", row: 1, colStart: 0, colEnd: 9 },
+    { id: "f", row: 2, colStart: 0, colEnd: 38 },
+    { id: "f", row: 3, colStart: 0, colEnd: 38 },
+    { id: "f", row: 4, colStart: 0, colEnd: 38 },
+  ]);
+  const rendered = renderPlain(lines).split("\n");
+  expect(rendered[1]).toContain("Field");
+  expect(rendered[2]).toContain("┌");
+  expect(rendered[3]).toContain("│");
+  expect(rendered[4]).toContain("└");
 });
 
 test("a closed details block records no hits for its hidden body", () => {

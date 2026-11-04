@@ -219,7 +219,7 @@ fn html_incident_handoff_session_end_to_end() {
     };
     let plain = rerender.plain.expect("plain");
     assert!(plain.contains("Summary is required."));
-    assert!(plain.contains("[payments]"));
+    assert!(plain.contains("│ payments"));
     assert!(plain.contains("(*) SEV-2"));
 
     session.send(&Command::Exit).expect("exit");
@@ -334,7 +334,7 @@ fn resize_preserves_state_and_resynchronizes_patch_mode() {
     assert!(!resized.is_patch());
     assert_eq!(resized.focused_id.as_deref(), Some("service"));
     screen.apply(&resized).expect("apply resized");
-    assert!(screen.text().contains("[payment▏s]"));
+    assert!(screen.text().contains("│ payment▏s"));
 
     session
         .send(&Command::Char { ch: "!".into() })
@@ -342,7 +342,7 @@ fn resize_preserves_state_and_resynchronizes_patch_mode() {
     let after = session.next_frame().expect("after");
     assert!(after.is_patch());
     screen.apply(&after).expect("apply after");
-    assert!(screen.text().contains("[payment!▏s]"));
+    assert!(screen.text().contains("│ payment!▏s"));
 
     session.send(&Command::Exit).expect("exit");
     assert!(matches!(session.next_event().expect("exit"), Event::Exit));
@@ -394,7 +394,7 @@ fn richer_keys_and_modifiers_round_trip_through_the_session() {
     screen
         .apply(&session.next_frame().expect("home frame"))
         .expect("apply");
-    assert!(screen.text().contains("[▏api-gateway]"));
+    assert!(screen.text().contains("│ ▏api-gateway"));
 
     session
         .send(&Command::Key {
@@ -405,7 +405,7 @@ fn richer_keys_and_modifiers_round_trip_through_the_session() {
     screen
         .apply(&session.next_frame().expect("delete frame"))
         .expect("apply");
-    assert!(screen.text().contains("[▏pi-gateway]"));
+    assert!(screen.text().contains("│ ▏pi-gateway"));
 
     session
         .send(&Command::Key {
@@ -420,7 +420,7 @@ fn richer_keys_and_modifiers_round_trip_through_the_session() {
     screen
         .apply(&session.next_frame().expect("ctrl enter frame"))
         .expect("apply");
-    assert!(screen.text().contains("[▏pi-gateway]"));
+    assert!(screen.text().contains("│ ▏pi-gateway"));
 
     session
         .send(&Command::Key {

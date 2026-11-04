@@ -140,7 +140,7 @@ def test_html_incident_handoff_session_end_to_end(engine_path: str, view_path: s
         assert isinstance(frame, FullFrame)
         assert frame.plain is not None
         assert "Summary is required." in frame.plain
-        assert "[payments]" in frame.plain
+        assert "│ payments" in frame.plain
         assert "(*) SEV-2" in frame.plain
 
         session.send(ExitCommand())
@@ -241,12 +241,12 @@ def test_resize_preserves_state_and_resynchronizes_patch_mode(
         assert isinstance(resized, FullFrame)
         assert resized.focused_id == "service"
         screen.apply(resized)
-        assert "[payment▏s]" in screen.text()
+        assert "│ payment▏s" in screen.text()
         session.send(CharCommand(char="!"))
         after = session.next_frame()
         assert isinstance(after, PatchFrame)
         screen.apply(after)
-        assert "[payment!▏s]" in screen.text()
+        assert "│ payment!▏s" in screen.text()
         session.send(ExitCommand())
         from teml_host.types import ExitEvent
 
@@ -266,13 +266,13 @@ def test_richer_keys_and_modifiers_round_trip(engine_path: str, view_path: str) 
         screen.apply(session.next_frame())
         session.send(KeyCommand(key="home"))
         screen.apply(session.next_frame())
-        assert "[▏api-gateway]" in screen.text()
+        assert "│ ▏api-gateway" in screen.text()
         session.send(KeyCommand(key="delete"))
         screen.apply(session.next_frame())
-        assert "[▏pi-gateway]" in screen.text()
+        assert "│ ▏pi-gateway" in screen.text()
         session.send(KeyCommand(key="enter", modifiers=KeyModifiers(ctrl=True)))
         screen.apply(session.next_frame())
-        assert "[▏pi-gateway]" in screen.text()
+        assert "│ ▏pi-gateway" in screen.text()
         session.send(KeyCommand(key="f12"))
         screen.apply(session.next_frame())
         session.send(KeyCommand(key="down"))

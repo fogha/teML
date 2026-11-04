@@ -238,7 +238,7 @@ func TestHTMLIncidentHandoffSessionEndToEnd(t *testing.T) {
 	if plain == nil {
 		t.Fatal("expected plain frame")
 	}
-	for _, want := range []string{"Summary is required.", "[payments]", "(*) SEV-2"} {
+	for _, want := range []string{"Summary is required.", "│ payments", "(*) SEV-2"} {
 		if !strings.Contains(*plain, want) {
 			t.Fatalf("plain %q missing %q", *plain, want)
 		}
@@ -339,7 +339,7 @@ func TestResizePreservesStateAndResynchronizesPatchMode(t *testing.T) {
 	if err := buf.Apply(resized); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.Text(), "[payment▏s]") {
+	if !strings.Contains(buf.Text(), "│ payment▏s") {
 		t.Fatalf("text = %q", buf.Text())
 	}
 
@@ -353,7 +353,7 @@ func TestResizePreservesStateAndResynchronizesPatchMode(t *testing.T) {
 	if err := buf.Apply(after); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.Text(), "[payment!▏s]") {
+	if !strings.Contains(buf.Text(), "│ payment!▏s") {
 		t.Fatalf("text = %q", buf.Text())
 	}
 
@@ -400,7 +400,7 @@ func TestRicherKeysAndModifiersRoundTrip(t *testing.T) {
 	if err := buf.Apply(mustNextFrame(t, s)); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.Text(), "[▏api-gateway]") {
+	if !strings.Contains(buf.Text(), "│ ▏api-gateway") {
 		t.Fatalf("text = %q", buf.Text())
 	}
 
@@ -410,7 +410,7 @@ func TestRicherKeysAndModifiersRoundTrip(t *testing.T) {
 	if err := buf.Apply(mustNextFrame(t, s)); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.Text(), "[▏pi-gateway]") {
+	if !strings.Contains(buf.Text(), "│ ▏pi-gateway") {
 		t.Fatalf("text = %q", buf.Text())
 	}
 
