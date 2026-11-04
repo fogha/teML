@@ -37,7 +37,7 @@ export const DIRECTIVE_REGISTRY = {
     metric: { attrs: ["id", "label", "value", "role", "change"] },
     progress: { attrs: ["id", "label", "value", "max", "role"] },
     event: { attrs: ["time", "title", "detail", "role"] },
-    button: { attrs: ["id", "label", "submit"] },
+    button: { attrs: ["id", "label", "submit", "width", "padding", "margin"] },
     input: {
       attrs: [
         "id",

@@ -22,23 +22,23 @@ function opts(over: Partial<LayoutOpts> = {}): LayoutOpts {
   return { width: 40, theme: loadTheme("dark"), caps: caps(), diags: new Diagnostics(), ...over };
 }
 
-test("button renders label in brackets, unfocused has no marker", () => {
+test("button renders a light box, unfocused has no marker", () => {
   const d = doc([{ type: "leaf", name: "button", attrs: { id: "go", label: "Go" } }]);
   const out = renderPlain(layoutDocument(d, opts()));
-  expect(out).toContain("[ Go ]");
+  expect(out).toContain("│ Go");
   expect(out).not.toContain("▸");
 });
 
 test("button falls back to default label when missing", () => {
   const d = doc([{ type: "leaf", name: "button", attrs: { id: "b" } }]);
   const out = renderPlain(layoutDocument(d, opts()));
-  expect(out).toContain("[ Button ]");
+  expect(out).toContain("│ Button");
 });
 
 test("focused button shows textual marker in plain output", () => {
   const d = doc([{ type: "leaf", name: "button", attrs: { id: "go", label: "Go" } }]);
   const out = renderPlain(layoutDocument(d, opts({ focusedId: "go" })));
-  expect(out).toContain("▸ [ Go ]");
+  expect(out).toContain("▸ ┌");
 });
 
 test("focused button falls back to ascii marker without unicode", () => {
@@ -46,7 +46,8 @@ test("focused button falls back to ascii marker without unicode", () => {
   const out = renderPlain(
     layoutDocument(d, opts({ caps: caps({ unicode: false }), focusedId: "go" })),
   );
-  expect(out).toContain("> [ Go ]");
+  expect(out).toContain("> +");
+  expect(out).toContain("| Go");
   expect(out).not.toContain("▸");
 });
 
@@ -54,7 +55,7 @@ test("a button that is not the focused id renders unfocused", () => {
   const d = doc([{ type: "leaf", name: "button", attrs: { id: "a", label: "A" } }]);
   const out = renderPlain(layoutDocument(d, opts({ focusedId: "other" })));
   expect(out).not.toContain("▸");
-  expect(out).toContain("[ A ]");
+  expect(out).toContain("│ A");
 });
 
 test("input shows placeholder when empty, value when set", () => {

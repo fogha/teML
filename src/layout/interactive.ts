@@ -212,18 +212,13 @@ export function layoutButton(
   opts: LayoutOpts,
   indent: number,
 ): Line[] {
-  const { theme, caps, diags } = opts;
+  const { theme, diags } = opts;
   const focused = isFocused(b.attrs.id, opts);
   const label = b.attrs.label?.trim() || "Button";
   const style = focused ? resolveRole(theme, "focus", diags) : {};
-
-  return widgetLine(
-    b.attrs.id?.trim(),
-    focusMarker(focused, caps.unicode),
-    [{ text: `[ ${label} ]`, style }],
-    opts,
-    indent,
-  );
+  const content = widgetLine(b.attrs.id?.trim(), "", [{ text: label, style }], opts, 0);
+  const metadata = content[0]?.[0]?.style ?? {};
+  return boxedField(opts, indent, focused, undefined, content, metadata, b.attrs);
 }
 
 export function layoutInput(

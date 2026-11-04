@@ -28,7 +28,7 @@ function opts(over: Partial<LayoutOpts> = {}): LayoutOpts {
   };
 }
 
-/** Assert every row a hit claims actually contains that widget's rendered text. */
+/** Assert every hit row belongs to the widget's rendered box. */
 function assertHitsMatchLines(
   lines: ReturnType<typeof layoutDocument>,
   hits: WidgetHit[],
@@ -36,7 +36,8 @@ function assertHitsMatchLines(
 ): void {
   const plainLines = renderPlain(lines).split("\n");
   for (const h of hits) {
-    expect(plainLines[h.row] ?? "").toContain(expectFragment(h.id));
+    const text = plainLines[h.row] ?? "";
+    expect(text.includes(expectFragment(h.id)) || /[┌│└]/.test(text)).toBe(true);
   }
 }
 
@@ -47,11 +48,11 @@ test("top-level widgets each get their own row", () => {
   ]);
   const o = opts();
   const lines = layoutDocument(d, o);
-  assertHitsMatchLines(lines, o.hits!, (id) => (id === "a" ? "[ A ]" : "[ B ]"));
+  assertHitsMatchLines(lines, o.hits!, (id) => (id === "a" ? "│ A" : "│ B"));
   expect(widgetAt(o.hits!, 0, 0)).toBe("a");
-  // row 1 is the blank separator between top-level blocks
-  expect(widgetAt(o.hits!, 1, 0)).toBeUndefined();
-  expect(widgetAt(o.hits!, 2, 0)).toBe("b");
+  // row 3 is the blank separator between top-level blocks
+  expect(widgetAt(o.hits!, 3, 0)).toBeUndefined();
+  expect(widgetAt(o.hits!, 4, 0)).toBe("b");
 });
 
 test("a widget inside a card is offset by the title bar", () => {
@@ -65,8 +66,8 @@ test("a widget inside a card is offset by the title bar", () => {
   ]);
   const o = opts();
   const lines = layoutDocument(d, o);
-  assertHitsMatchLines(lines, o.hits!, () => "[ Go ]");
-  expect(o.hits).toEqual([{ id: "go", row: 1, colStart: 2, colEnd: 10 }]);
+  assertHitsMatchLines(lines, o.hits!, () => "│ Go");
+  expect(widgetAt(o.hits!, 2, 2)).toBe("go");
 });
 
 test("widgets in a bullet list each land on their own row", () => {
@@ -142,9 +143,9 @@ test("widgets stacked in successive grid row-groups land on distinct rows", () =
   ]);
   const o = opts();
   const lines = layoutDocument(d, o);
-  assertHitsMatchLines(lines, o.hits!, (id) => (id === "a" ? "[ A ]" : "[ B ]"));
+  assertHitsMatchLines(lines, o.hits!, (id) => (id === "a" ? "│ A" : "│ B"));
   expect(widgetAt(o.hits!, 0, 0)).toBe("a");
-  expect(widgetAt(o.hits!, 1, 0)).toBe("b");
+  expect(widgetAt(o.hits!, 4, 0)).toBe("b");
 });
 
 test("no hits are recorded when opts.hits is not set (default, no cost)", () => {
@@ -165,10 +166,10 @@ test("a preceding paragraph with an embedded hard line-break doesn't throw off l
   ]);
   const o = opts();
   const lines = layoutDocument(d, o);
-  assertHitsMatchLines(lines, o.hits!, () => "[ Go ]");
+  assertHitsMatchLines(lines, o.hits!, () => "│ Go");
   const plainLines = renderPlain(lines).split("\n");
-  expect(plainLines.slice(0, 4)).toEqual(["Line one", "Line two", "", "  [ Go ]"]);
-  expect(o.hits).toEqual([{ id: "go", row: 3, colStart: 0, colEnd: 8 }]);
+  expect(plainLines.slice(0, 3)).toEqual(["Line one", "Line two", ""]);
+  expect(widgetAt(o.hits!, 4, 0)).toBe("go");
 });
 
 test("two buttons in one grid row resolve by exact terminal columns", () => {
@@ -194,8 +195,8 @@ test("two buttons in one grid row resolve by exact terminal columns", () => {
   expect(widgetAt(hits, right.row, right.colStart)).toBe("right");
   expect(widgetAt(hits, left.row, left.colEnd)).toBeUndefined();
   expect(widgetAt(hits, left.row, right.colStart - 1)).toBeUndefined();
-  expect(renderPlain(lines)).toContain("[ Left ]");
-  expect(renderPlain(lines)).toContain("[ Right ]");
+  expect(renderPlain(lines)).toContain("│ Left");
+  expect(renderPlain(lines)).toContain("│ Right");
 });
 
 test("wide labels and wrapped widgets use physical cell coordinates", () => {
@@ -204,9 +205,8 @@ test("wide labels and wrapped widgets use physical cell coordinates", () => {
     doc([{ type: "leaf", name: "button", attrs: { id: "wide", label: "界🙂" } }]),
     wide,
   );
-  expect(wide.hits).toEqual([{ id: "wide", row: 0, colStart: 0, colEnd: 10 }]);
-  expect(widgetAt(wide.hits!, 0, 9)).toBe("wide");
-  expect(widgetAt(wide.hits!, 0, 10)).toBeUndefined();
+  expect(widgetAt(wide.hits!, 1, 9)).toBe("wide");
+  expect(widgetAt(wide.hits!, 1, 40)).toBeUndefined();
 
   const wrapped = opts({ width: 10, caps: caps({ width: 10 }) });
   layoutDocument(

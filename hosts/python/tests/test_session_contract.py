@@ -311,9 +311,9 @@ def test_pointer_columns_activate_intended_grid_button(engine_path: str, view_pa
         row = next(
             index
             for index, line in enumerate(rendered.plain.splitlines())
-            if "[ Right ]" in line
+            if "Right" in line
         )
-        col = rendered.plain.splitlines()[row].index("[ Right ]")
+        col = rendered.plain.splitlines()[row].index("Right")
         session.send(PointerCommand(row=row, col=col))
         clicked = session.next_event()
         assert isinstance(clicked, ClickEvent)

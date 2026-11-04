@@ -482,9 +482,9 @@ fn pointer_columns_activate_the_intended_grid_button() {
     let (row, line) = plain
         .lines()
         .enumerate()
-        .find(|(_, line)| line.contains("[ Right ]"))
+        .find(|(_, line)| line.contains("Right"))
         .expect("right grid button is visible");
-    let col = line.find("[ Right ]").expect("right button column");
+    let col = line.find("Right").expect("right button column");
 
     session
         .send(&Command::Pointer {

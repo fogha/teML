@@ -948,7 +948,7 @@ cursor movement, "select on focus", click hit-testing) is byte-for-byte the
 same engine `teml run` uses, just without the wire format in between.
 
 The optional `fields` object sets app-wide outer `width`, `paddingX`,
-`paddingY`, and `marginY` for input/textarea boxes. Markup `width`, `padding`,
+`paddingY`, and `marginY` for button/input/textarea boxes. Markup `width`, `padding`,
 and `margin` attributes override those defaults per field; terminal constraints
 always clamp the final box. Textarea `rows`, `autoGrow`, and `maxRows` control
 content height independently.

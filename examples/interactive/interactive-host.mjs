@@ -111,6 +111,7 @@ function cleanup() {
 // editing again, so it can't go stale silently.
 let lastAction = null;
 const screen = createFrameState("ansi");
+let resizePending = false;
 const resizeScheduler = new LatestResizeScheduler((next) => {
   send({ type: "resize", ...next });
 });
@@ -157,6 +158,7 @@ function sendCurrentSize() {
 
 function onResize() {
   if (!liveResizeEnabled || cleaned) return;
+  resizePending = true;
   sendCurrentSize();
 }
 
@@ -187,6 +189,7 @@ function handleEvent(event) {
       if (cleaned) break;
       if (Array.isArray(event.capabilities)) capabilities = new Set(event.capabilities);
       applyFrame(screen, event);
+      resizePending = false;
       process.stdout.write("\x1b[2J\x1b[H"); // clear screen, cursor home — teml never does this itself
       process.stdout.write(frameText(screen));
       process.stdout.write(`\n\x1b[2m${statusLine(interactionHint())}\x1b[0m\n`);
@@ -233,7 +236,9 @@ function dispatchInput(event) {
       send({ type: "exit" });
       break;
     case "pointer":
-      if (event.button === 0) send({ type: "pointer", row: event.row, col: event.col });
+      if (event.button === 0 && !resizePending) {
+        send({ type: "pointer", row: event.row, col: event.col });
+      }
       break;
     case "wheel":
       pendingWheelRows = Math.max(-10_000, Math.min(10_000, pendingWheelRows + event.delta * 3));

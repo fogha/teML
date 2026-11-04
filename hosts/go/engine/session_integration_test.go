@@ -488,7 +488,7 @@ func TestPointerColumnsActivateIntendedGridButton(t *testing.T) {
 	}
 	row, col := -1, -1
 	for i, line := range strings.Split(*rendered.Plain, "\n") {
-		if idx := strings.Index(line, "[ Right ]"); idx >= 0 {
+		if idx := strings.Index(line, "Right"); idx >= 0 {
 			row, col = i, idx
 			break
 		}

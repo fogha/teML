@@ -590,17 +590,19 @@ test("pointer columns disambiguate side-by-side grid buttons and ignore the gutt
     sessionOptions(),
   );
   const initial = frameOf(s.start());
-  const row = initial.plain!.split("\n").findIndex((line) => line.includes("[ Left ]"));
+  const row = initial.plain!.split("\n").findIndex((line) => line.includes("Left"));
   const line = initial.plain!.split("\n")[row]!;
-  const leftCol = line.indexOf("[ Left ]");
-  const rightCol = line.indexOf("[ Right ]");
+  const leftCol = line.indexOf("Left");
+  const rightCol = line.indexOf("Right");
   expect(rightCol).toBeGreaterThan(leftCol);
 
   const right = s.handle({ type: "pointer", row, col: rightCol });
   expect(right[0]).toMatchObject({ type: "click", id: "right" });
   expect(s.getFocusedId()).toBe("right");
 
-  const gutterCol = Math.floor((leftCol + "[ Left ]".length + rightCol) / 2);
+  const leftBoxEnd = line.indexOf("┐") + 1;
+  const rightBoxStart = line.indexOf("┌", 1);
+  const gutterCol = Math.floor((leftBoxEnd + rightBoxStart) / 2);
   const gap = s.handle({ type: "pointer", row, col: gutterCol });
   expect(gap).toHaveLength(1);
   expect(gap[0]?.type).toBe("frame");
@@ -1038,7 +1040,7 @@ test("large documents emit viewport-bounded frames and tab keeps focus visible",
   expect(first.viewport).toEqual({ offset: 0, height: 6, total: expect.any(Number) });
   expect(first.viewport!.total).toBeGreaterThan(6);
   expect(splitRows(first.plain!)).toHaveLength(6);
-  expect(first.plain).toContain("[ Top ]");
+  expect(first.plain).toContain("│ Top");
 
   const bottom = frameOf(s.handle({ type: "key", key: "tab" }));
   expect(bottom.focusedId).toBe("bottom");
@@ -1046,10 +1048,10 @@ test("large documents emit viewport-bounded frames and tab keeps focus visible",
   expect(bottom.viewport!.offset + bottom.viewport!.height).toBeLessThanOrEqual(
     bottom.viewport!.total,
   );
-  expect(bottom.plain).toContain("[ Bottom ]");
+  expect(bottom.plain).toContain("│ Bottom");
 
-  const row = splitRows(bottom.plain!).findIndex((line) => line.includes("[ Bottom ]"));
-  const col = splitRows(bottom.plain!)[row]!.indexOf("[ Bottom ]");
+  const row = splitRows(bottom.plain!).findIndex((line) => line.includes("Bottom"));
+  const col = splitRows(bottom.plain!)[row]!.indexOf("Bottom");
   const clicked = s.handle({ type: "pointer", row, col });
   expect(clicked[0]).toMatchObject({ type: "click", id: "bottom" });
 });
@@ -1172,7 +1174,7 @@ test("textarea preserves newlines, consumes vertical keys, and Ctrl+Enter advanc
     id: "bio",
     value: "one\ntwo\nthree",
   });
-  expect(frameOf(pasted).plain?.split("\n").length).toBeLessThanOrEqual(8);
+  expect(frameOf(pasted).plain?.split("\n").length).toBeLessThanOrEqual(10);
 
   session.handle({ type: "key", key: "up" });
   expect(session.getFocusedId()).toBe("bio");
@@ -1193,7 +1195,7 @@ test("auto-growing textarea expands and contracts without breaking focus or poin
   session.start();
   const initial = frameOf(session.handle({ type: "char", char: "one\ntwo" }));
   const buttonRow = (frame: FullFrame) =>
-    splitRows(frame.plain!).findIndex((line) => line.includes("[ Submit ]"));
+    splitRows(frame.plain!).findIndex((line) => line.includes("Submit"));
   const initialButtonRow = buttonRow(initial);
 
   const grown = frameOf(session.handle({ type: "char", char: "\nthree\nfour" }));
@@ -1244,7 +1246,7 @@ test("auto-growing textarea recomputes its height after terminal reflow", () => 
   session.start();
   const initial = frameOf(session.handle({ type: "char", char: "a".repeat(40) }));
   const buttonRow = (frame: FullFrame) =>
-    splitRows(frame.plain!).findIndex((line) => line.includes("[ Submit ]"));
+    splitRows(frame.plain!).findIndex((line) => line.includes("Submit"));
 
   const narrowed = frameOf(session.handle({ type: "resize", width: 20, height: 20 }));
   expect(buttonRow(narrowed)).toBeGreaterThan(buttonRow(initial));

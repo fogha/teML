@@ -175,7 +175,7 @@ log four
       { type: "exit" },
     ]);
     const painted = replayFrames(run.events, "plain");
-    expect(frameText(painted)).toContain("[ Submit ]");
+    expect(frameText(painted)).toContain("│ Submit");
     expect(frames(run.events).some((frame) => frame.scrollRegions?.[0]?.offset === 3)).toBe(true);
   } finally {
     form.cleanup();
@@ -230,7 +230,7 @@ test("the wire runtime keeps viewport patches bounded across richer-key navigati
     }
     expect(patchFrames.at(-1)?.focusedId).toBe("bottom");
     expect(patchFrames.at(-1)?.viewport?.offset).toBeGreaterThan(0);
-    expect(frameText(replayFrames(patched.events, "plain"))).toContain("[ Bottom ]");
+    expect(frameText(replayFrames(patched.events, "plain"))).toContain("│ Bottom");
 
     const full = runSession(
       file,
@@ -260,9 +260,9 @@ test("column-precise pointer commands activate the intended grid button over NDJ
     );
     const baseline = runSession(file, [{ type: "exit" }], ["--frames", "plain"]);
     const initial = frames(baseline.events)[0]!;
-    const row = findRow(initial.plain, "[ Left ]");
+    const row = findRow(initial.plain, "Left");
     const line = initial.plain!.split("\n")[row]!;
-    const rightIndex = line.indexOf("[ Right ]");
+    const rightIndex = line.indexOf("Right");
     const rightCol = stringWidth(line.slice(0, rightIndex));
     expect(rightCol).toBeGreaterThan(0);
 
@@ -293,9 +293,9 @@ test("column-precise pointer commands activate the intended grid button over NDJ
     );
     const visibleGrid = frames(scrolled.events).at(-1)!;
     expect(visibleGrid.viewport?.offset).toBeGreaterThan(0);
-    const visibleRow = findRow(visibleGrid.plain, "[ Left ]");
+    const visibleRow = findRow(visibleGrid.plain, "Left");
     const visibleLine = visibleGrid.plain!.split("\n")[visibleRow]!;
-    const visibleRightIndex = visibleLine.indexOf("[ Right ]");
+    const visibleRightIndex = visibleLine.indexOf("Right");
     const visibleRightCol = stringWidth(visibleLine.slice(0, visibleRightIndex));
 
     const scrolledClick = runSession(
@@ -581,9 +581,9 @@ test("the in-process Node host maps an SGR mouse column to the correct grid butt
 
   const painted = chunks.join("").split("\x1b[2J\x1b[H").at(-1) ?? "";
   const lines = painted.split("\n");
-  const row = lines.findIndex((line) => line.includes("[ Right ]"));
+  const row = lines.findIndex((line) => line.includes("Right"));
   const line = lines[row]!;
-  const index = line.indexOf("[ Right ]");
+  const index = line.indexOf("Right");
   const col = stringWidth(line.slice(0, index));
   expect(row).toBeGreaterThanOrEqual(0);
   expect(col).toBeGreaterThan(0);

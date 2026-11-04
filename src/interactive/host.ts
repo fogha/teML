@@ -119,7 +119,7 @@ export type InteractiveAppOptions = {
   width?: number;
   sanitize?: SanitizeOpts;
   handlers?: InteractiveAppHandlers;
-  /** Default width and spacing for input/textarea boxes. */
+  /** Default width and spacing for button/input/textarea boxes. */
   fields?: SessionLayoutConfig["fields"];
   /** Extra line(s) written under every frame — e.g. key hints. */
   footer?: string;
@@ -201,6 +201,7 @@ export async function runInteractiveApp(
     /** Commands a handler asked for while its own command was being dispatched. */
     const queued: Command[] = [];
     let dispatching = false;
+    let resizePending = false;
     const resizeScheduler = new LatestResizeScheduler((next) => {
       try {
         send({ type: "resize", width: next.width, height: next.height });
@@ -217,7 +218,9 @@ export async function runInteractiveApp(
           send({ type: "exit" });
           break;
         case "pointer":
-          if (event.button === 0) send({ type: "pointer", row: event.row, col: event.col });
+          if (event.button === 0 && !resizePending) {
+            send({ type: "pointer", row: event.row, col: event.col });
+          }
           break;
         case "wheel":
           pendingWheelRows = Math.max(
@@ -265,6 +268,7 @@ export async function runInteractiveApp(
 
     const onResize = (): void => {
       if (!liveResizeEnabled || settled) return;
+      resizePending = true;
       resizeScheduler.request(dimensions());
     };
 
@@ -335,6 +339,7 @@ export async function runInteractiveApp(
           // With format negotiation a frame may carry only one payload;
           // fall back to whichever is present.
           const preferred = caps.colors !== "none" ? event.ansi : event.plain;
+          resizePending = false;
           driver?.paintRendered(
             TERMINAL_CONTROL.clearScreen +
               (preferred ?? event.ansi ?? event.plain ?? "") +

@@ -124,6 +124,39 @@ test("startup failure removes listeners and restores the terminal", async () => 
   expect(process.listenerCount("SIGINT")).toBe(before);
 });
 
+test("pointer activation waits for the resized frame", async () => {
+  const input = new PassThrough() as PassThrough & Partial<NodeJS.ReadStream>;
+  const output = new PassThrough() as PassThrough & Partial<NodeJS.WriteStream>;
+  Object.assign(input, { isTTY: true, setRawMode: vi.fn() });
+  Object.assign(output, { isTTY: true, columns: 60, rows: 24 });
+  const clicks: string[] = [];
+  const done = runInteractiveApp('::button{id="go" label="Go"}', {
+    input,
+    output,
+    format: "teml",
+    handlers: {
+      onClick(id, _values, ctx) {
+        clicks.push(id);
+        ctx.exit();
+      },
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  Object.assign(output, { columns: 50, rows: 22 });
+  output.emit("resize");
+  Object.assign(output, { columns: 40, rows: 20 });
+  output.emit("resize");
+  input.write("\x1b[<0;3;2M");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(clicks).toEqual([]);
+
+  input.write("\x1b[<0;3;2M");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  await done;
+  expect(clicks).toEqual(["go"]);
+});
+
 test("write failures during initial rendering reject after cleanup", async () => {
   const input = new PassThrough() as PassThrough & Partial<NodeJS.ReadStream>;
   const output = new PassThrough();
