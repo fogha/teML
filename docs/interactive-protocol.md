@@ -185,6 +185,24 @@ memory/CPU use. Hosts should chunk human paste input and use a file-backed
 initial document for larger sources.
 `scroll.rows` is independently bounded to ±10,000.
 
+### `canvas`
+
+A `canvas` command targets the `id` of a canvas leaf and applies one batch of
+`clear`, `fillStyle`, or `fillRect` operations. Canvas width and height are
+integers clamped to 1–256 pixels (default 80×24), and one command may contain
+at most 10,000 operations. `fillRect` requires finite numeric coordinates and
+non-negative dimensions; fractional values are truncated and rectangles are
+clipped to the surface. `fillStyle` accepts only a `#RRGGBB` color. An invalid
+operation rejects the command before any drawing is applied.
+
+Canvas is a data-only pixel surface, not a browser scripting environment. It
+has no URL or image-fetching operation, executes no client-side JavaScript, and
+cannot emit raw terminal control sequences. The HTML canvas bridge copies only
+`id`, `width`, `height`, `renderer`/`data-renderer`, and the accessible label;
+event-handler attributes such as `onload` and `onmouseover` are dropped. Frames
+continue through the same sanitized layout and rendering pipeline as every
+other document.
+
 ### `configure`
 
 Optional **first command**. If present it must be the first successfully

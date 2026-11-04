@@ -175,6 +175,16 @@ TeML text escapes `\`, `` ` ``, `*`, `_`, `[`, `]`, `:`, `{`, `}` where needed. 
 3. **S-6 (Reader):** `teml read` re-resolves every activated target against the session's fixed document root. Targets outside that root or outside the scheme allowlist are not loaded or opened and emit a visible diagnostic. External `http`, `https`, and `mailto` targets require explicit confirmation.
 4. Raw HTML nodes in Markdown are dropped with `raw-html-ignored`.
 5. No execution semantics exist in the format.
+6. **Canvas bounds:** width and height are clamped to 256 pixels each, and a canvas command is limited to 10,000 operations. Rectangle coordinates must be finite numbers, dimensions must be non-negative, and drawing is clipped to the surface. Colors use only the strict `#RRGGBB` form.
+7. **Canvas isolation:** canvas operations cannot fetch images or URLs, execute client-side scripts, or emit raw terminal control sequences. HTML canvas mapping uses an attribute allowlist and drops event-handler attributes.
+
+The DeepSeek chat example applies the same untrusted-input boundary to streamed
+responses. Malformed SSE JSON raises a controlled `SyntaxError` that the app
+reports as a failed turn. Real requests have a 60-second deadline covering both
+connection and response-body reads; it is combined with caller cancellation so
+starting a new conversation still aborts the active request. A malformed or
+stalled stream therefore produces an actionable error instead of leaving the
+chat busy indefinitely.
 
 ## Conformance
 

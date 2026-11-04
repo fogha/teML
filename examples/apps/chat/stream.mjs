@@ -54,6 +54,9 @@ export async function* mockStream(text = MOCK_REPLY, delay = 8) {
 }
 
 export async function* deepSeekStream({ model, messages, apiKey, signal }) {
+  const requestSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(60_000)])
+    : AbortSignal.timeout(60_000);
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
@@ -61,7 +64,7 @@ export async function* deepSeekStream({ model, messages, apiKey, signal }) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({ model, messages, stream: true }),
-    signal,
+    signal: requestSignal,
   });
   if (!response.ok) {
     const text = await response.text();
