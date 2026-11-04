@@ -8,6 +8,7 @@ import type { Capabilities } from "../terminal/capabilities.js";
 import type { Theme } from "../terminal/theme.js";
 import type { WidgetHit } from "./hits.js";
 import type { SemanticRegions } from "./regions.js";
+import type { CanvasSurface } from "./canvas.js";
 
 export type ScrollRegionRuntime = {
   offset: number;
@@ -43,6 +44,8 @@ export type LayoutOpts = {
   textareaScrollOffsets?: ReadonlyMap<string, number>;
   /** Session-owned inner layout caches and offsets for scroll containers. */
   scrollRegionRuntime?: Map<string, ScrollRegionRuntime>;
+  /** Host-driven pixel surfaces keyed by declarative canvas id. */
+  canvas?: ReadonlyMap<string, CanvasSurface>;
   /** Render nested controls as static content (used by v1 scroll regions). */
   interactiveDisabled?: boolean;
   /** When set, layoutDocument replaces it with exact terminal-cell widget

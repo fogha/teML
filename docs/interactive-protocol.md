@@ -169,6 +169,7 @@ One JSON object per line on stdin.
 | `replace`   | `target`: string, `markup`: string, optional `format`                                | Replace one addressable container block with normalized fragment blocks                                               |
 | `append`    | `target`: string, `markup`: string, optional `format`                                | Append normalized fragment blocks to one addressable container                                                        |
 | `remove`    | `target`: string                                                                     | Remove one addressable container and its subtree                                                                      |
+| `canvas`    | `id`: string, `ops`: drawing operations                                              | Apply one complete drawing batch to a host-driven pixel canvas and emit its frame                                     |
 | `exit`      | —                                                                                    | End the session                                                                                                       |
 
 ### Resource limits
@@ -717,7 +718,7 @@ Negotiated full frames carry:
 
 ```json
 {
-  "protocol": { "major": 1, "minor": 5 },
+  "protocol": { "major": 1, "minor": 6 },
   "capabilities": [
     "frameFormats",
     "patches",
@@ -735,7 +736,8 @@ Negotiated full frames carry:
     "mask",
     "validation",
     "formSubmit",
-    "errorCompletion"
+    "errorCompletion",
+    "canvas"
   ]
 }
 ```
@@ -743,7 +745,10 @@ Negotiated full frames carry:
 Protocol 1.4 adds the `submit` event and the three capabilities above; it is an
 additive minor with no command changes. Protocol 1.5 adds `error.frame` and the
 `errorCompletion` capability so hosts can distinguish terminal errors from
-semantic rejections with a following frame.
+semantic rejections with a following frame. Protocol 1.6 adds the experimental
+`canvas` command for batched `clear`, `fillStyle` (#RRGGBB), and `fillRect`
+operations. The engine renders one half-block frame per batch, with ASCII `#`
+cells when Unicode is unavailable.
 
 Major changes may break command/event meaning and are fatal when a host
 requires another major. Minor changes are additive; hosts inspect the finite

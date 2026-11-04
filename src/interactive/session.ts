@@ -55,6 +55,11 @@ import {
   type NormalizedKey,
 } from "./input-routing.js";
 import { InteractiveLayoutCache } from "./layout-cache.js";
+import {
+  applyCanvasOperations,
+  collectCanvasSurfaces,
+  type CanvasSurface,
+} from "../layout/canvas.js";
 import { containsFootnoteContent, countBlocks, parseMutationFragment } from "./mutation.js";
 import { radioOptionIndex } from "./radio.js";
 import type {
@@ -135,6 +140,7 @@ export class InteractiveSession {
   private lastHits: WidgetHit[] = [];
   /** Cached full layout plus independently replaceable widget subtrees. */
   private layoutCache: InteractiveLayoutCache | undefined;
+  private canvasRuntime: Map<string, CanvasSurface> | undefined;
   private dirtyWidgetIds = new Set<string>();
   private scrollOffset = 0;
   private lastFrameOffset = 0;
@@ -322,10 +328,28 @@ export class InteractiveSession {
         return this.handleAppend(command.target, command.markup, command.format);
       case "remove":
         return this.handleRemove(command.target);
+      case "canvas":
+        return this.handleCanvas(command.id, command.ops);
       case "exit":
         this.done = true;
         return [{ type: "exit" }];
     }
+  }
+
+  private canvases(): Map<string, CanvasSurface> {
+    this.canvasRuntime ??= collectCanvasSurfaces(this.doc);
+    return this.canvasRuntime;
+  }
+
+  private handleCanvas(
+    id: string,
+    ops: Parameters<typeof applyCanvasOperations>[1],
+  ): SessionEvent[] {
+    const surface = this.canvases().get(id);
+    if (!surface) return [{ type: "error", message: `unknown canvas id '${id}'` }, this.frame()];
+    applyCanvasOperations(surface, ops);
+    this.layoutCache = undefined;
+    return [this.frame()];
   }
 
   /** Negotiate the frame payload and mode. Only valid before any other
@@ -1294,6 +1318,7 @@ export class InteractiveSession {
       radioPending: this.widgetState.radioPending,
       textareaScrollOffsets: this.widgetState.textareaScrollOffsets,
       scrollRegionRuntime: this.widgetState.scrollRegionRuntime,
+      canvas: this.canvases(),
       fieldErrors,
       hits,
     };

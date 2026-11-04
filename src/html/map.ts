@@ -39,7 +39,7 @@ const PROGRESS_ROLE_CLASSES: Record<string, string> = {
   "text-danger": "error",
   "text-info": "info",
 };
-const PLACEHOLDER_TAGS = new Set(["canvas", "video", "iframe", "object", "embed"]);
+const PLACEHOLDER_TAGS = new Set(["video", "iframe", "object", "embed"]);
 /** input[type] values that map to a button leaf instead of a text input. */
 const INPUT_BUTTON_TYPES = new Set(["submit", "button"]);
 /** input[type] values not represented by any v1 interactive leaf (skipped). */
@@ -733,6 +733,19 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
     if (BLOCK_WRAPPERS.has(tag)) {
       flushInline();
       blocks.push(...mapBlocks([...el.childNodes], opts, diags));
+      continue;
+    }
+
+    if (tag === "canvas") {
+      flushInline();
+      const source = getAttrs(el);
+      const attrs: Record<string, string> = {};
+      if (source.id) attrs.id = sanitizeText(source.id);
+      if (source.width) attrs.width = sanitizeText(source.width);
+      if (source.height) attrs.height = sanitizeText(source.height);
+      const label = source["aria-label"] || textOfElement(el).trim();
+      if (label) attrs.label = sanitizeText(label);
+      blocks.push({ type: "leaf", name: "canvas", attrs });
       continue;
     }
 

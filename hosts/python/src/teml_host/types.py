@@ -154,6 +154,13 @@ class RemoveCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class CanvasCommand:
+    id: str
+    ops: tuple[dict[str, Any], ...]
+    type: Literal["canvas"] = "canvas"
+
+
+@dataclass(frozen=True, slots=True)
 class ExitCommand:
     type: Literal["exit"] = "exit"
 
@@ -170,6 +177,7 @@ Command: TypeAlias = Union[
     ReplaceCommand,
     AppendCommand,
     RemoveCommand,
+    CanvasCommand,
     ExitCommand,
 ]
 
@@ -345,6 +353,8 @@ def command_to_json(command: Command | dict[str, Any]) -> dict[str, Any]:
         return payload
     if isinstance(command, RemoveCommand):
         return {"type": "remove", "target": command.target}
+    if isinstance(command, CanvasCommand):
+        return {"type": "canvas", "id": command.id, "ops": list(command.ops)}
     if isinstance(command, ExitCommand):
         return {"type": "exit"}
     raise TypeError(f"unsupported command type: {type(command)!r}")

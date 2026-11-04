@@ -646,7 +646,7 @@ test("configure as the first command negotiates a single frame format", () => {
   const f = frameOf(events);
   expect(f.ansi).toContain("Submit");
   expect(f.plain).toBeNull();
-  expect(f.protocol).toEqual({ major: 1, minor: 5 });
+  expect(f.protocol).toEqual({ major: 1, minor: 6 });
   expect(f.capabilities).toContain("scroll");
   expect(f.capabilities).toContain("update");
   expect(f.capabilities).toContain("documentMutations");
@@ -1128,7 +1128,7 @@ test("negotiated sessions advertise finite protocol capabilities without changin
     sessionOptions({ frames: "plain", mode: "patches" }),
   );
   const frame = frameOf(negotiated.start());
-  expect(frame.protocol).toEqual({ major: 1, minor: 5 });
+  expect(frame.protocol).toEqual({ major: 1, minor: 6 });
   expect(frame.capabilities).toContain("scroll");
   expect(frame.capabilities).toContain("scrollRegions");
   expect(frame.capabilities).toContain("update");

@@ -7,7 +7,7 @@ from typing import Final, Literal, TypeAlias
 from teml_host.types import ProtocolVersion
 
 PROTOCOL_MAJOR: Final = 1
-PROTOCOL_MINOR: Final = 5
+PROTOCOL_MINOR: Final = 6
 PROTOCOL_VERSION: Final = ProtocolVersion(major=PROTOCOL_MAJOR, minor=PROTOCOL_MINOR)
 
 ProtocolCapability: TypeAlias = Literal[
@@ -28,6 +28,7 @@ ProtocolCapability: TypeAlias = Literal[
     "validation",
     "formSubmit",
     "errorCompletion",
+    "canvas",
 ]
 
 ENGINE_CAPABILITIES: Final[tuple[ProtocolCapability, ...]] = (
@@ -48,6 +49,7 @@ ENGINE_CAPABILITIES: Final[tuple[ProtocolCapability, ...]] = (
     "validation",
     "formSubmit",
     "errorCompletion",
+    "canvas",
 )
 
 CAPABILITY_DOCS: Final[dict[str, str]] = {
@@ -75,6 +77,7 @@ CAPABILITY_DOCS: Final[dict[str, str]] = {
         ":::form groups fields and a ::button{submit} emits one atomic submit event (protocol 1.4)."
     ),
     "errorCompletion": "Error events declare whether an unchanged frame follows (protocol 1.5).",
+    "canvas": "Host-driven pixel surfaces and batched drawing operations (protocol 1.6).",
 }
 
 MAX_CHAR_BYTES: Final = 64 * 1024

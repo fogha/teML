@@ -62,7 +62,7 @@ export type FrameMode = "full" | "patches";
 
 /** Protocol compatibility is independent from the Node package version.
  * Major changes are breaking; minor changes are additive and capability-gated. */
-export const PROTOCOL_VERSION = { major: 1, minor: 5 } as const;
+export const PROTOCOL_VERSION = { major: 1, minor: 6 } as const;
 export type ProtocolVersion = { major: number; minor: number };
 
 export type ProtocolCapability =
@@ -82,7 +82,8 @@ export type ProtocolCapability =
   | "mask"
   | "validation"
   | "formSubmit"
-  | "errorCompletion";
+  | "errorCompletion"
+  | "canvas";
 
 /** Finite capability vocabulary emitted by this engine version. */
 export const ENGINE_CAPABILITIES: readonly ProtocolCapability[] = [
@@ -103,7 +104,13 @@ export const ENGINE_CAPABILITIES: readonly ProtocolCapability[] = [
   "validation",
   "formSubmit",
   "errorCompletion",
+  "canvas",
 ];
+
+export type CanvasOperation =
+  | { op: "clear" }
+  | { op: "fillStyle"; color: `#${string}` }
+  | { op: "fillRect"; x: number; y: number; width: number; height: number };
 
 /** Messages the host sends to teml on stdin, one JSON object per line. */
 export type Command =
@@ -118,6 +125,7 @@ export type Command =
   | { type: "replace"; target: string; markup: string; format?: DocFormat }
   | { type: "append"; target: string; markup: string; format?: DocFormat }
   | { type: "remove"; target: string }
+  | { type: "canvas"; id: string; ops: CanvasOperation[] }
   | { type: "exit" };
 
 /** One changed row in a `patches`-mode frame: the row's full new content in
@@ -536,6 +544,48 @@ export function decodeCommand(line: string): DecodeResult {
         return { ok: false, error: 'remove command needs a non-empty "target" string' };
       }
       return { ok: true, command: { type: "remove", target: obj.target.trim() } };
+
+    case "canvas": {
+      if (typeof obj.id !== "string" || obj.id.trim() === "") {
+        return { ok: false, error: 'canvas command needs a non-empty "id" string' };
+      }
+      if (!Array.isArray(obj.ops) || obj.ops.length > 10_000) {
+        return { ok: false, error: "canvas command needs an ops array with at most 10000 entries" };
+      }
+      const ops: CanvasOperation[] = [];
+      for (const raw of obj.ops) {
+        if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+          return { ok: false, error: "canvas operation must be an object" };
+        }
+        const operation = raw as Record<string, unknown>;
+        if (operation.op === "clear") {
+          ops.push({ op: "clear" });
+        } else if (operation.op === "fillStyle") {
+          if (typeof operation.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(operation.color)) {
+            return { ok: false, error: "fillStyle needs a #RRGGBB color" };
+          }
+          ops.push({ op: "fillStyle", color: operation.color as `#${string}` });
+        } else if (operation.op === "fillRect") {
+          const values = [operation.x, operation.y, operation.width, operation.height];
+          if (values.some((value) => typeof value !== "number" || !Number.isFinite(value))) {
+            return { ok: false, error: "fillRect needs finite numeric x, y, width, and height" };
+          }
+          if ((operation.width as number) < 0 || (operation.height as number) < 0) {
+            return { ok: false, error: "fillRect width and height must be non-negative" };
+          }
+          ops.push({
+            op: "fillRect",
+            x: operation.x as number,
+            y: operation.y as number,
+            width: operation.width as number,
+            height: operation.height as number,
+          });
+        } else {
+          return { ok: false, error: `unknown canvas operation ${JSON.stringify(operation.op)}` };
+        }
+      }
+      return { ok: true, command: { type: "canvas", id: obj.id.trim(), ops } };
+    }
 
     case "exit":
       return { ok: true, command: { type: "exit" } };

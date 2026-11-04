@@ -38,7 +38,7 @@ def test_update_command_serializes_props() -> None:
 
 def test_protocol_constants_match_engine() -> None:
     assert PROTOCOL_VERSION.major == 1
-    assert PROTOCOL_VERSION.minor == 5
+    assert PROTOCOL_VERSION.minor == 6
     assert "update" in ENGINE_CAPABILITIES
     assert "documentMutations" in ENGINE_CAPABILITIES
     assert "mask" in ENGINE_CAPABILITIES
@@ -113,7 +113,7 @@ def test_frame_tolerates_optional_metadata_and_unknown_fields() -> None:
             "focusedId": None,
             "plain": "ok\n",
             "ansi": None,
-            "protocol": {"major": 1, "minor": 5},
+            "protocol": {"major": 1, "minor": 6},
             "capabilities": ["scroll", "future"],
             "futureCapabilityFlag": True,
         }

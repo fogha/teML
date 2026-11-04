@@ -22,6 +22,7 @@ from teml_host.terminal import (
 )
 from teml_host.types import (
     AppendCommand,
+    CanvasCommand,
     ChangeEvent,
     CharCommand,
     ClickEvent,
@@ -73,6 +74,7 @@ from teml_host.protocol import (
 
 __all__ = [
     "AppendCommand",
+    "CanvasCommand",
     "Context",
     "MAX_NDJSON_LINE_BYTES",
     "MouseGuard",

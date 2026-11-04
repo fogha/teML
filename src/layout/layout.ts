@@ -33,6 +33,7 @@ import {
   layoutTextarea,
 } from "./interactive.js";
 import { collectWidgetHits, visualHeight } from "./hits.js";
+import { renderCanvas } from "./canvas.js";
 import { isAlertContainer } from "../teml/directives.js";
 import type { LayoutOpts } from "./opts.js";
 import { layoutScroll } from "./scroll.js";
@@ -465,6 +466,24 @@ function layoutLeaf(b: Extract<Block, { type: "leaf" }>, opts: LayoutOpts, inden
           { text: pad, style: {} },
           {
             text: truncateToWidth(label, innerW, "…", m),
+            style: resolveRole(theme, "muted", diags),
+          },
+        ],
+      ];
+    }
+    case "canvas": {
+      const surface = opts.canvas?.get(b.attrs.id?.trim() ?? "");
+      if (surface) return renderCanvas(surface, innerW, opts.caps);
+      return [
+        [
+          { text: pad, style: {} },
+          {
+            text: truncateToWidth(
+              `[Canvas: ${b.attrs.label ?? b.attrs.id ?? "canvas"}]`,
+              innerW,
+              "…",
+              m,
+            ),
             style: resolveRole(theme, "muted", diags),
           },
         ],

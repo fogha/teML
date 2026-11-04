@@ -64,6 +64,13 @@ export type {
 
 export { bindings, type Bindings };
 
+export type InteractiveAppCanvas = {
+  clear(): void;
+  fillStyle(color: `#${string}`): void;
+  fillRect(x: number, y: number, width: number, height: number): void;
+  present(): void;
+};
+
 /** Passed to every handler so it can act on the live session without reaching into internals. */
 export type InteractiveAppContext = {
   /** Ends the interactive loop; runInteractiveApp's promise resolves with the final values. */
@@ -78,11 +85,20 @@ export type InteractiveAppContext = {
   remove(target: string): void;
   /** Mutates one live updatable widget (`::metric`/`::progress`) by id. */
   update(id: string, props: Record<string, string>): void;
+  /** Draws one canvas frame at a time using the shared protocol operations. */
+  canvas(id: string): InteractiveAppCanvas;
   /** Current value of every focusable widget (id -> value; checkboxes as "true"/"false"). */
   values(): Record<string, string>;
 };
 
 export type InteractiveAppHandlers = {
+  onReady?(ctx: InteractiveAppContext): void;
+  onKey?(
+    key: string,
+    modifiers: { ctrl?: boolean; alt?: boolean; shift?: boolean } | undefined,
+    ctx: InteractiveAppContext,
+  ): void;
+  onChar?(char: string, ctx: InteractiveAppContext): void;
   onChange?(id: string, value: string, ctx: InteractiveAppContext): void;
   onToggle?(id: string, checked: boolean, ctx: InteractiveAppContext): void;
   onClick?(id: string, values: Record<string, string>, ctx: InteractiveAppContext): void;
@@ -215,9 +231,11 @@ export async function runInteractiveApp(
           }
           break;
         case "char":
+          observe(handlers.onChar?.(event.char, ctx));
           send({ type: "char", char: event.char });
           break;
         case "key":
+          observe(handlers.onKey?.(event.key, event.modifiers, ctx));
           send({
             type: "key",
             key: event.key,
@@ -289,6 +307,18 @@ export async function runInteractiveApp(
         send({ type: "append", target, markup: src, format: fmt ?? format }),
       remove: (target) => send({ type: "remove", target }),
       update: (id, props) => send({ type: "update", id, props }),
+      canvas: (id) => {
+        const ops: Extract<Command, { type: "canvas" }>["ops"] = [];
+        return {
+          clear: () => ops.push({ op: "clear" }),
+          fillStyle: (color) => ops.push({ op: "fillStyle", color }),
+          fillRect: (x, y, width, height) => ops.push({ op: "fillRect", x, y, width, height }),
+          present: () => {
+            const batch = ops.splice(0, ops.length);
+            send({ type: "canvas", id, ops: batch });
+          },
+        };
+      },
       values: () => session.values(),
     };
 
@@ -385,7 +415,10 @@ export async function runInteractiveApp(
         onError: fail,
       });
       if (settled) driver.stop();
-      else for (const event of session.start()) dispatch(event);
+      else {
+        for (const event of session.start()) dispatch(event);
+        observe(handlers.onReady?.(ctx));
+      }
     } catch (cause) {
       fail(cause);
     }

@@ -32,6 +32,7 @@ export const DIRECTIVE_REGISTRY = {
   leafs: {
     kv: {},
     image: { attrs: ["src", "alt"] },
+    canvas: { attrs: ["id", "label", "width", "height"] },
     break: {},
     metric: { attrs: ["id", "label", "value", "role", "change"] },
     progress: { attrs: ["id", "label", "value", "max", "role"] },
