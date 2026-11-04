@@ -67,6 +67,7 @@ async function main() {
 
   await runInteractiveApp(VIEW, {
     format: "html",
+    fields: { width: 56, paddingX: 1, paddingY: 0, marginY: 0 },
     footer: FOOTER,
     handlers: {
       onSubmit(_form, values, ctx) {

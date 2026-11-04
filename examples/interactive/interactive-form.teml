@@ -19,13 +19,13 @@ instead of a `click`.
 ::option{value="production" label="Production · full rollout"}
 :::
 
-::input{id="owner" label="Release owner" value="Ada" required}
+::input{id="owner" label="Release owner" value="Ada" width="28" padding="1" margin="1" required}
 
-::input{id="ticket" label="Tracking ticket" placeholder="REL-1234" pattern="[A-Z]+-[0-9]+" required}
+::input{id="ticket" label="Tracking ticket" placeholder="REL-1234" width="24" padding="1" margin="0" pattern="[A-Z]+-[0-9]+" required}
 
-::input{id="token" label="Rollback token" mask minLength="12"}
+::input{id="token" label="Rollback token" width="32" padding="1" margin="1" mask minLength="12"}
 
-::textarea{id="notes" label="Release notes" placeholder="Risks, checks, and rollback plan…" rows="3" autoGrow maxRows="8" maxLength="500"}
+::textarea{id="notes" label="Release notes" placeholder="Risks, checks, and rollback plan…" width="52" padding="1" margin="1" rows="3" autoGrow maxRows="8" maxLength="500"}
 
 ::checkbox{id="approved" label="All pre-flight checks passed"}
 
