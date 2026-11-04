@@ -19,6 +19,8 @@ export type FieldLayoutConfig = {
   paddingY?: number;
   /** Blank rows before and after the field. Default: 0. */
   marginY?: number;
+  /** Horizontal placement when width is narrower than available space. Default: "start". */
+  align?: "start" | "center" | "end";
 };
 
 export type ScrollRegionRuntime = {

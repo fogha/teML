@@ -22,7 +22,9 @@ export const DIRECTIVE_REGISTRY = {
     note: { attrs: ["id", "title"] },
     definition: { attrs: ["term"] },
     footnote: { attrs: ["id"] },
-    grid: { attrs: ["id", "columns", "gap"] },
+    grid: {
+      attrs: ["id", "columns", "gap", "width", "padding", "margin", "align", "frame", "title"],
+    },
     details: { attrs: ["id", "summary", "open"] },
     figure: { attrs: ["id", "caption"] },
     radio: { attrs: ["id", "value"] },

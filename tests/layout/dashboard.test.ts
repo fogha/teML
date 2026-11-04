@@ -100,6 +100,64 @@ test("grid reduces columns when cells would be narrower than 18", () => {
   expect(rows.length).toBeGreaterThanOrEqual(2);
 });
 
+test("framed grid centers a light box with padding and margins", () => {
+  const d = doc([
+    {
+      type: "container",
+      name: "grid",
+      attrs: {
+        columns: "1",
+        width: "12",
+        padding: "1",
+        margin: "1",
+        align: "center",
+        frame: "true",
+      },
+      children: [{ type: "paragraph", children: [text("A")] }],
+    },
+  ]);
+  expect(
+    renderPlain(
+      layoutDocument(d, {
+        width: 24,
+        theme: loadTheme("dark"),
+        caps: caps(24),
+        diags: new Diagnostics(),
+      }),
+    ).split("\n"),
+  ).toEqual([
+    "",
+    "       ┌──────────┐",
+    "       │          │",
+    "       │ A        │",
+    "       │          │",
+    "       └──────────┘",
+    "",
+    "",
+  ]);
+});
+
+test("unframed grid aligns and pads content without changing defaults", () => {
+  const d = doc([
+    {
+      type: "container",
+      name: "grid",
+      attrs: { columns: "1", width: "12", padding: "1", margin: "1", align: "end" },
+      children: [{ type: "paragraph", children: [text("A")] }],
+    },
+  ]);
+  expect(
+    renderPlain(
+      layoutDocument(d, {
+        width: 24,
+        theme: loadTheme("dark"),
+        caps: caps(24),
+        diags: new Diagnostics(),
+      }),
+    ).split("\n"),
+  ).toEqual(["", "", "           A", "", "", ""]);
+});
+
 test("grid distributes remainder cells deterministically", () => {
   expect(gridColumnWidths(41, 3, 2)).toEqual([13, 12, 12]);
   expect(gridColumnWidths(41, 3, 2)).toEqual(gridColumnWidths(41, 3, 2));

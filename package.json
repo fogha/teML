@@ -79,6 +79,7 @@
     "presea:build": "pnpm run sea:bundle",
     "dev": "tsx src/cli/main.ts",
     "demo": "node dist/cli/main.js examples/markup/demo.teml",
+    "demo:layout-grid": "node dist/cli/main.js view examples/markup/layout-grid.teml --theme dark",
     "demo:command-center": "node dist/cli/main.js view examples/markup/service-command-center.teml --theme dark --width 100",
     "demo:interactive": "node examples/interactive/interactive-host.mjs examples/interactive/interactive-form.teml",
     "demo:log-viewer": "node examples/interactive/interactive-host.mjs examples/interactive/log-viewer.teml",

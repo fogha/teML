@@ -110,7 +110,7 @@ function boundedFieldValue(raw: string | undefined, fallback: number, max: numbe
   return Number.isInteger(value) && value >= 0 && value <= max ? value : fallback;
 }
 
-function boxMetrics(
+export function boxMetrics(
   opts: LayoutOpts,
   indent: number,
   focused: boolean,
@@ -125,12 +125,16 @@ function boxMetrics(
   const marginY = boundedFieldValue(attrs.margin, opts.fields?.marginY ?? 0, 4);
   const requestedWidth = boundedFieldValue(attrs.width, opts.fields?.width ?? available, 10_000);
   const boxWidth = Math.max(1, Math.min(available - markerW, requestedWidth));
+  const free = Math.max(0, available - markerW - boxWidth);
+  const align = attrs.align ?? opts.fields?.align ?? "start";
+  const offsetX = align === "center" ? Math.floor(free / 2) : align === "end" ? free : 0;
   return {
     m,
     available,
     marker,
     markerW,
     boxWidth,
+    offsetX,
     paddingX,
     paddingY,
     marginY,
@@ -139,7 +143,7 @@ function boxMetrics(
   };
 }
 
-function boxedField(
+export function boxedField(
   opts: LayoutOpts,
   indent: number,
   focused: boolean,
@@ -148,8 +152,22 @@ function boxedField(
   metadata: Span["style"],
   attrs: Record<string, string> = {},
 ): Line[] {
-  const { m, available, marker, markerW, paddingX, paddingY, marginY, contentWidth, showBox } =
-    boxMetrics(opts, indent, focused, attrs);
+  const {
+    m,
+    available,
+    marker,
+    markerW,
+    offsetX,
+    paddingX,
+    paddingY,
+    marginY,
+    contentWidth,
+    showBox,
+  } = boxMetrics(opts, indent, focused, attrs);
+  const alignLines = (rows: Line[]): Line[] =>
+    offsetX === 0
+      ? rows
+      : rows.map((line) => [{ text: " ".repeat(offsetX), style: metadata }, ...line]);
   const lines: Line[] = [];
   if (label) {
     lines.push([
@@ -170,7 +188,7 @@ function boxedField(
         ...clampLine(line, Math.max(1, available - markerW), m),
       ]),
     );
-    return [...margins, ...lines, ...margins];
+    return [...margins, ...alignLines(lines), ...margins];
   }
 
   const top = opts.caps.unicode ? "┌" : "+";
@@ -204,7 +222,7 @@ function boxedField(
       style: metadata,
     },
   ]);
-  return [...margins, ...lines, ...margins];
+  return [...margins, ...alignLines(lines), ...margins];
 }
 
 export function layoutButton(

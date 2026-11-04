@@ -1,0 +1,13 @@
+---
+title: Release controls
+theme: dark
+---
+
+# Release controls
+
+:::grid{columns="2" gap="2" width="48" padding="1" margin="1" align="center" frame="true" title="Deployment"}
+::input{id="owner" label="Owner" value="Ada" width="20" padding="1"}
+::button{id="deploy" label="Deploy" width="20" padding="1"}
+:::
+
+This example centers a framed two-column layout while preserving each control's own geometry.

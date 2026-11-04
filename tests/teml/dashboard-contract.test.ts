@@ -24,7 +24,17 @@ const caps = (): Capabilities => ({
 });
 
 test("directive registry: dashboard containers and leaf attrs", () => {
-  expect(DIRECTIVE_REGISTRY.containers.grid.attrs).toEqual(["id", "columns", "gap"]);
+  expect(DIRECTIVE_REGISTRY.containers.grid.attrs).toEqual([
+    "id",
+    "columns",
+    "gap",
+    "width",
+    "padding",
+    "margin",
+    "align",
+    "frame",
+    "title",
+  ]);
   expect(DIRECTIVE_REGISTRY.containers.details.attrs).toEqual(["id", "summary", "open"]);
   expect(DIRECTIVE_REGISTRY.containers.figure.attrs).toEqual(["id", "caption"]);
   expect(DIRECTIVE_REGISTRY.leafs.metric.attrs).toEqual(["id", "label", "value", "role", "change"]);

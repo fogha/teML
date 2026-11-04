@@ -67,7 +67,7 @@ v1 registry:
 | `card` | `id`, `title` | Bordered panel with title bar |
 | `info`, `success`, `warning`, `error`, `note` | `id`, `title` | Alert panels with role styling |
 | `definition` | `term` | Definition list block |
-| `grid` | `id`, `columns`, `gap` | Responsive multi-column metric/card layout (1–4 columns; auto-reduces below 18-cell width) |
+| `grid` | `id`, `columns`, `gap`, `width`, `padding`, `margin`, `align`, `frame`, `title` | Responsive multi-column layout with optional light frame and alignment (1–4 columns; auto-reduces below 18-cell width) |
 | `details` | `id`, `summary`, `open` | Collapsible disclosure (`open="false"` hides body) |
 | `figure` | `id`, `caption` | Figure body with trailing caption line |
 | `footnote` | `id` | Footnote definition block |
@@ -109,7 +109,9 @@ Unknown containers are kept with a `unknown-directive` warning.
 available space. `padding` sets horizontal cells and blank rows inside the
 border; `margin` sets blank rows before and after the field. All three are
 optional and default to the app-wide `fields` layout configuration:
-`paddingX=1`, `paddingY=0`, `marginY=0`, and full available width. `rows`,
+`paddingX=1`, `paddingY=0`, `marginY=0`, and full available width. `align`
+accepts `start`, `center`, or `end` when a grid or field is narrower than the
+terminal, and `frame="true"` draws a shared light box around a grid. `rows`,
 `autoGrow`, and `maxRows` control textarea content height independently.
 
 #### Validation attributes

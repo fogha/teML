@@ -7,6 +7,7 @@ import { mergeStyle, resolveRole } from "../terminal/theme.js";
 import type { LayoutOpts } from "./opts.js";
 import { cellWidth, truncateToWidth, type MeasureOpts } from "./measure.js";
 import { wrapSpans } from "./wrap.js";
+import { boxMetrics, boxedField } from "./interactive.js";
 
 export type LayoutBlockFn = (b: Block, opts: LayoutOpts, indent: number) => Line[];
 export type LayoutBlocksFn = (
@@ -109,11 +110,13 @@ export function layoutGrid(
   layoutBlockFn: LayoutBlockFn,
 ): Line[] {
   const m = measureOpts(opts);
-  const outerW = Math.max(1, opts.width - indent);
+  const metrics = boxMetrics(opts, indent, false, b.attrs);
   const requested = clampBoundedInt(b.attrs.columns, 1, 4, 2);
   const gap = clampBoundedInt(b.attrs.gap, 1, 4, 2);
-  const cols = effectiveGridColumns(requested, outerW, gap);
-  const colWidths = gridColumnWidths(outerW, cols, gap);
+  const framed = b.attrs.frame !== undefined && b.attrs.frame.toLowerCase() !== "false";
+  const gridWidth = framed ? metrics.contentWidth : Math.max(1, opts.width - indent);
+  const cols = effectiveGridColumns(requested, gridWidth, gap);
+  const colWidths = gridColumnWidths(gridWidth, cols, gap);
 
   const children = b.children;
   if (!children.length) return [];
@@ -131,7 +134,24 @@ export function layoutGrid(
     out.push(...rowLines);
   }
 
-  return clampPhysicalLines(out, opts.width, indent, m);
+  if ((b.attrs.frame ?? "").toLowerCase() !== "false" && b.attrs.frame !== undefined) {
+    return boxedField(opts, indent, false, b.attrs.title, out, {}, b.attrs);
+  }
+
+  const customSpacing =
+    b.attrs.padding !== undefined ||
+    b.attrs.margin !== undefined ||
+    opts.fields?.paddingX !== undefined ||
+    opts.fields?.paddingY !== undefined ||
+    opts.fields?.marginY !== undefined;
+  const paddingX = customSpacing ? metrics.paddingX : 0;
+  const padded = clampPhysicalLines(out, opts.width, indent, m).map((line) => [
+    { text: " ".repeat(metrics.offsetX + paddingX), style: {} },
+    ...line,
+  ]);
+  const paddingRows = Array.from({ length: metrics.paddingY }, () => []);
+  const margins = Array.from({ length: metrics.marginY }, () => []);
+  return [...margins, ...paddingRows, ...padded, ...paddingRows, ...margins];
 }
 
 export function layoutMetric(
