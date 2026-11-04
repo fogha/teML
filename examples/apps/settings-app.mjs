@@ -17,6 +17,7 @@
 //   node examples/apps/settings-app.mjs
 //   pnpm run demo:settings
 
+import { readFileSync } from "node:fs";
 import {
   Diagnostics,
   applyMetaRoles,
@@ -31,29 +32,10 @@ import {
 } from "../../dist/index.js";
 import { runInteractiveApp } from "../../dist/interactive/host.js";
 
+const VIEW = readFileSync(new URL("./settings-app.html", import.meta.url), "utf8");
+
 function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function screen({ error } = {}) {
-  return `
-${error ? `<div class="alert alert-danger">${escapeHtml(error)}</div>` : ""}
-<h2>Workspace profile</h2>
-<p>Choose how this CLI receives updates, then leave a note for collaborators.</p>
-<label for="name">Display name</label>
-<input id="name" value="Ada">
-<label for="stable">Stable · recommended</label>
-<input id="stable" type="radio" name="channel" value="stable" checked>
-<label for="preview">Preview · early features</label>
-<input id="preview" type="radio" name="channel" value="preview">
-<label for="nightly">Nightly · newest builds</label>
-<input id="nightly" type="radio" name="channel" value="nightly">
-<label for="notes">Workspace note</label>
-<textarea id="notes" rows="3" placeholder="What should teammates know?"></textarea>
-<label for="notify">Notify me when the channel updates</label>
-<input id="notify" type="checkbox">
-<button id="save">Save profile</button>
-<button id="cancel">Cancel</button>`;
 }
 
 const FOOTER =
@@ -83,23 +65,26 @@ async function main() {
 
   let outcome; // set by a button handler just before ctx.exit()
 
-  await runInteractiveApp(screen(), {
+  await runInteractiveApp(VIEW, {
     format: "html",
     footer: FOOTER,
     handlers: {
-      onClick(id, values, ctx) {
-        if (id === "cancel") {
-          outcome = { type: "cancelled" };
-          ctx.exit();
+      onSubmit(_form, values, ctx) {
+        const error = validate(values);
+        if (error) {
+          ctx.replace(
+            "status",
+            `<div data-teml="grid" data-id="status"><div class="alert alert-danger">${escapeHtml(error)}</div></div>`,
+            "html",
+          );
           return;
         }
-        if (id === "save") {
-          const error = validate(values);
-          if (error) {
-            ctx.render(screen({ error }));
-            return;
-          }
-          outcome = { type: "saved", values };
+        outcome = { type: "saved", values };
+        ctx.exit();
+      },
+      onClick(id, _values, ctx) {
+        if (id === "cancel") {
+          outcome = { type: "cancelled" };
           ctx.exit();
         }
       },

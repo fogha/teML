@@ -1,0 +1,22 @@
+<h1>DeepSeek</h1>
+<p><span class="text-muted">A quiet terminal conversation · streaming responses</span></p>
+<div data-teml="grid" data-id="history">
+  <div class="card">
+    <p><span class="text-muted">Ask a question to begin. Your messages appear here.</span></p>
+  </div>
+</div>
+<div data-teml="grid" data-id="status"><div class="alert alert-info">Ready.</div></div>
+<form id="composer">
+  <label for="message">Message</label>
+  <textarea
+    id="message"
+    rows="2"
+    data-auto-grow
+    data-max-rows="6"
+    required
+    placeholder="Ask something useful…"
+  ></textarea>
+  <button id="send" type="submit">Send</button>
+</form>
+<button id="new">New chat</button>
+<p><span class="text-muted">Ctrl+Enter sends · Tab moves between controls · Ctrl+C exits</span></p>

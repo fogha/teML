@@ -1,0 +1,27 @@
+<h2>Workspace profile</h2>
+<p>Choose how this CLI receives updates, then leave a note for collaborators.</p>
+<div data-teml="grid" data-id="status">
+  <div class="alert alert-info">Your settings stay in memory for this demo.</div>
+</div>
+<form id="profile">
+  <label for="name">Display name</label>
+  <input id="name" value="Ada" />
+  <label for="stable">Stable · recommended</label>
+  <input id="stable" type="radio" name="channel" value="stable" checked />
+  <label for="preview">Preview</label>
+  <input id="preview" type="radio" name="channel" value="preview" />
+  <label for="nightly">Nightly</label>
+  <input id="nightly" type="radio" name="channel" value="nightly" />
+  <label for="notes">Workspace note</label>
+  <textarea
+    id="notes"
+    rows="3"
+    data-auto-grow
+    data-max-rows="8"
+    placeholder="What should teammates know?"
+  ></textarea>
+  <label for="notify">Notify me when the channel updates</label>
+  <input id="notify" type="checkbox" />
+  <button id="save" type="submit">Save profile</button>
+</form>
+<button id="cancel">Cancel</button>
