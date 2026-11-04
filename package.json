@@ -91,7 +91,8 @@
     "demo:elicitation": "node examples/apps/elicitation-demo.mjs",
     "demo:snake-prototype": "node examples/apps/snake-prototype.mjs",
     "demo:canvas-js": "node examples/apps/canvas-animation.mjs",
-    "demo:canvas-python": "PYTHONPATH=hosts/python/src python3 hosts/python/examples/canvas_animation.py"
+    "demo:canvas-python": "PYTHONPATH=hosts/python/src python3 hosts/python/examples/canvas_animation.py",
+    "demo:canvas-fireworks": "node examples/apps/canvas-fireworks.mjs"
   },
   "license": "MIT",
   "dependencies": {
