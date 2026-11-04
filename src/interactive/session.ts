@@ -57,7 +57,7 @@ import {
 import { InteractiveLayoutCache } from "./layout-cache.js";
 import {
   applyCanvasOperations,
-  collectCanvasSurfaces,
+  reconcileCanvasSurfaces,
   type CanvasSurface,
 } from "../layout/canvas.js";
 import { containsFootnoteContent, countBlocks, parseMutationFragment } from "./mutation.js";
@@ -337,7 +337,7 @@ export class InteractiveSession {
   }
 
   private canvases(): Map<string, CanvasSurface> {
-    this.canvasRuntime ??= collectCanvasSurfaces(this.doc);
+    this.canvasRuntime = reconcileCanvasSurfaces(this.doc, this.canvasRuntime);
     return this.canvasRuntime;
   }
 

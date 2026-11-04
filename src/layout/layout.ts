@@ -33,7 +33,7 @@ import {
   layoutTextarea,
 } from "./interactive.js";
 import { collectWidgetHits, visualHeight } from "./hits.js";
-import { renderCanvas } from "./canvas.js";
+import { renderCanvas } from "./canvas-render.js";
 import { isAlertContainer } from "../teml/directives.js";
 import type { LayoutOpts } from "./opts.js";
 import { layoutScroll } from "./scroll.js";

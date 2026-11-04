@@ -1312,6 +1312,46 @@ test("resize keeps the active cursor row visible when a textarea exceeds the doc
   expect(resized.plain).toContain("▏");
 });
 
+test("canvas commands draw and reconcile surfaces across document transitions", () => {
+  const session = new InteractiveSession(
+    formDoc('::canvas{id="game" width="8" height="4"}'),
+    sessionOptions(),
+  );
+  session.start();
+  const draw = (id = "game") =>
+    session.handle({
+      type: "canvas",
+      id,
+      ops: [
+        { op: "fillStyle", color: "#50fa7b" },
+        { op: "fillRect", x: 0, y: 0, width: 2, height: 2 },
+      ],
+    });
+  expect(frameOf(draw()).plain).toContain("▀");
+
+  session.handle({
+    type: "render",
+    markup: '::canvas{id="other" width="8" height="4"}',
+  });
+  expect(draw("other").some((event) => event.type === "error")).toBe(false);
+
+  session.handle({
+    type: "render",
+    markup: '::canvas{id="game" width="8" height="4"}',
+  });
+  expect(frameOf(draw()).plain).toContain("▀");
+
+  session.handle({
+    type: "render",
+    markup: '::canvas{id="game" width="16" height="8"}',
+  });
+  const resized = frameOf(session.handle({ type: "canvas", id: "game", ops: [] }));
+  expect(resized.plain).not.toContain("▀");
+
+  session.handle({ type: "render", markup: "plain text" });
+  expect(draw()[0]).toMatchObject({ type: "error", message: "unknown canvas id 'game'" });
+});
+
 test("scroll commands update a focused region, emit bounded metadata, and bubble residual rows", () => {
   const logLines = Array.from({ length: 20 }, (_, index) => `log ${index + 1}`).join("\n\n");
   const tail = Array.from({ length: 12 }, (_, index) => `tail ${index + 1}`).join("\n\n");

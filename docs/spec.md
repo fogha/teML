@@ -92,7 +92,7 @@ Unknown containers are kept with a `unknown-directive` warning.
 | --- | --- | --- |
 | `kv` | key/value pairs | Two-column key/value table |
 | `image` | `src`, `alt` | Alt placeholder or linked image text |
-| `canvas` | `id`, `label`, `width`, `height` | Experimental host-driven pixel surface; half-block color cells with ASCII fallback |
+| `canvas` | `id`, `label`, `width`, `height`, `renderer` | Experimental host-driven pixel surface; half-block or Braille cells with ASCII fallback |
 | `break` | — | Thematic break |
 | `metric` | `id`, `label`, `value`, `role`, `change` | KPI label + bold value (+ optional delta); `id` enables live `update` |
 | `progress` | `id`, `label`, `value`, `max`, `role` | Label, percent, and filled bar (`█`/`░` or `#`/`-`); `id` enables live `update` |

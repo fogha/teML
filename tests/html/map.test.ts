@@ -110,6 +110,20 @@ test("map: native textarea preserves opt-in auto-grow bounds", () => {
   });
 });
 
+test("map: native canvas keeps its declarative surface metadata", () => {
+  const document = parseHtml(
+    '<canvas id="game" width="48" height="24" aria-label="Game board">Fallback</canvas>',
+  );
+  const diags = new Diagnostics();
+  const mapped = normalize(htmlToDocFromRoot(document, {}, diags, document), diags);
+  expect(mapped.blocks[0]).toEqual({
+    type: "leaf",
+    name: "canvas",
+    attrs: { id: "game", width: "48", height: "24", label: "Game board" },
+  });
+  expect(diags.has("placeholder")).toBe(false);
+});
+
 test("map: data-teml scroll keeps id and fixed rows", () => {
   const document = parseHtml(
     '<html><body><div data-teml="scroll" data-id="logs" data-rows="4"><p>Log</p></div></body></html>',

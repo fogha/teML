@@ -1,109 +1,78 @@
 #!/usr/bin/env node
-// PROTOTYPE — throwaway TeML shell for the Snake state model.
-// Question: does full-frame TeML rendering feel responsive enough for a small
-// real-time terminal game, and where does the current host API get in the way?
-
+// PROTOTYPE: Snake driven entirely through the shared canvas protocol.
+import { readFileSync } from "node:fs";
 import { runInteractiveApp } from "../../dist/interactive/host.js";
-import { createInputDecoder } from "../../dist/terminal/client/input.js";
-import {
-  boardLines,
-  changeDirection,
-  createGame,
-  stepGame,
-  togglePause,
-} from "./snake-prototype-state.mjs";
+import { changeDirection, createGame, stepGame, togglePause } from "./snake-prototype-state.mjs";
 
 if (!process.stdin.isTTY) {
   process.stderr.write("snake-prototype: run directly in a real terminal.\n");
   process.exit(1);
 }
 
-const START_SCREEN = `# Snake — prototype
-
-A pure JavaScript game loop rendered through TeML. The prototype deliberately
-uses full-frame repaints so we can judge responsiveness and flicker.
-
-::button{id="start" label="Start game"}
-`;
-
 let state = createGame();
-let context;
 let timer;
-let started = false;
-
-function gameMarkup() {
-  return `# Snake — prototype
-
-**Score:** ${state.score} · **Length:** ${state.snake.length} · **Direction:** ${state.direction} · **Queued:** ${state.pendingDirection} · **Ticks:** ${state.ticks} · **Status:** ${state.status}
-
-\`\`\`
-${boardLines(state).join("\n")}
-\`\`\`
-
-${state.status === "game-over" ? "Game over — press **R** to restart." : state.status === "won" ? "Board cleared — press **R** to play again." : "Eat `■`, avoid walls and your own tail."}
-`;
-}
-
-function paint() {
-  context?.render(gameMarkup(), "teml");
-}
-
-function start(ctx) {
-  if (started) return;
-  started = true;
-  context = ctx;
-  paint();
-  timer = setInterval(() => {
-    if (state.status !== "running") return;
-    state = stepGame(state);
-    paint();
-  }, 120);
-}
-
-const decoder = createInputDecoder();
 const arrows = { up: "up", down: "down", left: "left", right: "right" };
 const wasd = { w: "up", s: "down", a: "left", d: "right" };
 
-function handleInput(event) {
-  if (!started || !context) return;
-  if (event.type === "key" && arrows[event.key]) {
-    state = changeDirection(state, arrows[event.key]);
-    paint();
-    return;
+function draw(canvas) {
+  canvas.clear();
+  canvas.fillStyle("#444444");
+  canvas.fillRect(0, 0, 48, 1);
+  canvas.fillRect(0, 23, 48, 1);
+  canvas.fillRect(0, 0, 1, 24);
+  canvas.fillRect(47, 0, 1, 24);
+  for (const [index, cell] of state.snake.entries()) {
+    canvas.fillStyle(index === 0 ? "#50fa7b" : "#2aa198");
+    canvas.fillRect(cell.x * 2 + 1, cell.y * 2 + 1, 2, 2);
   }
-  if (event.type !== "char") return;
-  const key = event.char.toLowerCase();
-  if (key === "q") {
-    context.exit();
-  } else if (key === "r") {
-    state = createGame();
-    paint();
-  } else if (key === " " || key === "p") {
-    state = togglePause(state);
-    paint();
-  } else if (wasd[key]) {
-    state = changeDirection(state, wasd[key]);
-    paint();
+  if (state.food) {
+    canvas.fillStyle("#ff5555");
+    canvas.fillRect(state.food.x * 2 + 1, state.food.y * 2 + 1, 2, 2);
   }
+  canvas.present();
 }
 
-function onData(chunk) {
-  for (const event of decoder.push(chunk)) handleInput(event);
-}
-
-process.stdin.on("data", onData);
 try {
-  await runInteractiveApp(START_SCREEN, {
-    format: "teml",
-    mouse: false,
-    footer: "\x1b[2mArrows/WASD move · Space/P pause · R restart · Q quit · Ctrl+C exit\x1b[0m",
-    handlers: {
-      onClick(id, _values, ctx) {
-        if (id === "start") start(ctx);
+  await runInteractiveApp(
+    readFileSync(new URL("./snake-prototype.html", import.meta.url), "utf8"),
+    {
+      format: "html",
+      mouse: false,
+      handlers: {
+        onReady(ctx) {
+          const canvas = ctx.canvas("game");
+          draw(canvas);
+          timer = setInterval(() => {
+            if (state.status !== "running") return;
+            state = stepGame(state);
+            draw(canvas);
+          }, 120);
+        },
+        onKey(key, _modifiers, ctx) {
+          if (!arrows[key]) return;
+          const canvas = ctx.canvas("game");
+          state = changeDirection(state, arrows[key]);
+          draw(canvas);
+        },
+        onChar(char, ctx) {
+          const key = char.toLowerCase();
+          const canvas = ctx.canvas("game");
+          if (key === "q") {
+            ctx.exit();
+          } else if (key === "r") {
+            state = createGame();
+            draw(canvas);
+          } else if (key === " " || key === "p") {
+            state = togglePause(state);
+            draw(canvas);
+          } else if (wasd[key]) {
+            state = changeDirection(state, wasd[key]);
+            draw(canvas);
+          }
+        },
       },
     },
-  });
+  );
 } finally {
   if (timer) clearInterval(timer);
-  process.stdin.removeListener("data", onData);
 }

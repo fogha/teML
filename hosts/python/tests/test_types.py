@@ -9,6 +9,10 @@ import pytest
 
 from teml_host import (
     AppendCommand,
+    CanvasCommand,
+    ClearOperation,
+    FillRectOperation,
+    FillStyleOperation,
     ExitEvent,
     FullFrame,
     KeyCommand,
@@ -33,6 +37,28 @@ def test_update_command_serializes_props() -> None:
         "type": "update",
         "id": "deploy",
         "props": {"value": "73", "max": "100"},
+    }
+
+
+def test_canvas_command_serializes_typed_operations() -> None:
+    payload = command_to_json(
+        CanvasCommand(
+            id="game",
+            ops=(
+                ClearOperation(),
+                FillStyleOperation(color="#50fa7b"),
+                FillRectOperation(x=1, y=2, width=3, height=4),
+            ),
+        )
+    )
+    assert payload == {
+        "type": "canvas",
+        "id": "game",
+        "ops": [
+            {"op": "clear"},
+            {"op": "fillStyle", "color": "#50fa7b"},
+            {"op": "fillRect", "x": 1, "y": 2, "width": 3, "height": 4},
+        ],
     }
 
 

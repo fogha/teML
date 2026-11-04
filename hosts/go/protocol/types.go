@@ -9,7 +9,7 @@ type ProtocolVersion struct {
 // ProtocolMajor and ProtocolMinor match src/interactive/protocol.ts.
 const (
 	ProtocolMajor = 1
-	ProtocolMinor = 5
+	ProtocolMinor = 6
 )
 
 // ProtocolCapability names an optional engine feature.
@@ -33,9 +33,11 @@ const (
 	CapValidation        ProtocolCapability = "validation"
 	CapFormSubmit        ProtocolCapability = "formSubmit"
 	CapErrorCompletion   ProtocolCapability = "errorCompletion"
+	CapCanvas            ProtocolCapability = "canvas"
+	CapCanvasBraille     ProtocolCapability = "canvasBraille"
 )
 
-// EngineCapabilities lists the finite capability vocabulary for protocol 1.5.
+// EngineCapabilities lists the finite capability vocabulary for protocol 1.6.
 var EngineCapabilities = []ProtocolCapability{
 	CapFrameFormats,
 	CapPatches,
@@ -54,6 +56,8 @@ var EngineCapabilities = []ProtocolCapability{
 	CapValidation,
 	CapFormSubmit,
 	CapErrorCompletion,
+	CapCanvas,
+	CapCanvasBraille,
 }
 
 const (

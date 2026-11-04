@@ -29,6 +29,7 @@ ProtocolCapability: TypeAlias = Literal[
     "formSubmit",
     "errorCompletion",
     "canvas",
+    "canvasBraille",
 ]
 
 ENGINE_CAPABILITIES: Final[tuple[ProtocolCapability, ...]] = (
@@ -50,6 +51,7 @@ ENGINE_CAPABILITIES: Final[tuple[ProtocolCapability, ...]] = (
     "formSubmit",
     "errorCompletion",
     "canvas",
+    "canvasBraille",
 )
 
 CAPABILITY_DOCS: Final[dict[str, str]] = {
@@ -78,6 +80,7 @@ CAPABILITY_DOCS: Final[dict[str, str]] = {
     ),
     "errorCompletion": "Error events declare whether an unchanged frame follows (protocol 1.5).",
     "canvas": "Host-driven pixel surfaces and batched drawing operations (protocol 1.6).",
+    "canvasBraille": "Canvas surfaces may render 2x4-pixel Braille cells (protocol 1.6).",
 }
 
 MAX_CHAR_BYTES: Final = 64 * 1024

@@ -2,6 +2,41 @@ package protocol
 
 import "encoding/json"
 
+// CanvasOperation is one drawing operation in a canvas frame batch.
+type CanvasOperation struct {
+	Op     string  `json:"-"`
+	Color  string  `json:"-"`
+	X      float64 `json:"-"`
+	Y      float64 `json:"-"`
+	Width  float64 `json:"-"`
+	Height float64 `json:"-"`
+}
+
+// MarshalJSON preserves the operation-specific wire shape, including zero coordinates.
+func (op CanvasOperation) MarshalJSON() ([]byte, error) {
+	switch op.Op {
+	case "clear":
+		return json.Marshal(struct {
+			Op string `json:"op"`
+		}{Op: "clear"})
+	case "fillStyle":
+		return json.Marshal(struct {
+			Op    string `json:"op"`
+			Color string `json:"color"`
+		}{Op: "fillStyle", Color: op.Color})
+	case "fillRect":
+		return json.Marshal(struct {
+			Op     string  `json:"op"`
+			X      float64 `json:"x"`
+			Y      float64 `json:"y"`
+			Width  float64 `json:"width"`
+			Height float64 `json:"height"`
+		}{Op: "fillRect", X: op.X, Y: op.Y, Width: op.Width, Height: op.Height})
+	default:
+		return json.Marshal(op)
+	}
+}
+
 // Command is one host→engine message on stdin.
 type Command struct {
 	Type string `json:"type"`
@@ -38,6 +73,10 @@ type Command struct {
 
 	// replace/append/remove (protocol 1.3, capability-gated)
 	MutationTarget string `json:"-"`
+
+	// canvas (protocol 1.6, capability-gated)
+	CanvasID  string            `json:"-"`
+	CanvasOps []CanvasOperation `json:"-"`
 }
 
 // MarshalNDJSON encodes one command without leaking zero-valued fields across types.
@@ -106,6 +145,12 @@ func (c Command) MarshalNDJSON() ([]byte, error) {
 			Type   string `json:"type"`
 			Target string `json:"target"`
 		}{Type: "remove", Target: c.MutationTarget})
+	case "canvas":
+		return json.Marshal(struct {
+			Type string            `json:"type"`
+			ID   string            `json:"id"`
+			Ops  []CanvasOperation `json:"ops"`
+		}{Type: "canvas", ID: c.CanvasID, Ops: c.CanvasOps})
 	case "exit":
 		return json.Marshal(struct {
 			Type string `json:"type"`
@@ -198,6 +243,12 @@ func mutationWithMarkup(commandType, target, markup string, format DocFormat) Co
 // Remove deletes an addressable container and its subtree.
 func Remove(target string) Command {
 	return Command{Type: "remove", MutationTarget: target}
+}
+
+// Canvas returns one complete drawing batch for a declarative canvas.
+func Canvas(id string, ops []CanvasOperation) Command {
+	copied := append([]CanvasOperation(nil), ops...)
+	return Command{Type: "canvas", CanvasID: id, CanvasOps: copied}
 }
 
 // Exit ends the session.

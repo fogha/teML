@@ -5,27 +5,32 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any
 
 from teml_host.app import _start
 from teml_host.paint import paint
 from teml_host.session import Session
-from teml_host.types import CanvasCommand
+from teml_host.types import (
+    CanvasCommand,
+    CanvasOperation,
+    ClearOperation,
+    FillRectOperation,
+    FillStyleOperation,
+)
 
 
 class Canvas:
     def __init__(self, canvas_id: str) -> None:
         self.id = canvas_id
-        self.ops: list[dict[str, Any]] = []
+        self.ops: list[CanvasOperation] = []
 
     def clear(self) -> None:
-        self.ops.append({"op": "clear"})
+        self.ops.append(ClearOperation())
 
     def fill_style(self, color: str) -> None:
-        self.ops.append({"op": "fillStyle", "color": color})
+        self.ops.append(FillStyleOperation(color=color))
 
     def fill_rect(self, x: int, y: int, width: int, height: int) -> None:
-        self.ops.append({"op": "fillRect", "x": x, "y": y, "width": width, "height": height})
+        self.ops.append(FillRectOperation(x=x, y=y, width=width, height=height))
 
     def present(self) -> CanvasCommand:
         command = CanvasCommand(id=self.id, ops=tuple(self.ops))

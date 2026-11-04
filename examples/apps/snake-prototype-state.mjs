@@ -97,20 +97,3 @@ export function stepGame(state, rng = Math.random) {
   }
   return nextState;
 }
-
-export function boardLines(state) {
-  const food = state.food ? `${state.food.x},${state.food.y}` : "";
-  const snake = new Map(state.snake.map((cell, index) => [`${cell.x},${cell.y}`, index]));
-  const lines = [`┌${"─".repeat(state.width)}┐`];
-  for (let y = 0; y < state.height; y += 1) {
-    let row = "│";
-    for (let x = 0; x < state.width; x += 1) {
-      const key = `${x},${y}`;
-      const segment = snake.get(key);
-      row += segment === 0 ? "@" : segment === undefined ? (key === food ? "■" : " ") : "o";
-    }
-    lines.push(`${row}│`);
-  }
-  lines.push(`└${"─".repeat(state.width)}┘`);
-  return lines;
-}

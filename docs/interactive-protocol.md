@@ -737,7 +737,8 @@ Negotiated full frames carry:
     "validation",
     "formSubmit",
     "errorCompletion",
-    "canvas"
+    "canvas",
+    "canvasBraille"
   ]
 }
 ```
@@ -747,8 +748,9 @@ additive minor with no command changes. Protocol 1.5 adds `error.frame` and the
 `errorCompletion` capability so hosts can distinguish terminal errors from
 semantic rejections with a following frame. Protocol 1.6 adds the experimental
 `canvas` command for batched `clear`, `fillStyle` (#RRGGBB), and `fillRect`
-operations. The engine renders one half-block frame per batch, with ASCII `#`
-cells when Unicode is unavailable.
+operations. The engine renders one frame per batch using half-block cells or a
+canvas-declared Braille renderer, with ASCII `#` cells when Unicode is
+unavailable. JavaScript, Python, Go, and Rust hosts expose the same command.
 
 Major changes may break command/event meaning and are fatal when a host
 requires another major. Minor changes are additive; hosts inspect the finite

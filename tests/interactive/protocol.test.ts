@@ -144,6 +144,40 @@ test("decodeCommand rejects malformed resize dimensions", () => {
   }
 });
 
+test("decodeCommand accepts and validates canvas drawing operations", () => {
+  const line = JSON.stringify({
+    type: "canvas",
+    id: "game",
+    ops: [
+      { op: "clear" },
+      { op: "fillStyle", color: "#50fa7b" },
+      { op: "fillRect", x: -1, y: 2, width: 3, height: 4 },
+    ],
+  });
+  expect(decodeCommand(line)).toEqual({
+    ok: true,
+    command: {
+      type: "canvas",
+      id: "game",
+      ops: [
+        { op: "clear" },
+        { op: "fillStyle", color: "#50fa7b" },
+        { op: "fillRect", x: -1, y: 2, width: 3, height: 4 },
+      ],
+    },
+  });
+
+  for (const invalid of [
+    '{"type":"canvas","id":"","ops":[]}',
+    '{"type":"canvas","id":"game","ops":{}}',
+    '{"type":"canvas","id":"game","ops":[{"op":"fillStyle","color":"red"}]}',
+    '{"type":"canvas","id":"game","ops":[{"op":"fillRect","x":0,"y":0,"width":-1,"height":2}]}',
+    '{"type":"canvas","id":"game","ops":[{"op":"unknown"}]}',
+  ]) {
+    expect(decodeCommand(invalid).ok).toBe(false);
+  }
+});
+
 test("decodeCommand accepts a valid char command", () => {
   const r = decodeCommand('{"type":"char","char":"a"}');
   expect(r).toEqual({ ok: true, command: { type: "char", char: "a" } });

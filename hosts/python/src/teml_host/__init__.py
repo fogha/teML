@@ -23,6 +23,7 @@ from teml_host.terminal import (
 from teml_host.types import (
     AppendCommand,
     CanvasCommand,
+    CanvasOperation,
     ChangeEvent,
     CharCommand,
     ClickEvent,
@@ -35,6 +36,9 @@ from teml_host.types import (
     FrameFormat,
     FrameMode,
     FramePatch,
+    FillRectOperation,
+    FillStyleOperation,
+    ClearOperation,
     FullFrame,
     KeyCommand,
     KeyModifiers,
@@ -75,6 +79,10 @@ from teml_host.protocol import (
 __all__ = [
     "AppendCommand",
     "CanvasCommand",
+    "CanvasOperation",
+    "ClearOperation",
+    "FillRectOperation",
+    "FillStyleOperation",
     "Context",
     "MAX_NDJSON_LINE_BYTES",
     "MouseGuard",

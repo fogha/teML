@@ -58,6 +58,11 @@ export type DefinitionItem = {
   definitions: Block[][];
 };
 
+export type CanvasOperation =
+  | { op: "clear" }
+  | { op: "fillStyle"; color: ColorValue }
+  | { op: "fillRect"; x: number; y: number; width: number; height: number };
+
 export type Block =
   | { type: "heading"; level: 1 | 2 | 3 | 4; children: Inline[] }
   | { type: "paragraph"; children: Inline[] }

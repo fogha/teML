@@ -154,9 +154,32 @@ class RemoveCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class ClearOperation:
+    op: Literal["clear"] = "clear"
+
+
+@dataclass(frozen=True, slots=True)
+class FillStyleOperation:
+    color: str
+    op: Literal["fillStyle"] = "fillStyle"
+
+
+@dataclass(frozen=True, slots=True)
+class FillRectOperation:
+    x: float
+    y: float
+    width: float
+    height: float
+    op: Literal["fillRect"] = "fillRect"
+
+
+CanvasOperation: TypeAlias = ClearOperation | FillStyleOperation | FillRectOperation
+
+
+@dataclass(frozen=True, slots=True)
 class CanvasCommand:
     id: str
-    ops: tuple[dict[str, Any], ...]
+    ops: tuple[CanvasOperation, ...]
     type: Literal["canvas"] = "canvas"
 
 
@@ -301,6 +324,20 @@ SessionEvent: TypeAlias = Union[
 ]
 
 
+def canvas_operation_to_json(operation: CanvasOperation) -> dict[str, Any]:
+    if isinstance(operation, ClearOperation):
+        return {"op": "clear"}
+    if isinstance(operation, FillStyleOperation):
+        return {"op": "fillStyle", "color": operation.color}
+    return {
+        "op": "fillRect",
+        "x": operation.x,
+        "y": operation.y,
+        "width": operation.width,
+        "height": operation.height,
+    }
+
+
 def command_to_json(command: Command | dict[str, Any]) -> dict[str, Any]:
     if isinstance(command, dict):
         return command
@@ -354,7 +391,11 @@ def command_to_json(command: Command | dict[str, Any]) -> dict[str, Any]:
     if isinstance(command, RemoveCommand):
         return {"type": "remove", "target": command.target}
     if isinstance(command, CanvasCommand):
-        return {"type": "canvas", "id": command.id, "ops": list(command.ops)}
+        return {
+            "type": "canvas",
+            "id": command.id,
+            "ops": [canvas_operation_to_json(operation) for operation in command.ops],
+        }
     if isinstance(command, ExitCommand):
         return {"type": "exit"}
     raise TypeError(f"unsupported command type: {type(command)!r}")

@@ -12,10 +12,12 @@
 // it (same as Enter) if it's a button/checkbox. When a frame carries a
 // viewport, pointer rows and patch rows are local to that visible buffer.
 //
-// This module is pure wire format: no session state, no terminal I/O, no
+// This module is pure wire format: no session state, terminal I/O, or runtime
 // imports from the rest of the pipeline. Malformed input never throws —
 // decodeCommand reports a typed error so the caller can emit an `error`
 // event and keep the session alive instead of crashing on one bad line.
+
+import type { CanvasOperation } from "../core/ast.js";
 
 export type KeyName =
   | "tab"
@@ -83,7 +85,8 @@ export type ProtocolCapability =
   | "validation"
   | "formSubmit"
   | "errorCompletion"
-  | "canvas";
+  | "canvas"
+  | "canvasBraille";
 
 /** Finite capability vocabulary emitted by this engine version. */
 export const ENGINE_CAPABILITIES: readonly ProtocolCapability[] = [
@@ -105,12 +108,8 @@ export const ENGINE_CAPABILITIES: readonly ProtocolCapability[] = [
   "formSubmit",
   "errorCompletion",
   "canvas",
+  "canvasBraille",
 ];
-
-export type CanvasOperation =
-  | { op: "clear" }
-  | { op: "fillStyle"; color: `#${string}` }
-  | { op: "fillRect"; x: number; y: number; width: number; height: number };
 
 /** Messages the host sends to teml on stdin, one JSON object per line. */
 export type Command =

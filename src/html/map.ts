@@ -743,6 +743,8 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
       if (source.id) attrs.id = sanitizeText(source.id);
       if (source.width) attrs.width = sanitizeText(source.width);
       if (source.height) attrs.height = sanitizeText(source.height);
+      const renderer = source["data-renderer"] ?? source.renderer;
+      if (renderer) attrs.renderer = sanitizeText(renderer);
       const label = source["aria-label"] || textOfElement(el).trim();
       if (label) attrs.label = sanitizeText(label);
       blocks.push({ type: "leaf", name: "canvas", attrs });

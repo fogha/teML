@@ -10,8 +10,8 @@ use std::collections::HashMap;
 
 /// Protocol version carried on discovery frames.
 pub const PROTOCOL_MAJOR: u32 = 1;
-/// Protocol minor version implemented by this crate (1.5 error completion).
-pub const PROTOCOL_MINOR: u32 = 5;
+/// Protocol minor version implemented by this crate (1.6 canvas drawing).
+pub const PROTOCOL_MINOR: u32 = 6;
 
 pub const CAPABILITY_FRAME_FORMATS: &str = "frameFormats";
 pub const CAPABILITY_PATCHES: &str = "patches";
@@ -30,10 +30,12 @@ pub const CAPABILITY_MASK: &str = "mask";
 pub const CAPABILITY_VALIDATION: &str = "validation";
 pub const CAPABILITY_FORM_SUBMIT: &str = "formSubmit";
 pub const CAPABILITY_ERROR_COMPLETION: &str = "errorCompletion";
+pub const CAPABILITY_CANVAS: &str = "canvas";
+pub const CAPABILITY_CANVAS_BRAILLE: &str = "canvasBraille";
 pub const MAX_DOCUMENT_BLOCKS: usize = 10_000;
 pub const MAX_MUTATION_TARGET_CHILDREN: usize = 2_000;
 
-/// Finite capability vocabulary implemented by protocol 1.5.
+/// Finite capability vocabulary implemented by protocol 1.6.
 pub const ENGINE_CAPABILITIES: &[&str] = &[
     CAPABILITY_FRAME_FORMATS,
     CAPABILITY_PATCHES,
@@ -52,6 +54,8 @@ pub const ENGINE_CAPABILITIES: &[&str] = &[
     CAPABILITY_VALIDATION,
     CAPABILITY_FORM_SUBMIT,
     CAPABILITY_ERROR_COMPLETION,
+    CAPABILITY_CANVAS,
+    CAPABILITY_CANVAS_BRAILLE,
 ];
 
 /// Named navigation / editing keys accepted by the engine.
@@ -163,6 +167,21 @@ pub struct FramePatch {
     pub ansi: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "camelCase")]
+pub enum CanvasOperation {
+    Clear,
+    FillStyle {
+        color: String,
+    },
+    FillRect {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    },
+}
+
 /// Host → engine messages (one JSON object per stdin line).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -216,6 +235,10 @@ pub enum Command {
     },
     Remove {
         target: String,
+    },
+    Canvas {
+        id: String,
+        ops: Vec<CanvasOperation>,
     },
     Exit,
 }
@@ -479,10 +502,10 @@ mod tests {
     }
 
     #[test]
-    fn current_protocol_version_is_one_five() {
+    fn current_protocol_version_is_one_six() {
         assert_eq!(
             ProtocolVersion::CURRENT,
-            ProtocolVersion { major: 1, minor: 5 }
+            ProtocolVersion { major: 1, minor: 6 }
         );
         assert_eq!(
             ENGINE_CAPABILITIES,
@@ -504,8 +527,44 @@ mod tests {
                 "validation",
                 "formSubmit",
                 "errorCompletion",
+                "canvas",
+                "canvasBraille",
             ]
         );
+    }
+
+    #[test]
+    fn round_trips_canvas_operations() {
+        let command = Command::Canvas {
+            id: "game".into(),
+            ops: vec![
+                CanvasOperation::Clear,
+                CanvasOperation::FillStyle {
+                    color: "#50fa7b".into(),
+                },
+                CanvasOperation::FillRect {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 2.0,
+                    height: 2.0,
+                },
+            ],
+        };
+        let json = serde_json::to_string(&command).expect("serialize canvas");
+        assert_eq!(
+            serde_json::from_str::<Value>(&json).expect("serialized canvas"),
+            serde_json::json!({
+                "type": "canvas",
+                "id": "game",
+                "ops": [
+                    {"op": "clear"},
+                    {"op": "fillStyle", "color": "#50fa7b"},
+                    {"op": "fillRect", "x": 0.0, "y": 0.0, "width": 2.0, "height": 2.0}
+                ]
+            })
+        );
+        let decoded: Command = serde_json::from_str(&json).expect("deserialize canvas");
+        assert_eq!(decoded, command);
     }
 
     #[test]

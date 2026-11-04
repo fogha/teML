@@ -51,9 +51,25 @@ func TestUpdateMarshalingPreservesZeroRowPointerSeparateFromUpdate(t *testing.T)
 	}
 }
 
-func TestProtocolVersionMinorFive(t *testing.T) {
-	if protocol.ProtocolMajor != 1 || protocol.ProtocolMinor != 5 {
+func TestProtocolVersionMinorSix(t *testing.T) {
+	if protocol.ProtocolMajor != 1 || protocol.ProtocolMinor != 6 {
 		t.Fatalf("protocol version = %d.%d", protocol.ProtocolMajor, protocol.ProtocolMinor)
+	}
+}
+
+func TestCanvasCommandSerializesOperationsIncludingZeroCoordinates(t *testing.T) {
+	command := protocol.Canvas("game", []protocol.CanvasOperation{
+		{Op: "clear"},
+		{Op: "fillStyle", Color: "#50fa7b"},
+		{Op: "fillRect", X: 0, Y: 0, Width: 2, Height: 2},
+	})
+	encoded, err := command.MarshalNDJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"type":"canvas","id":"game","ops":[{"op":"clear"},{"op":"fillStyle","color":"#50fa7b"},{"op":"fillRect","x":0,"y":0,"width":2,"height":2}]}`
+	if string(encoded) != want {
+		t.Fatalf("canvas command = %s, want %s", encoded, want)
 	}
 }
 
