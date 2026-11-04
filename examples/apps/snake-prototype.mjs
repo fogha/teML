@@ -40,7 +40,7 @@ function gameMarkup() {
 ${boardLines(state).join("\n")}
 \`\`\`
 
-${state.status === "game-over" ? "Game over — press **R** to restart." : state.status === "won" ? "Board cleared — press **R** to play again." : "Eat `*`, avoid walls and your own tail."}
+${state.status === "game-over" ? "Game over — press **R** to restart." : state.status === "won" ? "Board cleared — press **R** to play again." : "Eat `■`, avoid walls and your own tail."}
 `;
 }
 
