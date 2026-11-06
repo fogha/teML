@@ -154,3 +154,24 @@ test("runInteractive reports an oversized line once and accepts later commands",
   expect(events.findLast((event) => event.type === "frame")?.focusedId).toBe("next");
   expect(events.at(-1)).toEqual({ type: "exit" });
 });
+
+test("a malformed command does not consume the following edit", async () => {
+  const stdout = new SlowOutput();
+  await runInteractive(
+    normalize(parseTeml('::input{id="name"}')),
+    {
+      diags: new Diagnostics(),
+      layout: { width: 40, theme: loadTheme("mono"), caps },
+      frames: "plain",
+    },
+    Readable.from(['not-json\n{"type":"char","char":"x"}\n{"type":"exit"}\n']),
+    stdout,
+  );
+  const events = stdout
+    .text()
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  expect(events.map((event) => event.type)).toEqual(["frame", "error", "change", "frame", "exit"]);
+  expect(events[2]).toMatchObject({ id: "name", value: "x" });
+});

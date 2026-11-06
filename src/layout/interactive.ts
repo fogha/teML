@@ -151,6 +151,7 @@ export function boxedField(
   content: Line[],
   metadata: Span["style"],
   attrs: Record<string, string> = {},
+  interiorStyle: Span["style"] = {},
 ): Line[] {
   const {
     m,
@@ -205,13 +206,15 @@ export function boxedField(
   ]);
   const paddingRows = Array.from({ length: paddingY }, () => []);
   for (const line of [...paddingRows, ...content, ...paddingRows]) {
-    const padded = padLine(clampLine(line, contentWidth, m), contentWidth, {}, m);
+    const padded = padLine(clampLine(line, contentWidth, m), contentWidth, interiorStyle, m);
     lines.push([
       { text: " ".repeat(indent), style: metadata },
       { text: " ".repeat(markerW), style: metadata },
-      { text: `${vertical}${" ".repeat(paddingX)}`, style: metadata },
+      { text: vertical, style: metadata },
+      { text: " ".repeat(paddingX), style: { ...interiorStyle, ...metadata } },
       ...padded,
-      { text: `${" ".repeat(paddingX)}${vertical}`, style: metadata },
+      { text: " ".repeat(paddingX), style: { ...interiorStyle, ...metadata } },
+      { text: vertical, style: metadata },
     ]);
   }
   lines.push([
@@ -233,10 +236,29 @@ export function layoutButton(
   const { theme, diags } = opts;
   const focused = isFocused(b.attrs.id, opts);
   const label = b.attrs.label?.trim() || "Button";
-  const style = focused ? resolveRole(theme, "focus", diags) : {};
-  const content = widgetLine(b.attrs.id?.trim(), "", [{ text: label, style }], opts, 0);
-  const metadata = content[0]?.[0]?.style ?? {};
-  return boxedField(opts, indent, focused, undefined, content, metadata, b.attrs);
+  const role = b.attrs.variant === "secondary" ? "buttonSecondary" : "button";
+  const style = resolveRole(theme, focused ? "focus" : theme.roles[role] ? role : "focus", diags);
+  const padding = boundedFieldValue(b.attrs.padding, opts.fields?.paddingX ?? 1, 4);
+  const attrs = {
+    ...b.attrs,
+    width: b.attrs.width ?? String(cellWidth(label, measureOpts(opts)) + 2 * padding + 2),
+  };
+  const metrics = boxMetrics(opts, indent, focused, attrs);
+  const metadata = !opts.interactiveDisabled && b.attrs.id ? { widgetId: b.attrs.id.trim() } : {};
+  const interior = { ...style, ...metadata };
+  const content = wrapSpans(
+    [{ text: label, style: interior }],
+    metrics.contentWidth,
+    metrics.m,
+  ).map((line) =>
+    padLine(
+      line.map((span) => ({ ...span, style: interior })),
+      metrics.contentWidth,
+      interior,
+      metrics.m,
+    ),
+  );
+  return boxedField(opts, indent, focused, undefined, content, metadata, attrs, interior);
 }
 
 export function layoutInput(

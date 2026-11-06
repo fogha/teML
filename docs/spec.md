@@ -68,6 +68,7 @@ v1 registry:
 | `info`, `success`, `warning`, `error`, `note` | `id`, `title` | Alert panels with role styling |
 | `definition` | `term` | Definition list block |
 | `grid` | `id`, `columns`, `gap`, `width`, `padding`, `margin`, `align`, `frame`, `title` | Responsive multi-column layout with optional light frame and alignment (1–4 columns; auto-reduces below 18-cell width) |
+| `row` | `id`, `gap`, `width`, `padding`, `margin`, `align` | Intrinsic-width horizontal groups that wrap when the terminal is too narrow |
 | `details` | `id`, `summary`, `open` | Collapsible disclosure (`open="false"` hides body) |
 | `figure` | `id`, `caption` | Figure body with trailing caption line |
 | `footnote` | `id` | Footnote definition block |
@@ -97,7 +98,7 @@ Unknown containers are kept with a `unknown-directive` warning.
 | `metric` | `id`, `label`, `value`, `role`, `change` | KPI label + bold value (+ optional delta); `id` enables live `update` |
 | `progress` | `id`, `label`, `value`, `max`, `role` | Label, percent, and filled bar (`█`/`░` or `#`/`-`); `id` enables live `update` |
 | `event` | `time`, `title`, `detail`, `role` | Timeline row with marker, time, title, wrapped detail |
-| `button` | `id`, `label`, `submit`, `width`, `padding`, `margin` | Label inside a clickable light box; focusable under `teml run`. `submit` makes it a form submit control |
+| `button` | `id`, `label`, `submit`, `variant`, `width`, `padding`, `margin` | Label inside a clickable light box; focusable under `teml run`. `submit` makes it a form submit control |
 | `input` | `id`, `label`, `value`, `placeholder`, `mask`, `width`, `padding`, `margin`, plus validation attrs | Label above a light box around the value; focusable, editable under `teml run` |
 | `checkbox` | `id`, `label`, `checked` | `☑`/`☐` (or `[x]`/`[ ]`) + label; focusable, toggleable under `teml run` |
 | `textarea` | `id`, `label`, `value`, `placeholder`, `rows`, `autoGrow`, `maxRows`, `width`, `padding`, `margin`, plus validation attrs (no `pattern`) | Multiline editor; fixed-height by default, optionally content-growing with internal scrolling under `teml run` |
@@ -113,6 +114,22 @@ optional and default to the app-wide `fields` layout configuration:
 accepts `start`, `center`, or `end` when a grid or field is narrower than the
 terminal, and `frame="true"` draws a shared light box around a grid. `rows`,
 `autoGrow`, and `maxRows` control textarea content height independently.
+
+Buttons default to label width plus padding and borders; app-level field width
+continues to size inputs/textareas, while button `width` is an explicit override.
+`variant="secondary"` selects the quieter `buttonSecondary` theme role (HTML:
+`data-variant="secondary"`). Focus keeps the same geometry and a textual marker.
+All interior cells, including word spaces and padding rows, share the button style.
+
+A `row` composes block children horizontally at their intrinsic widths, with a
+default `gap` of one cell. Children that do not fit together wrap into a new
+group; an individually oversized child is clamped to the terminal. Outer
+vertical margins are removed during inline composition. Single-line paragraph
+labels align with the content row of adjacent fields; wrapped groups recalculate
+that alignment. Group width includes padding, and group alignment reserves no
+widget focus gutter. Field `width`, padding, focus, and pointer metadata are preserved. HTML
+`data-teml="row"` keeps labels as separate children, including labels that wrap
+a control, so an input can sit beside its label without duplicating label text.
 
 #### Validation attributes
 
@@ -175,16 +192,18 @@ TeML text escapes `\`, `` ` ``, `*`, `_`, `[`, `]`, `:`, `{`, `}` where needed. 
 3. **S-6 (Reader):** `teml read` re-resolves every activated target against the session's fixed document root. Targets outside that root or outside the scheme allowlist are not loaded or opened and emit a visible diagnostic. External `http`, `https`, and `mailto` targets require explicit confirmation.
 4. Raw HTML nodes in Markdown are dropped with `raw-html-ignored`.
 5. No execution semantics exist in the format.
-6. **Canvas bounds:** width and height are clamped to 256 pixels each, and a canvas command is limited to 10,000 operations. Rectangle coordinates must be finite numbers, dimensions must be non-negative, and drawing is clipped to the surface. Colors use only the strict `#RRGGBB` form.
+6. **Canvas bounds:** width and height are clamped to 256 pixels each, and a canvas command is limited to 10,000 operations. Rectangle coordinates must be finite numbers, dimensions must be non-negative, and drawing is clipped to the surface. Colors use only the strict `#RRGGBB` form. One document allocates at most 1,048,576 total canvas pixels; excess canvases render as placeholders. One command may spend at most 1,048,576 work units, counting clear area, clipped rectangle area, and rectangle-row overhead. Work-budget rejection is atomic.
 7. **Canvas isolation:** canvas operations cannot fetch images or URLs, execute client-side scripts, or emit raw terminal control sequences. HTML canvas mapping uses an attribute allowlist and drops event-handler attributes.
 
 The DeepSeek chat example applies the same untrusted-input boundary to streamed
-responses. Malformed SSE JSON raises a controlled `SyntaxError` that the app
-reports as a failed turn. Real requests have a 60-second deadline covering both
-connection and response-body reads; it is combined with caller cancellation so
-starting a new conversation still aborts the active request. A malformed or
-stalled stream therefore produces an actionable error instead of leaving the
-chat busy indefinitely.
+responses. SSE line endings are normalized across fragmented chunks, including
+CRLF delimiters split between reads. One buffered event is limited to 1 MiB of
+UTF-8 data; exceeding it fails the current turn. Malformed SSE JSON raises a
+controlled `SyntaxError` that the app reports as a failed turn. Real requests
+have a 60-second deadline covering both connection and response-body reads; it
+is combined with caller cancellation so starting a new conversation still
+aborts the active request. A malformed or stalled stream therefore produces an
+actionable error instead of leaving the chat busy indefinitely.
 
 ## Conformance
 
@@ -223,6 +242,7 @@ When mapping HTML without a profile match, elements may declare TeML semantics v
 | `data-teml` | Allowed `data-*` attrs | Native HTML equivalent |
 | --- | --- | --- |
 | `grid` | `id`, `columns`, `gap` | — (layout bridge) |
+| `row` | `id`, `gap`, `width`, `padding`, `margin`, `align` | — (inline layout bridge) |
 | `details` | `id`, `summary`, `open` | `<details><summary>` |
 | `figure` | `id`, `caption` | `<figure><figcaption>` |
 | `scroll` | `id`, `rows` | — (bounded region bridge) |

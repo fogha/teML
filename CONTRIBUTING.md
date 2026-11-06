@@ -85,7 +85,7 @@ polyglot protocol hosts.
   is intentional, regenerate snapshots rather than hand-editing them (see the
   test file's `describe` block for the update mechanism it uses).
 - `tests/system/snapshots/interactive-v1.ndjson` is the byte-level default
-  protocol compatibility golden. Regenerate it only for an intentional wire
+  protocol/rendering golden. Regenerate it only for an intentional wire
   compatibility decision, using fixture 36, `--width 40 --no-color`, and a
   single `{"type":"exit"}` command; review the raw diff.
 

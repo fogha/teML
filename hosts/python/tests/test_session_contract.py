@@ -24,6 +24,7 @@ from teml_host import (
     ScreenBuffer,
     Session,
     SessionError,
+    SessionTimeout,
     UpdateCommand,
     command_to_json,
 )
@@ -421,3 +422,21 @@ def test_ndjson_line_guard(engine_path: str, view_path: str) -> None:
         oversized = "x" * (8 * 1024 * 1024 + 1)
         with pytest.raises(SessionError, match="exceeds the 8388608-byte"):
             session.send({"type": "char", "char": oversized})
+
+
+def test_silent_engine_times_out_and_closes_child(tmp_path, view_path: str) -> None:
+    script = tmp_path / "silent-engine.py"
+    script.write_text(
+        "#!/usr/bin/env python3\n"
+        "import sys, time\n"
+        "if '--version' in sys.argv:\n"
+        "    print('silent')\n"
+        "else:\n"
+        "    time.sleep(0.5)\n"
+    )
+    script.chmod(0o755)
+
+    session = Session.spawn(view_path, engine=str(script), read_timeout=0.05)
+    with pytest.raises(SessionTimeout, match="timed out waiting for teml event"):
+        session.next_event()
+    assert session.returncode is not None

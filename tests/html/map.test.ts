@@ -2,6 +2,7 @@ import { test, expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Diagnostics, inlineText, normalize } from "../../src/core/index.js";
+import { htmlToDoc } from "../../src/html/index.js";
 import { parseHtml } from "../../src/html/parse.js";
 import { extractContent } from "../../src/html/extract.js";
 import { htmlToDocFromRoot } from "../../src/html/map.js";
@@ -112,7 +113,7 @@ test("map: native textarea preserves opt-in auto-grow bounds", () => {
 
 test("map: native canvas keeps its declarative surface metadata", () => {
   const document = parseHtml(
-    '<canvas id="game" width="48" height="24" aria-label="Game board">Fallback</canvas>',
+    '<canvas id="game" width="48" height="24" aria-label="Game board" onload="alert(1)" onmouseover="alert(2)">Fallback</canvas>',
   );
   const diags = new Diagnostics();
   const mapped = normalize(htmlToDocFromRoot(document, {}, diags, document), diags);
@@ -122,6 +123,46 @@ test("map: native canvas keeps its declarative surface metadata", () => {
     attrs: { id: "game", width: "48", height: "24", label: "Game board" },
   });
   expect(diags.has("placeholder")).toBe(false);
+});
+
+test("map: data-teml row preserves separate labels and field widths", () => {
+  const document = parseHtml(
+    '<div data-teml="row" data-gap="1"><label for="name">Display name</label><input id="name" value="Ada" width="32"></div>',
+  );
+  const diags = new Diagnostics();
+  const mapped = normalize(htmlToDocFromRoot(document, {}, diags, document), diags);
+  expect(mapped.blocks[0]).toMatchObject({ type: "container", name: "row", attrs: { gap: "1" } });
+  const row = mapped.blocks[0];
+  if (row?.type !== "container") throw new Error("expected row container");
+  expect(row.children[0]).toMatchObject({
+    type: "paragraph",
+    children: [{ type: "text", value: "Display name" }],
+  });
+  expect(row.children[1]).toMatchObject({
+    type: "leaf",
+    name: "input",
+    attrs: { id: "name", value: "Ada", width: "32" },
+  });
+  expect(row.children[1]?.type === "leaf" && row.children[1].attrs.label).toBeUndefined();
+});
+
+test("map: data-teml row keeps a label wrapped around its control separate", () => {
+  const document = parseHtml(
+    '<div data-teml="row"><label>Display name <input id="name" value="Ada" width="32"></label></div>',
+  );
+  const diags = new Diagnostics();
+  const mapped = normalize(htmlToDocFromRoot(document, {}, diags, document), diags);
+  const row = mapped.blocks[0];
+  if (row?.type !== "container") throw new Error("expected row container");
+  expect(row.children[0]).toMatchObject({
+    type: "paragraph",
+    children: [{ type: "text", value: "Display name" }],
+  });
+  expect(row.children[1]).toMatchObject({
+    type: "leaf",
+    name: "input",
+    attrs: { id: "name", value: "Ada", width: "32" },
+  });
 });
 
 test("map: data-teml scroll keeps id and fixed rows", () => {
@@ -183,4 +224,13 @@ test("map: a submit control inside a form becomes a TeML form submit", () => {
     name: "button",
     attrs: { label: "Send", submit: "true" },
   });
+});
+
+test("textarea content decodes entities once without interpreting escaped markup", () => {
+  const diags = new Diagnostics();
+  const result = htmlToDoc(
+    '<textarea id="draft">&lt;b&gt;A &amp; B&lt;/b&gt; &amp;lt;tag&amp;gt; &#x1b;</textarea>',
+    diags,
+  );
+  expect(JSON.stringify(result)).toContain('"value":"<b>A & B</b> &lt;tag&gt; "');
 });

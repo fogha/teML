@@ -1,5 +1,9 @@
 import type { Block, CanvasOperation, TDoc } from "../core/ast.js";
+import type { Diagnostics } from "../core/diagnostics.js";
 import type { Color } from "../terminal/theme.js";
+
+export const MAX_TOTAL_CANVAS_PIXELS = 1_048_576;
+export const MAX_CANVAS_COMMAND_WORK = 1_048_576;
 
 export type { CanvasOperation } from "../core/ast.js";
 
@@ -30,38 +34,99 @@ export function createCanvasSurface(attrs: Record<string, string>): CanvasSurfac
   };
 }
 
+function clippedRectangle(
+  surface: CanvasSurface,
+  operation: Extract<CanvasOperation, { op: "fillRect" }>,
+) {
+  const rawX = Math.trunc(operation.x);
+  const rawY = Math.trunc(operation.y);
+  return {
+    startX: Math.max(0, rawX),
+    startY: Math.max(0, rawY),
+    endX: Math.min(surface.width, rawX + Math.max(0, Math.trunc(operation.width))),
+    endY: Math.min(surface.height, rawY + Math.max(0, Math.trunc(operation.height))),
+  };
+}
+
 export function applyCanvasOperations(
   surface: CanvasSurface,
   ops: readonly CanvasOperation[],
-): void {
+): { ok: true } | { ok: false; error: string } {
+  let work = 0;
+  for (const operation of ops) {
+    if (operation.op === "clear") {
+      work += surface.pixels.length;
+    } else if (operation.op === "fillRect") {
+      const { startX, startY, endX, endY } = clippedRectangle(surface, operation);
+      if (startX < endX && startY < endY) {
+        work += (endY - startY) * (endX - startX + 1);
+      }
+    }
+    if (work > MAX_CANVAS_COMMAND_WORK) {
+      return {
+        ok: false,
+        error: `canvas command exceeds the ${MAX_CANVAS_COMMAND_WORK}-work-unit budget`,
+      };
+    }
+  }
+
   for (const operation of ops) {
     if (operation.op === "clear") {
       surface.pixels.fill(undefined);
     } else if (operation.op === "fillStyle") {
       surface.fillStyle = operation.color;
     } else {
-      const rawX = Math.trunc(operation.x);
-      const rawY = Math.trunc(operation.y);
-      const startX = Math.max(0, rawX);
-      const startY = Math.max(0, rawY);
-      const endX = Math.min(surface.width, rawX + Math.max(0, Math.trunc(operation.width)));
-      const endY = Math.min(surface.height, rawY + Math.max(0, Math.trunc(operation.height)));
+      const { startX, startY, endX, endY } = clippedRectangle(surface, operation);
+      if (startX >= endX) continue;
       for (let y = startY; y < endY; y += 1) {
-        for (let x = startX; x < endX; x += 1) {
-          surface.pixels[y * surface.width + x] = surface.fillStyle;
-        }
+        const rowStart = y * surface.width;
+        surface.pixels.fill(surface.fillStyle, rowStart + startX, rowStart + endX);
       }
     }
   }
+  return { ok: true };
 }
 
-export function collectCanvasSurfaces(doc: TDoc): Map<string, CanvasSurface> {
+export function collectCanvasSurfaces(doc: TDoc, diags?: Diagnostics): Map<string, CanvasSurface> {
+  return reconcileCanvasSurfaces(doc, undefined, diags);
+}
+
+export function reconcileCanvasSurfaces(
+  doc: TDoc,
+  previous: ReadonlyMap<string, CanvasSurface> | undefined,
+  diags?: Diagnostics,
+): Map<string, CanvasSurface> {
   const surfaces = new Map<string, CanvasSurface>();
+  const seen = new Set<string>();
+  let totalPixels = 0;
   const visit = (block: Block): void => {
     if (block.type === "leaf") {
       if (block.name === "canvas") {
         const id = block.attrs.id?.trim();
-        if (id && !surfaces.has(id)) surfaces.set(id, createCanvasSurface(block.attrs));
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          const width = dimension(block.attrs.width, 80);
+          const height = dimension(block.attrs.height, 24);
+          const pixels = width * height;
+          if (totalPixels + pixels > MAX_TOTAL_CANVAS_PIXELS) {
+            diags?.warnOnce(
+              "canvas-pixels-over-budget",
+              `canvas pixel budget of ${MAX_TOTAL_CANVAS_PIXELS} exceeded; excluded canvases render as placeholders`,
+            );
+          } else {
+            const existing = previous?.get(id);
+            const surface =
+              existing?.width === width && existing.height === height
+                ? existing
+                : createCanvasSurface(block.attrs);
+            surface.renderer =
+              block.attrs.renderer === "braille" || block.attrs.renderer === "ascii"
+                ? block.attrs.renderer
+                : "halfBlock";
+            surfaces.set(id, surface);
+            totalPixels += pixels;
+          }
+        }
       }
       return;
     }
@@ -81,19 +146,4 @@ export function collectCanvasSurfaces(doc: TDoc): Map<string, CanvasSurface> {
   };
   for (const block of doc.blocks) visit(block);
   return surfaces;
-}
-
-export function reconcileCanvasSurfaces(
-  doc: TDoc,
-  previous: ReadonlyMap<string, CanvasSurface> | undefined,
-): Map<string, CanvasSurface> {
-  const next = collectCanvasSurfaces(doc);
-  if (!previous) return next;
-  for (const [id, surface] of next) {
-    const existing = previous.get(id);
-    if (existing?.width === surface.width && existing.height === surface.height) {
-      next.set(id, existing);
-    }
-  }
-  return next;
 }

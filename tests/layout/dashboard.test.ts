@@ -137,7 +137,7 @@ test("framed grid centers a light box with padding and margins", () => {
   ]);
 });
 
-test("unframed grid aligns and pads content without changing defaults", () => {
+test("unframed grid aligns its declared outer width without reserving a focus gutter", () => {
   const d = doc([
     {
       type: "container",
@@ -155,7 +155,7 @@ test("unframed grid aligns and pads content without changing defaults", () => {
         diags: new Diagnostics(),
       }),
     ).split("\n"),
-  ).toEqual(["", "", "           A", "", "", ""]);
+  ).toEqual(["", "", "             A", "", "", ""]);
 });
 
 test("grid distributes remainder cells deterministically", () => {

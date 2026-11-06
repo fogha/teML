@@ -2,10 +2,11 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::Duration;
 use teml_host::{
     Command, DocFormat, Event, FrameFormat, FrameMode, KeyModifiers, KeyName, PreferredFrame,
-    ScreenBuffer, Session, SessionOptions, CAPABILITY_DOCUMENT_MUTATIONS, CAPABILITY_UPDATE,
-    PROTOCOL_MAJOR, PROTOCOL_MINOR,
+    ScreenBuffer, Session, SessionError, SessionOptions, CAPABILITY_DOCUMENT_MUTATIONS,
+    CAPABILITY_UPDATE, PROTOCOL_MAJOR, PROTOCOL_MINOR,
 };
 
 fn manifest_dir() -> PathBuf {
@@ -714,4 +715,82 @@ fn missing_engine_fails_resolution() {
     assert!(
         error.to_string().contains("probe version") || error.to_string().contains("No such file")
     );
+}
+
+fn fake_session(scenario: &str) -> Session {
+    let mut options = SessionOptions::new(scenario, 60, 10);
+    options.engine = teml_host::EngineResolveOptions {
+        explicit: Some(teml_host::ExplicitEngine {
+            program: "node".into(),
+            args: vec![manifest_dir()
+                .join("../../fixtures/engine/fake-engine.mjs")
+                .to_string_lossy()
+                .into_owned()],
+        }),
+        package_scripts: vec![],
+    };
+    Session::spawn(options).expect("fake engine")
+}
+
+#[test]
+fn silent_engine_times_out_and_closes_child() {
+    let mut session = fake_session("silent").with_read_timeout(Some(Duration::from_millis(100)));
+    let started = std::time::Instant::now();
+    assert!(matches!(
+        session.next_event(),
+        Err(SessionError::ReadTimeout(_))
+    ));
+    assert!(started.elapsed() < Duration::from_secs(1));
+    let _ = session.close();
+}
+
+#[test]
+fn inherited_stdout_does_not_block_timeout_or_drop() {
+    for timeout in [true, false] {
+        let mut session = fake_session("inherited-stdout");
+        assert!(matches!(session.next_event().expect("ready"), Event::Exit));
+        session = session.with_read_timeout(Some(Duration::from_millis(50)));
+        let started = std::time::Instant::now();
+        if timeout {
+            assert!(matches!(
+                session.next_event(),
+                Err(SessionError::ReadTimeout(_))
+            ));
+        }
+        drop(session);
+        assert!(
+            started.elapsed() < Duration::from_secs(1),
+            "reader waited for descendant EOF"
+        );
+    }
+}
+
+#[test]
+fn public_session_recovers_after_oversized_event() {
+    let mut session = fake_session("oversized-event").with_read_timeout(None);
+    assert!(
+        matches!(session.next_event(), Err(SessionError::Protocol(message)) if message.contains("exceeds"))
+    );
+    assert!(matches!(
+        session.next_event().expect("event after oversize"),
+        Event::Exit
+    ));
+    assert!(session.close().expect("close").success());
+}
+
+#[test]
+fn close_is_bounded_when_engine_ignores_eof() {
+    let mut session = fake_session("inherited-stdout");
+    session.next_event().expect("ready");
+    let session = session.with_read_timeout(Some(Duration::from_millis(50)));
+    let started = std::time::Instant::now();
+    assert!(matches!(session.close(), Err(SessionError::ReadTimeout(_))));
+    assert!(started.elapsed() < Duration::from_secs(1));
+}
+
+#[test]
+fn close_allows_a_cooperative_engine_to_exit_on_eof() {
+    let mut session = fake_session("normal");
+    session.initial_frame().expect("startup");
+    assert!(session.close().expect("graceful close").success());
 }

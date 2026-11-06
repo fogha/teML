@@ -12,8 +12,36 @@ export const MOCK_REPLY = `<h3>A better terminal conversation</h3>
 <div class="alert alert-success">The mock stream works without an API key.</div>
 <pre><code class="language-js">const view = readFileSync("./app.html", "utf8");</code></pre>`;
 
+export const MAX_SSE_EVENT_BYTES = 1_048_576;
+
 export function createSseParser() {
   let buffer = "";
+  let bufferedBytes = 0;
+  let pendingCarriageReturn = false;
+  const encoder = new TextEncoder();
+  const byteLength = (value) => encoder.encode(value).byteLength;
+  const oversized = () => {
+    buffer = "";
+    bufferedBytes = 0;
+    pendingCarriageReturn = false;
+    return new Error(`SSE event exceeds ${MAX_SSE_EVENT_BYTES} bytes`);
+  };
+  const appendNormalized = (value) => {
+    buffer += value;
+    bufferedBytes += byteLength(value);
+  };
+  const append = (chunk) => {
+    if (pendingCarriageReturn) {
+      appendNormalized("\n");
+      if (chunk.startsWith("\n")) chunk = chunk.slice(1);
+      pendingCarriageReturn = false;
+    }
+    if (chunk.endsWith("\r")) {
+      pendingCarriageReturn = true;
+      chunk = chunk.slice(0, -1);
+    }
+    appendNormalized(chunk.replace(/\r\n/g, "\n").replace(/\r/g, "\n"));
+  };
   const take = (event) => {
     const data = event
       .split("\n")
@@ -26,21 +54,36 @@ export function createSseParser() {
   };
   return {
     push(chunk) {
-      buffer += chunk;
+      if (chunk) append(chunk);
       const deltas = [];
       let boundary;
       while ((boundary = buffer.indexOf("\n\n")) !== -1) {
         const event = buffer.slice(0, boundary);
+        const eventBytes = byteLength(event);
+        if (eventBytes > MAX_SSE_EVENT_BYTES) throw oversized();
         buffer = buffer.slice(boundary + 2);
+        bufferedBytes -= eventBytes + 2;
         const delta = take(event);
         if (delta) deltas.push(delta);
       }
+      if (bufferedBytes > MAX_SSE_EVENT_BYTES) throw oversized();
       return deltas;
     },
     flush() {
-      if (!buffer.trim()) return [];
-      const delta = take(buffer);
+      if (pendingCarriageReturn) {
+        pendingCarriageReturn = false;
+        appendNormalized("\n");
+      }
+      if (byteLength(buffer) > MAX_SSE_EVENT_BYTES) throw oversized();
+      if (!buffer.trim()) {
+        buffer = "";
+        bufferedBytes = 0;
+        return [];
+      }
+      const event = buffer;
       buffer = "";
+      bufferedBytes = 0;
+      const delta = take(event);
       return delta ? [delta] : [];
     },
   };
@@ -55,8 +98,8 @@ export async function* mockStream(text = MOCK_REPLY, delay = 8) {
 
 export async function* deepSeekStream({ model, messages, apiKey, signal }) {
   const requestSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(60_000)])
-    : AbortSignal.timeout(60_000);
+    ? globalThis.AbortSignal.any([signal, globalThis.AbortSignal.timeout(60_000)])
+    : globalThis.AbortSignal.timeout(60_000);
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {

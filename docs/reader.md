@@ -80,7 +80,9 @@ plain semantic text after layout; `n` and `N` move between results.
 The table of contents is derived from document headings and selecting an item
 scrolls to its laid-out row. Local navigation history stores each document's
 path, scroll position, and focused link so Back and Forward restore reading
-context.
+context. History changes only after the target loads successfully: a failed
+Back or Forward leaves the current document and history index unchanged and
+shows a warning.
 
 ## Terminal restoration
 

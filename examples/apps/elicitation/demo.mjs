@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// examples/apps/elicitation-demo.mjs — MCP elicitation form mode ↔ TeML.
+// examples/apps/elicitation/demo.mjs — MCP elicitation form mode ↔ TeML.
 //
 // An MCP server that requests user input receives a JSON Schema
 // (`requestedSchema`). This demo turns that schema into a TeML form with
@@ -14,13 +14,13 @@
 // the form accepted.
 //
 // Usage:
-//   node examples/apps/elicitation-demo.mjs
+//   node examples/apps/elicitation/demo.mjs
 
-import { schemaToTeml, valuesToResponse } from "../../dist/index.js";
-import { Diagnostics, normalize } from "../../dist/core/index.js";
-import { parseTeml } from "../../dist/teml/parse.js";
-import { loadTheme } from "../../dist/terminal/theme.js";
-import { InteractiveSession } from "../../dist/interactive/session.js";
+import { schemaToTeml, valuesToResponse } from "../../../dist/index.js";
+import { Diagnostics, normalize } from "../../../dist/core/index.js";
+import { parseTeml } from "../../../dist/teml/parse.js";
+import { loadTheme } from "../../../dist/terminal/theme.js";
+import { InteractiveSession } from "../../../dist/interactive/session.js";
 
 /** The deploy example from docs/research/teml-mcp-apps-concept.md §4. */
 const DEPLOY_SCHEMA = {

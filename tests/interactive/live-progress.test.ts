@@ -125,6 +125,26 @@ test("metric updates use their own narrow mutable-attribute allowlist", () => {
   expect(validateUpdateProps(widget, { max: "100" }).ok).toBe(false);
 });
 
+test("direct session updates enforce the props byte budget", () => {
+  const doc = normalize(parseTeml('::metric{id="cpu" label="CPU" value="10%"}'));
+  const session = new InteractiveSession(doc, sessionOptions({ frames: "plain" }));
+  const baseline = createFrameState("plain");
+  applyHostFrame(baseline, session.start()[0] as never);
+  const baselineText = frameText(baseline);
+  const events = session.handle({
+    type: "update",
+    id: "cpu",
+    props: { value: "x".repeat(65_536 - 4) },
+  });
+  expect(events[0]).toEqual({
+    type: "error",
+    message: "update command exceeds the 65536-byte props limit",
+  });
+  const after = createFrameState("plain");
+  applyHostFrame(after, events.at(-1)!);
+  expect(frameText(after)).toBe(baselineText);
+});
+
 test("role in an update batch is rejected atomically without mutating allowed props", () => {
   const doc = normalize(
     parseTeml('::progress{id="job" label="Job" value="1" max="10" role="info"}'),

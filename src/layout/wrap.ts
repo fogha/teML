@@ -1,6 +1,6 @@
 // layout/wrap.ts — styled spans, lines, and width-aware word wrapping (R-6).
 
-import { cellWidth, graphemes, type MeasureOpts } from "./measure.js";
+import { cellWidth, graphemeIterator, type MeasureOpts } from "./measure.js";
 import type { Line, Span } from "../render/styledLine.js";
 
 export type { Span, Line };
@@ -37,7 +37,7 @@ function breakWord(word: Word, width: number, opts?: MeasureOpts): Word[] {
   let parts: Span[] = [];
   let w = 0;
   for (const span of word.parts) {
-    for (const raw of graphemes(span.text)) {
+    for (const raw of graphemeIterator(span.text)) {
       // A grapheme wider than the whole line (a CJK character at width 1) can
       // never fit. Placing it anyway would emit a line over the caller's cell
       // budget, which every downstream slice-by-width consumer relies on.

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -153,6 +153,45 @@ describe("teml read", () => {
       expect(await running, name).toBe(0);
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("failed history navigation does not commit or trigger a forward reload", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "teml-reader-history-"));
+    const indexFile = join(dir, "index.teml");
+    const nextFile = join(dir, "next.teml");
+    writeFileSync(indexFile, "# INDEX\n\n[Next](next.teml)\n");
+    writeFileSync(nextFile, "# NEXT\n");
+    const { input, output, chunks } = ttyPair();
+    const original = ReaderSession.prototype.setDocument;
+    const readers: ReaderSession[] = [];
+    const setDocument = vi
+      .spyOn(ReaderSession.prototype, "setDocument")
+      .mockImplementation(function (...args) {
+        readers.push(this);
+        return original.apply(this, args);
+      });
+
+    const running = executeRead(indexFile, { color: false }, { input, output });
+    await waitForOutput(chunks, "INDEX");
+    input.write("\t\r");
+    await waitForOutput(chunks, "NEXT");
+    expect(setDocument).toHaveBeenCalledTimes(1);
+
+    rmSync(indexFile);
+    input.write("b");
+    await waitForOutput(chunks, "cannot open target");
+    expect(readers[0]?.state()).toMatchObject({
+      historyIndex: 1,
+      currentPath: realpathSync(nextFile),
+    });
+
+    input.write("f");
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(setDocument).toHaveBeenCalledTimes(1);
+
+    input.write("q");
+    expect(await running).toBe(0);
+    rmSync(dir, { recursive: true, force: true });
   });
 
   test("prints document diagnostics after the terminal is restored", async () => {

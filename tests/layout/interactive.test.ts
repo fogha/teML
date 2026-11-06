@@ -29,6 +29,36 @@ test("button renders a light box, unfocused has no marker", () => {
   expect(out).not.toContain("▸");
 });
 
+test("button fills only its interior with theme-aware default and focus roles", () => {
+  const d = doc([{ type: "leaf", name: "button", attrs: { id: "go", label: "Go" } }]);
+  const defaultLines = layoutDocument(d, opts());
+  expect(defaultLines[0]!.every((span) => span.style.bg === undefined)).toBe(true);
+  expect(defaultLines[2]!.every((span) => span.style.bg === undefined)).toBe(true);
+  const defaultInterior = defaultLines[1]!.filter((span) => span.style.bg !== undefined);
+  expect(defaultInterior.every((span) => span.style.bg === "cyan")).toBe(true);
+  expect(defaultInterior.map((span) => span.text).join("")).toContain("Go");
+  expect(
+    defaultLines[1]!
+      .filter((span) => span.text.includes("│"))
+      .every((span) => span.style.bg === undefined),
+  ).toBe(true);
+
+  const focusedLines = layoutDocument(d, opts({ focusedId: "go" }));
+  expect(focusedLines[0]!.every((span) => span.style.bg === undefined)).toBe(true);
+  expect(focusedLines[2]!.every((span) => span.style.bg === undefined)).toBe(true);
+  const focusedInterior = focusedLines[1]!.filter((span) => span.style.bg !== undefined);
+  expect(focusedInterior.every((span) => span.style.bg === "brightCyan")).toBe(true);
+  expect(focusedInterior.map((span) => span.text).join("")).toContain("Go");
+  expect(
+    focusedLines[1]!
+      .filter((span) => span.text.includes("│"))
+      .every((span) => span.style.bg === undefined),
+  ).toBe(true);
+
+  const monoSpans = layoutDocument(d, opts({ theme: loadTheme("mono") })).flat();
+  expect(monoSpans.every((span) => span.style.bg === undefined)).toBe(true);
+});
+
 test("button falls back to default label when missing", () => {
   const d = doc([{ type: "leaf", name: "button", attrs: { id: "b" } }]);
   const out = renderPlain(layoutDocument(d, opts()));
@@ -247,4 +277,28 @@ test("focus role is emitted through the single ANSI backend when focused", () =>
   const lines = layoutDocument(d, opts({ focusedId: "go" }));
   const out = renderAnsi(lines, caps({ colors: "ansi16" }));
   expect(out).toContain("\x1b[");
+});
+
+test("buttons default to intrinsic width with continuous interior fill and hit metadata", () => {
+  for (const focusedId of [undefined, "new"]) {
+    const lines = layoutDocument(
+      doc([
+        { type: "leaf", name: "button", attrs: { id: "new", label: "New chat", padding: "1" } },
+      ]),
+      opts({ focusedId }),
+    );
+    expect(Math.max(...lines.map((line) => lineWidth(line)))).toBe(14);
+    for (const line of lines.slice(1, -1)) {
+      const spans = line.filter((span) => span.text.length > 0);
+      const left = spans.findIndex((span) => span.text.includes("│"));
+      const right = spans.findLastIndex((span) => span.text.includes("│"));
+      for (const span of spans.slice(left + 1, right)) {
+        expect(span.style.bg).toBe(focusedId ? "brightCyan" : "cyan");
+        expect(span.style.widgetId).toBe("new");
+      }
+      // Padding is deliberately a separate interior span from the neutral border.
+      expect(spans[left]?.text).toBe("│");
+      expect(spans[right]?.text).toBe("│");
+    }
+  }
 });

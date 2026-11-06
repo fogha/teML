@@ -56,10 +56,23 @@ export function hasPathologicalNesting(source: string): boolean {
  * anything authored. Counting delimiters per paragraph instead would flag
  * legitimate delimiter-dense content such as a long table of bold cells.
  */
-const DELIMITER_RUN = /([*_~])\1{63,}/;
-
 export function hasPathologicalDelimiterRun(source: string): boolean {
-  return DELIMITER_RUN.test(source);
+  let delimiter = "";
+  let length = 0;
+  for (const character of source) {
+    if (character !== "*" && character !== "_" && character !== "~") {
+      delimiter = "";
+      length = 0;
+      continue;
+    }
+    if (character === delimiter) length += 1;
+    else {
+      delimiter = character;
+      length = 1;
+    }
+    if (length >= 64) return true;
+  }
+  return false;
 }
 
 /**

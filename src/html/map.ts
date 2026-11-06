@@ -1,3 +1,4 @@
+import { parseFragment } from "parse5";
 // html/map.ts — DOM → TDoc semantic mapper (Milestone 5).
 
 import type { Block, DefinitionItem, Inline, ListItem, Meta, TDoc } from "../core/ast.js";
@@ -31,7 +32,7 @@ const BLOCK_WRAPPERS = new Set([
   "figcaption",
   "form",
 ]);
-const DATA_TEML_CONTAINERS = new Set(["grid", "details", "figure", "scroll"]);
+const DATA_TEML_CONTAINERS = new Set(["grid", "row", "details", "figure", "scroll"]);
 const DATA_TEML_LEAFS = new Set(["metric", "progress", "event"]);
 const PROGRESS_ROLE_CLASSES: Record<string, string> = {
   "text-success": "success",
@@ -187,9 +188,14 @@ function findLabelFor(el: Element, id: string): Element | undefined {
   return undefined;
 }
 
+function inInlineRow(el: Element): boolean {
+  return el.closest('[data-teml="row"]') !== null;
+}
+
 /** True when a <label for="id"> targets a control we map to an interactive leaf
  *  (so mapBlocks can skip emitting the label itself as separate flow text). */
 function isConsumedLabel(el: Element): boolean {
+  if (inInlineRow(el)) return false;
   const forId = el.getAttribute("for");
   if (!forId) return false;
   const owner = el.ownerDocument;
@@ -203,6 +209,7 @@ function isConsumedLabel(el: Element): boolean {
 
 /** Resolve a human-readable label for an <input>: linked <label>, aria-label, placeholder, then name. */
 function inputLabel(el: Element, attrs: Record<string, string>): string | undefined {
+  if (inInlineRow(el)) return undefined;
   if (attrs.id) {
     const labelEl = findLabelFor(el, attrs.id);
     const text = labelEl ? collapseWhitespace(textOfElement(labelEl)).trim() : "";
@@ -214,6 +221,12 @@ function inputLabel(el: Element, attrs: Record<string, string>): string | undefi
   }
   const fallback = attrs["aria-label"] || attrs.placeholder || attrs.name;
   return fallback ? sanitizeText(fallback) : undefined;
+}
+
+function copyFieldGeometry(attrs: Record<string, string>, out: Record<string, string>): void {
+  for (const key of ["width", "padding", "margin", "align"]) {
+    if (attrs[key]) out[key] = sanitizeText(attrs[key]);
+  }
 }
 
 function mapNativeCheckbox(el: Element, attrs: Record<string, string>): Block {
@@ -251,6 +264,8 @@ function mapNativeButton(el: Element, attrs: Record<string, string>): Block {
   if ((attrs.type ?? "").toLowerCase() === "submit" && el.closest("form")) {
     leafAttrs.submit = "true";
   }
+  if (attrs["data-variant"] === "secondary") leafAttrs.variant = "secondary";
+  copyFieldGeometry(attrs, leafAttrs);
   return { type: "leaf", name: "button", attrs: leafAttrs };
 }
 
@@ -285,6 +300,7 @@ function mapNativeInput(el: Element): Block | null {
   // display transform only, so the value still reaches hosts — but it never
   // reaches the screen.
   if (type === "password") leafAttrs.mask = "password";
+  copyFieldGeometry(attrs, leafAttrs);
   return { type: "leaf", name: "input", attrs: { ...leafAttrs, ...validationAttrs(attrs) } };
 }
 
@@ -300,10 +316,19 @@ function mapNativeTextarea(el: Element): Block {
     leafAttrs.autoGrow = sanitizeText(attrs["data-auto-grow"] || "true");
   }
   if (attrs["data-max-rows"]) leafAttrs.maxRows = sanitizeText(attrs["data-max-rows"]);
-  const value = sanitizeText((el.textContent ?? "").replace(/\r\n?/g, "\n"));
+  // linkedom preserves encoded RCDATA in textContent. Read the textarea through
+  // the existing WHATWG parser so restored prompts decode entities exactly once.
+  const fragment = parseFragment(el.outerHTML);
+  const textarea = fragment.childNodes.find((node) => node.nodeName === "textarea");
+  const text =
+    textarea && "childNodes" in textarea
+      ? textarea.childNodes.map((node) => ("value" in node ? node.value : "")).join("")
+      : "";
+  const value = sanitizeText(text.replace(/\r\n?/g, "\n"));
   if (value) leafAttrs.value = value;
   const constraints = validationAttrs(attrs);
   delete constraints.pattern; // a textarea does not take one
+  copyFieldGeometry(attrs, leafAttrs);
   return { type: "leaf", name: "textarea", attrs: { ...leafAttrs, ...constraints } };
 }
 
@@ -638,6 +663,29 @@ function mapBlocks(nodes: Node[], opts: MapOptions, diags: Diagnostics): Block[]
       flushInline();
       blocks.push(mapNativeTextarea(el));
       continue;
+    }
+
+    if (tag === "label" && inInlineRow(el)) {
+      const nestedControl = [...el.children].find((child) => {
+        if (tagName(child) === "textarea") return true;
+        if (tagName(child) !== "input") return false;
+        return !INPUT_UNSUPPORTED_TYPES.has((getAttrs(child).type ?? "text").toLowerCase());
+      });
+      if (nestedControl) {
+        flushInline();
+        const children = mapInlineNodes(
+          [...el.childNodes].filter((node) => node !== nestedControl),
+          opts,
+          diags,
+        );
+        if (inlineTextOf(children).trim()) blocks.push({ type: "paragraph", children });
+        const mapped =
+          tagName(nestedControl) === "textarea"
+            ? mapNativeTextarea(nestedControl)
+            : mapNativeInput(nestedControl);
+        if (mapped) blocks.push(mapped);
+        continue;
+      }
     }
 
     if (tag === "label") {

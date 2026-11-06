@@ -39,7 +39,7 @@ class Canvas:
 
 
 def main() -> None:
-    view = Path(__file__).resolve().parents[3] / "examples" / "apps" / "canvas-animation.html"
+    view = Path(__file__).resolve().parents[3] / "examples" / "apps" / "canvas" / "animation.html"
     particles = [
         {"x": 2, "y": 2, "dx": 1, "dy": 1, "color": "#50fa7b"},
         {"x": 36, "y": 10, "dx": -1, "dy": -1, "color": "#ff5555"},

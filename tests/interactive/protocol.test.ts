@@ -172,10 +172,23 @@ test("decodeCommand accepts and validates canvas drawing operations", () => {
     '{"type":"canvas","id":"game","ops":{}}',
     '{"type":"canvas","id":"game","ops":[{"op":"fillStyle","color":"red"}]}',
     '{"type":"canvas","id":"game","ops":[{"op":"fillRect","x":0,"y":0,"width":-1,"height":2}]}',
+    '{"type":"canvas","id":"game","ops":[{"op":"fillRect","x":1e400,"y":0,"width":1,"height":2}]}',
+    '{"type":"canvas","id":"game","ops":[{"op":"fillRect","x":0,"y":"0","width":1,"height":2}]}',
+    '{"type":"canvas","id":"game","ops":[{"op":"fillRect","x":0,"y":0,"width":null,"height":2}]}',
+    '{"type":"canvas","id":"game","ops":[{"op":"fillRect","x":0,"y":0,"width":1}]}',
     '{"type":"canvas","id":"game","ops":[{"op":"unknown"}]}',
   ]) {
     expect(decodeCommand(invalid).ok).toBe(false);
   }
+});
+
+test("decodeCommand enforces the canvas operation-count boundary", () => {
+  const ops = Array.from({ length: 10_000 }, () => ({ op: "clear" }));
+  expect(decodeCommand(JSON.stringify({ type: "canvas", id: "game", ops })).ok).toBe(true);
+  expect(
+    decodeCommand(JSON.stringify({ type: "canvas", id: "game", ops: [...ops, { op: "clear" }] }))
+      .ok,
+  ).toBe(false);
 });
 
 test("decodeCommand accepts a valid char command", () => {
@@ -354,11 +367,27 @@ test("decodeCommand rejects malformed update commands", () => {
   }
 });
 
+test("decodeCommand enforces the update props UTF-8 byte boundary", () => {
+  const command = (props: Record<string, string>) =>
+    JSON.stringify({ type: "update", id: "deploy", props });
+  expect(decodeCommand(command({ value: "x".repeat(65_536 - 5) })).ok).toBe(true);
+  expect(decodeCommand(command({ value: "x".repeat(65_536 - 4) }))).toEqual({
+    ok: false,
+    error: "update command exceeds the 65536-byte props limit",
+  });
+  expect(decodeCommand(command({ ["é".repeat(32_768)]: "x" })).ok).toBe(false);
+});
+
 test("decodeCommand error messages never leak more than ~80 chars of a hostile line", () => {
   const huge = "x".repeat(10_000);
   const r = decodeCommand(huge);
   expect(r.ok).toBe(false);
   if (!r.ok) expect(r.error.length).toBeLessThan(120);
+});
+
+test("decodeCommand error snippets strip host-visible control characters", () => {
+  const result = decodeCommand("{bad\x1b[31m\rforged");
+  expect(result).toEqual({ ok: false, error: "malformed JSON: {bad[31mforged" });
 });
 
 test("encodeEvent produces a single NDJSON line ending in \\n", () => {
@@ -367,6 +396,11 @@ test("encodeEvent produces a single NDJSON line ending in \\n", () => {
   expect(line.endsWith("\n")).toBe(true);
   expect(line.indexOf("\n")).toBe(line.length - 1);
   expect(JSON.parse(line)).toEqual(event);
+});
+
+test("encodeEvent sanitizes error messages at the host boundary", () => {
+  const line = encodeEvent({ type: "error", message: "bad\x1b[31m\rforged", frame: false });
+  expect(JSON.parse(line)).toEqual({ type: "error", message: "bad[31mforged", frame: false });
 });
 
 test("encodeEvent round-trips every event shape", () => {

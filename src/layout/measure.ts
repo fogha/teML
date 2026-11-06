@@ -9,9 +9,22 @@ const seg =
     ? new Intl.Segmenter("en", { granularity: "grapheme" })
     : null;
 
+const PRINTABLE_ASCII = /^[\x20-\x7e]*$/;
+
+export function* graphemeIterator(s: string): Generator<string> {
+  if (PRINTABLE_ASCII.test(s)) {
+    for (const character of s) yield character;
+    return;
+  }
+  if (seg) {
+    for (const item of seg.segment(s)) yield item.segment;
+    return;
+  }
+  for (const character of s) yield character;
+}
+
 export function graphemes(s: string): string[] {
-  if (seg) return Array.from(seg.segment(s), (x) => x.segment);
-  return Array.from(s);
+  return Array.from(graphemeIterator(s));
 }
 
 function widthOpts(opts?: MeasureOpts): { ambiguousIsNarrow: boolean } {
@@ -19,6 +32,7 @@ function widthOpts(opts?: MeasureOpts): { ambiguousIsNarrow: boolean } {
 }
 
 export function cellWidth(s: string, opts?: MeasureOpts): number {
+  if (PRINTABLE_ASCII.test(s)) return s.length;
   return stringWidth(s, widthOpts(opts));
 }
 

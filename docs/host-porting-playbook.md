@@ -34,7 +34,7 @@ Implement typed structs (or equivalent) mirroring
 | `scroll`    | `rows`                      | Signed integer, bounded (±10 000)                                                                                       |
 | `resize`    | `width`, optional `height`  | Positive integers; clamp zero terminal sizes to 1                                                                       |
 | `render`    | `markup`, optional `format` | `teml` \| `markdown` \| `html`; markup ≤ 4 MiB                                                                          |
-| `update`    | `id`, `props`               | Live widget mutation (protocol 1.2); requires engine `update` capability; `props` values are strings; at least one prop |
+| `update`    | `id`, `props`               | Live widget mutation (protocol 1.2); requires engine `update` capability; string values; at least one prop; ≤64 KiB total key/value UTF-8 bytes |
 | `replace`   | `target`, `markup`, optional `format` | Structural document replacement (protocol 1.3); requires `documentMutations` capability |
 | `append`    | `target`, `markup`, optional `format` | Structural append to an addressable container; requires `documentMutations` capability |
 | `remove`    | `target`                            | Remove an addressable container subtree; requires `documentMutations` capability |
@@ -53,13 +53,15 @@ Implement typed structs (or equivalent) mirroring
 
 **Resource limits (enforce on both sides)**
 
-| Limit                 |  Value |
-| --------------------- | -----: |
-| Max NDJSON line       |  8 MiB |
-| Max `char` payload    | 64 KiB |
-| Max `render.markup`   |  4 MiB |
-| Max mutation markup   |  4 MiB |
-| Max `\|scroll.rows\|` | 10 000 |
+| Limit                   |  Value |
+| ----------------------- | -----: |
+| Max NDJSON line         |  8 MiB |
+| Max `char` payload      | 64 KiB |
+| Max update prop bytes   | 64 KiB |
+| Max `render.markup`     |  4 MiB |
+| Max mutation markup     |  4 MiB |
+| Max `\|scroll.rows\|`   | 10 000 |
+| Max patch `rows`        | 10 000 |
 | Max normalized document | 10 000 blocks |
 | Max append target       | 2 000 direct children |
 
@@ -157,8 +159,9 @@ Maintain:
 
 1. Require a prior full frame (`lastSeq > 0`).
 2. Require `seq == lastSeq + 1` exactly — **no gaps**. A gap is an error; a later **full** frame with `seq > lastSeq` resynchronizes.
-3. For each patch, set `rows[patch.row]` from the patch payload (extend with empty strings as needed).
-4. Resize `rows` to `rows` count (truncate or pad).
+3. Require `0 <= rows <= 10,000` before cloning or allocating row storage.
+4. For each patch, set `rows[patch.row]` from the patch payload (extend with empty strings as needed).
+5. Resize `rows` to `rows` count (truncate or pad).
 
 **Payload preference:** when configured for `ansi`, use `ansi` then fall back to `plain`; when configured for `plain`, reverse.
 
@@ -184,6 +187,20 @@ before sending commands.
 
 Never assume one `read()` equals one message. Read stdout in fixed-size binary
 chunks (e.g. 4 KiB) and feed a line splitter.
+
+**Engine read deadlines:** each host waits at most 30 seconds for one complete
+event by default. The deadline covers the whole event wait, including blank
+lines and trickled chunks, rather than resetting after every successful read.
+A timeout returns a typed error and closes the child and reader resources.
+Python uses `Session.spawn(..., read_timeout=seconds)` (`None` disables); Go
+uses `SpawnOptions.ReadTimeout` (zero selects the default, negative disables)
+and `errors.Is(err, engine.ErrReadTimeout)`; Rust uses
+`session.with_read_timeout(Some(duration))` (`None` disables) and
+`SessionError::ReadTimeout`. Rust `close()` closes stdin to request graceful EOF,
+drains pending output, and uses the same deadline to bound child shutdown; `None`
+also disables that close deadline. Reader cancellation does not depend on a
+descendant closing its inherited stdout. Tests must use a real silent engine and verify
+cleanup, not just fake a timer.
 
 **Package naming:** avoid stdlib collisions — e.g. do not name your wire-types
 module `types` in Python or shadow common names like `protocol` with local
@@ -311,7 +328,12 @@ missing; never skip.
 
 Every decoder must also parse
 `tests/system/snapshots/interactive-v1.ndjson`, the shared machine-readable
-wire-compatibility transcript.
+wire-compatibility transcript. `fixtures/protocol/ndjson-cases.json` is the
+shared adversarial transport contract: TypeScript, Python, Go, and Rust run the
+same chunk schedules and compare the exact normalized event sequence. It covers
+CRLF/Unicode fragmentation, unterminated input, the inclusive 8 MiB boundary,
+and oversized-line recovery. Add transport regressions here before adding
+implementation-specific duplicates.
 
 | Scenario                   | Asserts                                                                                 |
 | -------------------------- | --------------------------------------------------------------------------------------- |
@@ -322,6 +344,7 @@ wire-compatibility transcript.
 | Pointer columns            | grid button activated by `pointer` row/col                                              |
 | Live `update`              | progress widget reaches 100% via bounded patches; requires `update` capability          |
 | Document mutations         | append patches reconstruct exactly; replace/remove full frames resynchronize            |
+| Silent engine              | per-event read timeout has the documented type and closes the child/reader              |
 
 Run headlessly — no TTY required for protocol tests.
 

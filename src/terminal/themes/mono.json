@@ -9,6 +9,8 @@
     "warning": { "bold": true },
     "error": { "bold": true },
     "info": {},
+    "button": { "bold": true },
+    "buttonSecondary": {},
     "muted": {},
     "highlight": { "bold": true },
     "kbd": { "bold": true },

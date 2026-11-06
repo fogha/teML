@@ -8,6 +8,7 @@ import type { LayoutOpts } from "./opts.js";
 import { cellWidth, truncateToWidth, type MeasureOpts } from "./measure.js";
 import { wrapSpans } from "./wrap.js";
 import { boxMetrics, boxedField } from "./interactive.js";
+import { physicalLines, clipLine } from "../render/screen.js";
 
 export type LayoutBlockFn = (b: Block, opts: LayoutOpts, indent: number) => Line[];
 export type LayoutBlocksFn = (
@@ -103,55 +104,143 @@ function clampPhysicalLines(lines: Line[], outerW: number, indent: number, m: Me
   });
 }
 
+/** Geometry for unframed groups: width includes padding, never a focus gutter. */
+function groupMetrics(opts: LayoutOpts, indent: number, attrs: Record<string, string>) {
+  const available = Math.max(1, opts.width - indent);
+  const width = Math.min(available, clampBoundedInt(attrs.width, 1, 10_000, available));
+  const paddingX = Math.min(
+    Math.floor((width - 1) / 2),
+    clampBoundedInt(attrs.padding, 0, 4, opts.fields?.paddingX ?? 0),
+  );
+  const paddingY = clampBoundedInt(attrs.padding, 0, 2, opts.fields?.paddingY ?? 0);
+  const marginY = clampBoundedInt(attrs.margin, 0, 4, opts.fields?.marginY ?? 0);
+  const align = attrs.align ?? opts.fields?.align;
+  const free = available - width;
+  const offsetX = align === "end" ? free : align === "center" ? Math.floor(free / 2) : 0;
+  return {
+    contentWidth: Math.max(1, width - 2 * paddingX),
+    paddingX,
+    offsetX,
+    top: marginY + paddingY,
+  };
+}
+
+function composeGroup(
+  lines: Line[],
+  opts: LayoutOpts,
+  indent: number,
+  metrics: ReturnType<typeof groupMetrics>,
+): Line[] {
+  const m = measureOpts(opts);
+  const blank = () => Array.from({ length: metrics.top }, (): Line => []);
+  const prefix = " ".repeat(indent + metrics.offsetX + metrics.paddingX);
+  return [
+    ...blank(),
+    ...lines.map((line) => {
+      // Clip only when necessary; retain each span's style and pointer metadata.
+      const content =
+        lineWidth(line, m) > metrics.contentWidth ? clipLine(line, metrics.contentWidth, m) : line;
+      return [
+        { text: prefix, style: {} },
+        ...content,
+        { text: " ".repeat(metrics.paddingX), style: {} },
+      ];
+    }),
+    ...blank(),
+  ];
+}
+
 export function layoutGrid(
   b: Extract<Block, { type: "container" }>,
   opts: LayoutOpts,
   indent: number,
   layoutBlockFn: LayoutBlockFn,
+  semanticStartFn: () => number,
+  shiftSemanticRowsFn: (start: number, offset: number) => void,
 ): Line[] {
   const m = measureOpts(opts);
-  const metrics = boxMetrics(opts, indent, false, b.attrs);
+  const metrics = groupMetrics(opts, indent, b.attrs);
+  const box = boxMetrics(opts, indent, false, b.attrs);
   const requested = clampBoundedInt(b.attrs.columns, 1, 4, 2);
   const gap = clampBoundedInt(b.attrs.gap, 1, 4, 2);
   const framed = b.attrs.frame !== undefined && b.attrs.frame.toLowerCase() !== "false";
-  const gridWidth = framed ? metrics.contentWidth : Math.max(1, opts.width - indent);
+  const gridWidth = framed ? box.contentWidth : metrics.contentWidth;
+  const top = framed ? box.marginY + box.paddingY + 1 + (b.attrs.title ? 1 : 0) : metrics.top;
   const cols = effectiveGridColumns(requested, gridWidth, gap);
   const colWidths = gridColumnWidths(gridWidth, cols, gap);
-
-  const children = b.children;
-  if (!children.length) return [];
-
+  if (!b.children.length) return [];
   const out: Line[] = [];
-  for (let i = 0; i < children.length; i += cols) {
-    const rowBlocks = children.slice(i, i + cols);
+  for (let i = 0; i < b.children.length; i += cols) {
+    const rowBlocks = b.children.slice(i, i + cols);
     const rowWidths = colWidths.slice(0, rowBlocks.length);
-    const cellLines = rowBlocks.map((child, ci) => {
-      const cellW = rowWidths[ci]!;
-      const cellOpts: LayoutOpts = { ...opts, width: cellW };
-      return layoutBlockFn(child, cellOpts, 0);
+    const cells = rowBlocks.map((child, ci) => {
+      const start = semanticStartFn();
+      const lines = physicalLines(layoutBlockFn(child, { ...opts, width: rowWidths[ci]! }, 0));
+      shiftSemanticRowsFn(start, out.length + top);
+      return lines;
     });
-    const rowLines = joinGridRow(cellLines, rowWidths, gap, m);
-    out.push(...rowLines);
+    out.push(...joinGridRow(cells, rowWidths, gap, m));
   }
+  return framed
+    ? boxedField(opts, indent, false, b.attrs.title, out, {}, b.attrs)
+    : composeGroup(out, opts, indent, metrics);
+}
 
-  if ((b.attrs.frame ?? "").toLowerCase() !== "false" && b.attrs.frame !== undefined) {
-    return boxedField(opts, indent, false, b.attrs.title, out, {}, b.attrs);
+export function layoutRow(
+  b: Extract<Block, { type: "container" }>,
+  opts: LayoutOpts,
+  indent: number,
+  layoutBlockFn: LayoutBlockFn,
+  semanticStartFn: () => number,
+  shiftSemanticRowsFn: (start: number, offset: number) => void,
+): Line[] {
+  const m = measureOpts(opts);
+  const metrics = groupMetrics(opts, indent, b.attrs);
+  const available = metrics.contentWidth;
+  const gap = clampBoundedInt(b.attrs.gap, 0, 4, 1);
+  const out: Line[] = [];
+  let cells: Line[][] = [];
+  let widths: number[] = [];
+  let used = 0;
+  let labels: boolean[] = [];
+  let baselines: number[] = [];
+  const flush = () => {
+    if (!cells.length) return;
+    const baseline = Math.max(0, ...baselines);
+    const aligned = cells.map((lines, index) =>
+      labels[index] && lines.length === 1
+        ? [...Array.from({ length: baseline }, (): Line => []), ...lines]
+        : lines,
+    );
+    out.push(...joinGridRow(aligned, widths, gap, m));
+    cells = [];
+    widths = [];
+    labels = [];
+    baselines = [];
+    used = 0;
+  };
+  for (const child of b.children) {
+    const start = semanticStartFn();
+    const raw = physicalLines(layoutBlockFn(child, { ...opts, width: available }, 0));
+    const first = raw.findIndex((line) => lineWidth(line, m) > 0);
+    let last = raw.length - 1;
+    while (last >= 0 && lineWidth(raw[last]!, m) === 0) last--;
+    const lines = first < 0 ? raw.slice(0, 1) : raw.slice(first, last + 1);
+    const width = Math.max(1, ...lines.map((line) => lineWidth(line, m)));
+    if (cells.length && used + gap + width > available) flush();
+    shiftSemanticRowsFn(start, out.length + metrics.top - Math.max(0, first));
+    cells.push(lines);
+    widths.push(width);
+    labels.push(child.type === "paragraph");
+    const field = child.type === "leaf" && ["input", "textarea", "button"].includes(child.name);
+    const fieldBox = field
+      ? boxMetrics({ ...opts, width: available }, 0, false, child.attrs)
+      : undefined;
+    baselines.push(fieldBox?.showBox ? 1 + fieldBox.paddingY : 0);
+    used += (cells.length > 1 ? gap : 0) + width;
   }
-
-  const customSpacing =
-    b.attrs.padding !== undefined ||
-    b.attrs.margin !== undefined ||
-    opts.fields?.paddingX !== undefined ||
-    opts.fields?.paddingY !== undefined ||
-    opts.fields?.marginY !== undefined;
-  const paddingX = customSpacing ? metrics.paddingX : 0;
-  const padded = clampPhysicalLines(out, opts.width, indent, m).map((line) => [
-    { text: " ".repeat(metrics.offsetX + paddingX), style: {} },
-    ...line,
-  ]);
-  const paddingRows = Array.from({ length: metrics.paddingY }, () => []);
-  const margins = Array.from({ length: metrics.marginY }, () => []);
-  return [...margins, ...paddingRows, ...padded, ...paddingRows, ...margins];
+  flush();
+  return composeGroup(out, opts, indent, metrics);
 }
 
 export function layoutMetric(

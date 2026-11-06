@@ -1355,6 +1355,44 @@ test("canvas commands draw and reconcile surfaces across document transitions", 
   expect(draw()[0]).toMatchObject({ type: "error", message: "unknown canvas id 'game'" });
 });
 
+test("canvases over the aggregate pixel budget render placeholders", () => {
+  const source = Array.from(
+    { length: 17 },
+    (_, index) => `::canvas{id="canvas-${index}" width="256" height="256"}`,
+  ).join("\n");
+  const diags = new Diagnostics();
+  const session = new InteractiveSession(formDoc(source), sessionOptions({ diags }));
+  expect(frameOf(session.start()).plain).toContain("[Canvas: canvas-16]");
+  expect(diags.has("canvas-pixels-over-budget")).toBe(true);
+  expect(session.handle({ type: "canvas", id: "canvas-16", ops: [] })[0]).toMatchObject({
+    type: "error",
+    message: "unknown canvas id 'canvas-16'",
+  });
+  expect(diags.count()).toBe(1);
+});
+
+test("command-originated error ids strip host-visible controls", () => {
+  const session = new InteractiveSession(formDoc('::canvas{id="game"}'), sessionOptions());
+  const id = "missing\x1b[31m";
+  const cases: Array<{ command: Command; message: string }> = [
+    {
+      command: { type: "canvas", id, ops: [] },
+      message: "unknown canvas id 'missing[31m'",
+    },
+    {
+      command: { type: "update", id, props: { value: "1" } },
+      message: "unknown update id 'missing[31m'",
+    },
+    {
+      command: { type: "replace", target: id, markup: "replacement" },
+      message: "unknown mutation target 'missing[31m'",
+    },
+  ];
+  for (const { command, message } of cases) {
+    expect(session.handle(command)[0]).toEqual({ type: "error", message });
+  }
+});
+
 test("scroll commands update a focused region, emit bounded metadata, and bubble residual rows", () => {
   const logLines = Array.from({ length: 20 }, (_, index) => `log ${index + 1}`).join("\n\n");
   const tail = Array.from({ length: 12 }, (_, index) => `tail ${index + 1}`).join("\n\n");

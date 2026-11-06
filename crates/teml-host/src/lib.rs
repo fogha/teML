@@ -19,6 +19,7 @@
 
 pub mod engine;
 pub mod paint;
+mod pipe;
 pub mod protocol;
 pub mod screen;
 pub mod session;

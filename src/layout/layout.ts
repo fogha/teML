@@ -22,6 +22,7 @@ import {
   layoutEvent,
   layoutFigure,
   layoutGrid,
+  layoutRow,
   layoutMetric,
   layoutProgress,
 } from "./dashboard.js";
@@ -285,7 +286,16 @@ function layoutContainer(
   const { width, theme, caps, diags } = opts;
   const m = measureOpts(opts);
   if (b.name === "card") return layoutCard(b, opts, indent);
-  if (b.name === "grid") return layoutGrid(b, opts, indent, layoutBlock);
+  if (b.name === "grid" || b.name === "row") {
+    return (b.name === "grid" ? layoutGrid : layoutRow)(
+      b,
+      opts,
+      indent,
+      layoutBlock,
+      () => semanticStart(opts),
+      (start, offset) => shiftSemanticRows(opts, start, offset),
+    );
+  }
   if (b.name === "details") return layoutDetails(b, opts, indent, layoutBlocks);
   if (b.name === "figure") return layoutFigure(b, opts, indent, layoutBlocks);
   if (b.name === "radio") return layoutRadio(b, opts, indent);

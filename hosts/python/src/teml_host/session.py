@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
+import select
 import subprocess
+import time
 from typing import Any, BinaryIO
 
 from teml_host.engine import EngineInfo, resolve_engine
@@ -22,6 +25,10 @@ from teml_host.types import (
 
 
 class SessionError(RuntimeError):
+    pass
+
+
+class SessionTimeout(SessionError):
     pass
 
 
@@ -59,23 +66,49 @@ def _write_all(stream: BinaryIO, data: bytes) -> None:
 
 
 class _NdjsonReader:
-    __slots__ = ("_stream", "_buffer", "_skipping")
+    __slots__ = ("_stream", "_buffer", "_skipping", "_read_timeout")
 
-    def __init__(self, stream: BinaryIO) -> None:
+    def __init__(self, stream: BinaryIO, read_timeout: float | None = None) -> None:
+        if read_timeout is not None and read_timeout <= 0:
+            raise ValueError("read_timeout must be positive or None")
         self._stream = stream
+        self._read_timeout = read_timeout
         self._buffer = b""
         # Set while dropping the tail of an oversized line. The line's
         # terminating newline ends the skip, so the session stays usable.
         self._skipping = False
 
+    def _read_chunk(self, deadline: float | None) -> bytes:
+        if self._read_timeout is None:
+            return self._stream.read(4096)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise SessionTimeout(
+                f"timed out waiting for teml event after {self._read_timeout:g} seconds"
+            )
+        try:
+            ready, _, _ = select.select([self._stream], [], [], remaining)
+            if not ready:
+                raise SessionTimeout(
+                    f"timed out waiting for teml event after {self._read_timeout:g} seconds"
+                )
+            return os.read(self._stream.fileno(), 4096)
+        except (OSError, ValueError) as exc:
+            raise SessionError("cannot wait for engine stdout") from exc
+
     def read_event(self) -> dict[str, Any]:
+        deadline = (
+            None
+            if self._read_timeout is None
+            else time.monotonic() + self._read_timeout
+        )
         while True:
             if self._skipping:
                 # Drop the oversized line's tail without accumulating it.
                 newline = self._buffer.find(b"\n")
                 if newline == -1:
                     self._buffer = b""
-                    chunk = self._stream.read(4096)
+                    chunk = self._read_chunk(deadline)
                     if chunk == b"":
                         raise SessionError("teml closed stdout")
                     self._buffer = chunk
@@ -103,7 +136,7 @@ class _NdjsonReader:
                 self._skipping = True
                 return _oversized_line_event()
 
-            chunk = self._stream.read(4096)
+            chunk = self._read_chunk(deadline)
             if chunk == b"":
                 line = self._buffer.strip()
                 self._buffer = b""
@@ -146,6 +179,7 @@ class Session:
         mode: str | None = None,
         no_color: bool = False,
         engine: str | None = None,
+        read_timeout: float | None = 30.0,
     ) -> Session:
         engine_info = resolve_engine(engine)
         args = [
@@ -179,7 +213,7 @@ class Session:
         return cls(
             process=process,
             stdin=process.stdin,
-            reader=_NdjsonReader(process.stdout),
+            reader=_NdjsonReader(process.stdout, read_timeout=read_timeout),
             engine_info=engine_info,
         )
 
@@ -201,7 +235,11 @@ class Session:
         self._stdin.flush()
 
     def next_event_raw(self) -> dict[str, Any]:
-        return self._reader.read_event()
+        try:
+            return self._reader.read_event()
+        except SessionTimeout:
+            self.close()
+            raise
 
     def next_event(self) -> SessionEvent:
         return parse_event(self.next_event_raw())

@@ -70,17 +70,22 @@ test("invalid canvas input recovers without terminal injection or dropped edits"
   }
 });
 
-test("canvas HTML drops event-handler attributes", () => {
+test("canvas error events strip host-visible control characters", () => {
   const form = makeInteractiveForm();
   try {
-    const file = join(form.dir, "canvas.html");
-    const markup =
-      '<canvas id="game" width="10" height="2" onload="alert(1)" onmouseover="alert(2)"></canvas>';
-    writeFileSync(file, markup);
-    const run = runSession(file, [{ type: "exit" }], ["--frames", "plain"]);
+    const file = join(form.dir, "canvas.teml");
+    writeFileSync(file, '::canvas{id="game"}');
+    const run = runSession(
+      file,
+      [{ type: "canvas", id: "missing\x1b[31m", ops: [] }, { type: "exit" }],
+      ["--frames", "plain"],
+    );
     expect(run.status).toBe(0);
-    expect(run.stdout).not.toContain("onload");
-    expect(run.stdout).not.toContain("onmouseover");
+    expect(semanticEvents(run.events)).toContainEqual({
+      type: "error",
+      message: "unknown canvas id 'missing[31m'",
+      frame: true,
+    });
   } finally {
     form.cleanup();
   }

@@ -110,6 +110,12 @@ test("hostile input stays inert and CLI failures remain machine-readable", () =>
   expect(hostileHtml.stdout).not.toContain("alert(1)");
   expect(hostileHtml.stdout).not.toContain("\x1b");
 
+  const rejectedImage = runCli(["view", "--from", "html", "--no-color"], {
+    input: '<img src="\x1b[31mbad" alt="image">',
+  });
+  expect(rejectedImage.status).toBe(0);
+  expect(rejectedImage.stderr).not.toContain("\x1b");
+
   const colored = runCli(["view", TEML, "--width", "80", "--color"], {
     env: withoutColorEnv(),
   });

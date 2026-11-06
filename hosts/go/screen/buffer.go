@@ -15,6 +15,8 @@ const (
 	PreferredPlain
 )
 
+const maxPatchRows = 10000
+
 // Viewport is validated viewport metadata from a frame.
 type Viewport struct {
 	Offset int
@@ -72,6 +74,9 @@ func (b *Buffer) Apply(event protocol.SessionEvent) error {
 		}
 		if event.Rows < 0 {
 			return fmt.Errorf("patch frame needs a non-negative rows count")
+		}
+		if event.Rows > maxPatchRows {
+			return fmt.Errorf("patch frame exceeds the %d-row limit", maxPatchRows)
 		}
 		rows = append([]string(nil), b.rows...)
 		for _, patch := range event.Patches {

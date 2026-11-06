@@ -21,10 +21,33 @@
 
 import { basename, extname } from "node:path";
 import readline from "node:readline";
+import { spawn } from "node:child_process";
+
+if (process.argv.includes("--version")) {
+  process.stdout.write("fake-engine 1.6\n");
+  process.exit(0);
+}
 
 const runIndex = process.argv.indexOf("run");
 const document = runIndex >= 0 ? process.argv[runIndex + 1] : "";
 const scenario = basename(document ?? "", extname(document ?? "") || undefined);
+
+// Transport scenarios run before the normal startup frame. Descendants have
+// their own finite lifetime so a failed cleanup assertion cannot leak them.
+if (scenario === "silent" || scenario === "inherited-stdout") {
+  if (scenario === "inherited-stdout") {
+    spawn(process.execPath, ["-e", "setTimeout(() => {}, 1500)"], {
+      stdio: ["ignore", "inherit", "ignore"],
+    }).unref();
+  }
+  setTimeout(() => process.exit(0), 1500);
+  if (scenario === "inherited-stdout") process.stdout.write('{"type":"exit"}\n');
+  await new Promise(() => {});
+}
+if (scenario === "oversized-event") {
+  process.stdout.write("x".repeat(8 * 1024 * 1024 + 1) + '\n{"type":"exit"}\n');
+  // Allow the pipe to flush naturally.
+} else {
 
 let seq = 0;
 let submitted = false;
@@ -83,3 +106,4 @@ commands.on("line", (line) => {
     }
   }
 });
+}

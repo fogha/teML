@@ -1,12 +1,14 @@
 <h1>DeepSeek</h1>
 <p><span class="text-muted">A quiet terminal conversation · streaming responses</span></p>
-<div data-teml="grid" data-id="history">
+<div data-teml="grid" data-columns="1" data-id="history">
   <div class="card">
     <p><span class="text-muted">Ask a question to begin. Your messages appear here.</span></p>
   </div>
 </div>
-<div data-teml="grid" data-id="status"><div class="alert alert-info">Ready.</div></div>
-<form id="composer">
+<div data-teml="grid" data-columns="1" data-id="status">
+  <div class="alert alert-info">Ready.</div>
+</div>
+<form id="composer" aria-label="Conversation">
   <label for="message">Message</label>
   <textarea
     id="message"
@@ -19,7 +21,13 @@
     required
     placeholder="Ask something useful…"
   ></textarea>
-  <button id="send" type="submit">Send</button>
+  <div data-teml="row" data-gap="2">
+    <button id="send" type="submit">Send</button>
+    <button id="new" type="button" data-variant="secondary">New chat</button>
+  </div>
 </form>
-<button id="new">New chat</button>
-<p><span class="text-muted">Ctrl+Enter sends · Tab moves between controls · Ctrl+C exits</span></p>
+<p>
+  <span class="text-muted"
+    >Ctrl+Enter sends · Tab changes focus · New chat cancels the response · Ctrl+C exits</span
+  >
+</p>

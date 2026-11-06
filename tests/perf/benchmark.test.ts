@@ -12,6 +12,7 @@ import { ReaderSession } from "../../src/reader/session.js";
 import { diffFrames, type ScreenFrame } from "../../src/render/screen.js";
 import { InteractiveSession } from "../../src/interactive/session.js";
 import type { PatchFrame } from "../../src/interactive/protocol.js";
+import { applyCanvasOperations, createCanvasSurface } from "../../src/layout/canvas.js";
 
 const CLI = join(process.cwd(), "dist/cli/main.js");
 const layoutPerfBudgetMs = (() => {
@@ -119,6 +120,41 @@ test(`1000-block parse+layout+render median < ${parsePerfBudgetMs}ms`, () => {
   expect(median).toBeLessThan(parsePerfBudgetMs);
 });
 
+test("1 MiB unbroken paragraph layout stays below 500ms median", () => {
+  const doc: TDoc = {
+    meta: {},
+    blocks: [
+      {
+        type: "paragraph",
+        children: [{ type: "text", value: "x".repeat(1024 * 1024) }],
+      },
+    ],
+  };
+  const caps = {
+    colors: "none" as const,
+    unicode: true,
+    hyperlinks: false,
+    width: 40,
+    ambiguousWide: false,
+  };
+  const samples: number[] = [];
+  for (let index = 0; index < 3; index++) {
+    const started = performance.now();
+    const lines = layoutDocument(doc, {
+      width: 40,
+      theme: loadTheme("mono"),
+      caps,
+      diags: new Diagnostics(),
+    });
+    samples.push(performance.now() - started);
+    expect(lines).toHaveLength(26_215);
+  }
+  samples.sort((a, b) => a - b);
+  const median = samples[1]!;
+  console.log(`perf: 1 MiB paragraph layout median=${median.toFixed(2)}ms`);
+  expect(median).toBeLessThan(500);
+});
+
 test("CLI --version adds < 15ms over host Node startup", () => {
   const paired: number[] = [];
   for (let i = 0; i < 7; i++) {
@@ -151,6 +187,50 @@ test("readVersion() hot path < 5ms", () => {
   const median = samples[Math.floor(samples.length / 2)]!;
   console.log(`perf: readVersion() median=${median.toFixed(3)}ms`);
   expect(median).toBeLessThan(5);
+});
+
+test("maximum-work canvas batches stay below 100ms median", () => {
+  const surface = createCanvasSurface({ width: "256", height: "256" });
+  const operations = Array.from({ length: 15 }, () => ({
+    op: "fillRect" as const,
+    x: 0,
+    y: 0,
+    width: 256,
+    height: 256,
+  }));
+  const samples: number[] = [];
+  for (let index = 0; index < 3; index++) {
+    const started = performance.now();
+    const result = applyCanvasOperations(surface, operations);
+    samples.push(performance.now() - started);
+    expect(result.ok).toBe(true);
+  }
+  samples.sort((a, b) => a - b);
+  const median = samples[1]!;
+  console.log(`perf: maximum-work canvas batch median=${median.toFixed(2)}ms`);
+  expect(median).toBeLessThan(100);
+});
+
+test("row-heavy maximum-work canvas batches stay below 100ms median", () => {
+  const surface = createCanvasSurface({ width: "256", height: "256" });
+  const operations = Array.from({ length: 10_000 }, () => ({
+    op: "fillRect" as const,
+    x: 0,
+    y: 0,
+    width: 1,
+    height: 50,
+  }));
+  const samples: number[] = [];
+  for (let index = 0; index < 3; index++) {
+    const started = performance.now();
+    const result = applyCanvasOperations(surface, operations);
+    samples.push(performance.now() - started);
+    expect(result.ok).toBe(true);
+  }
+  samples.sort((a, b) => a - b);
+  const median = samples[1]!;
+  console.log(`perf: row-heavy maximum-work canvas batch median=${median.toFixed(2)}ms`);
+  expect(median).toBeLessThan(100);
 });
 
 test("10,000-line Reader navigation stays viewport-bounded", () => {

@@ -18,6 +18,7 @@
 // event and keep the session alive instead of crashing on one bad line.
 
 import type { CanvasOperation } from "../core/ast.js";
+import { sanitizeLabel } from "../core/sanitize.js";
 
 export type KeyName =
   | "tab"
@@ -236,6 +237,7 @@ const MAX_ERROR_SNIPPET = 80;
 /** Resource limits are deliberately part of the wire contract. A host can
  * split input arbitrarily, so limits must be enforced before parse/layout. */
 export const MAX_CHAR_BYTES = 64 * 1024;
+export const MAX_UPDATE_PROPS_BYTES = 64 * 1024;
 export const MAX_RENDER_MARKUP_BYTES = 4 * 1024 * 1024;
 export const MAX_NDJSON_LINE_BYTES = 8 * 1024 * 1024;
 export const MAX_SCROLL_ROWS = 10_000;
@@ -258,6 +260,22 @@ export function checkMarkupBudget(
       ok: false,
       error: `${operation} command exceeds the ${MAX_RENDER_MARKUP_BYTES}-byte markup limit`,
     };
+  }
+  return { ok: true };
+}
+
+export function checkUpdatePropsBudget(
+  props: Readonly<Record<string, string>>,
+): { ok: true } | { ok: false; error: string } {
+  let total = 0;
+  for (const [key, value] of Object.entries(props)) {
+    total += utf8Length(key) + utf8Length(value);
+    if (total > MAX_UPDATE_PROPS_BYTES) {
+      return {
+        ok: false,
+        error: `update command exceeds the ${MAX_UPDATE_PROPS_BYTES}-byte props limit`,
+      };
+    }
   }
   return { ok: true };
 }
@@ -313,7 +331,7 @@ function utf8Length(value: string): number {
 }
 
 function snippet(line: string): string {
-  const trimmed = line.trim();
+  const trimmed = sanitizeLabel(line);
   return trimmed.length > MAX_ERROR_SNIPPET ? `${trimmed.slice(0, MAX_ERROR_SNIPPET)}…` : trimmed;
 }
 
@@ -504,6 +522,8 @@ export function decodeCommand(line: string): DecodeResult {
       if (Object.keys(props).length === 0) {
         return { ok: false, error: 'update command needs at least one prop in "props"' };
       }
+      const budget = checkUpdatePropsBudget(props);
+      if (!budget.ok) return budget;
       return { ok: true, command: { type: "update", id: obj.id.trim(), props } };
     }
 
@@ -596,7 +616,9 @@ export function decodeCommand(line: string): DecodeResult {
 
 /** Encode one event as a single NDJSON line, including the trailing newline. */
 export function encodeEvent(event: SessionEvent): string {
-  return `${JSON.stringify(event)}\n`;
+  const encoded =
+    event.type === "error" ? { ...event, message: sanitizeLabel(event.message) } : event;
+  return `${JSON.stringify(encoded)}\n`;
 }
 
 export type NdjsonInput = { ok: true; line: string } | { ok: false; error: string };

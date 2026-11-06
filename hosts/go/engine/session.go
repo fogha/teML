@@ -8,10 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/fogha/teml/hosts/go/ndjson"
 	"github.com/fogha/teml/hosts/go/protocol"
 )
+
+// ErrReadTimeout reports an engine that produced no complete event before the configured deadline.
+var ErrReadTimeout = errors.New("timed out waiting for teml event")
 
 // SpawnOptions configures a teml run child process.
 type SpawnOptions struct {
@@ -24,19 +28,22 @@ type SpawnOptions struct {
 	Frames  protocol.FrameFormat
 	Mode    protocol.FrameMode
 	NoColor bool
+	// ReadTimeout defaults to 30 seconds. A negative duration disables the deadline.
+	ReadTimeout time.Duration
 }
 
 // Session drives teml run over piped NDJSON stdio with unbuffered pipe I/O.
 type Session struct {
-	child    *exec.Cmd
-	stdinRaw io.WriteCloser
-	stdin    *bufio.Writer
-	stdout   io.Reader
-	splitter ndjson.Splitter
-	pending  []ndjson.Input
-	mu       sync.Mutex
-	closed   bool
-	Engine   ResolvedEngine
+	child       *exec.Cmd
+	stdinRaw    io.WriteCloser
+	stdin       *bufio.Writer
+	stdout      *os.File
+	splitter    ndjson.Splitter
+	pending     []ndjson.Input
+	mu          sync.Mutex
+	closed      bool
+	readTimeout time.Duration
+	Engine      ResolvedEngine
 }
 
 // Spawn starts teml run with the resolved engine and returns after pipes are ready.
@@ -82,18 +89,29 @@ func Spawn(opts SpawnOptions) (*Session, error) {
 		_ = stdinPipe.Close()
 		return nil, fmt.Errorf("teml stdout pipe: %w", err)
 	}
+	stdoutFile, ok := stdoutPipe.(*os.File)
+	if !ok {
+		_ = stdinPipe.Close()
+		_ = stdoutPipe.Close()
+		return nil, errors.New("teml stdout pipe does not support read deadlines")
+	}
 	if err := cmd.Start(); err != nil {
 		_ = stdinPipe.Close()
 		_ = stdoutPipe.Close()
 		return nil, fmt.Errorf("spawn teml engine (%s): %w", engine.Source, err)
 	}
 
+	readTimeout := opts.ReadTimeout
+	if readTimeout == 0 {
+		readTimeout = 30 * time.Second
+	}
 	return &Session{
-		child:    cmd,
-		stdinRaw: stdinPipe,
-		stdin:    bufio.NewWriter(stdinPipe),
-		stdout:   stdoutPipe,
-		Engine:   engine,
+		child:       cmd,
+		stdinRaw:    stdinPipe,
+		stdin:       bufio.NewWriter(stdinPipe),
+		stdout:      stdoutFile,
+		readTimeout: readTimeout,
+		Engine:      engine,
 	}, nil
 }
 
@@ -128,6 +146,10 @@ func (s *Session) Next() (protocol.SessionEvent, error) {
 	for {
 		line, err := s.readLine()
 		if err != nil {
+			if s.readTimeout > 0 && errors.Is(err, os.ErrDeadlineExceeded) {
+				_ = s.Close()
+				return protocol.SessionEvent{}, fmt.Errorf("%w after %s", ErrReadTimeout, s.readTimeout)
+			}
 			return protocol.SessionEvent{}, err
 		}
 		return protocol.DecodeEvent(line)
@@ -206,6 +228,11 @@ func (s *Session) Wait() error {
 func (s *Session) readLine() (string, error) {
 	if line, err, ok := s.popPending(); ok {
 		return line, err
+	}
+	if s.readTimeout > 0 {
+		if err := s.stdout.SetReadDeadline(time.Now().Add(s.readTimeout)); err != nil {
+			return "", fmt.Errorf("set engine read deadline: %w", err)
+		}
 	}
 
 	chunk := make([]byte, 4096)

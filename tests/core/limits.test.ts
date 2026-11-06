@@ -50,6 +50,10 @@ describe("hasPathologicalDelimiterRun", () => {
     expect(hasPathologicalDelimiterRun(`text ${"_".repeat(64)} more`)).toBe(true);
     expect(hasPathologicalDelimiterRun("~".repeat(200))).toBe(true);
   });
+
+  test("handles a multi-megabyte delimiter run without overflowing its own stack", () => {
+    expect(hasPathologicalDelimiterRun("prefix" + "*".repeat(3_400_000))).toBe(true);
+  });
 });
 
 describe("isStackOverflow", () => {

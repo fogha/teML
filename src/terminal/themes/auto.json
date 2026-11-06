@@ -9,6 +9,8 @@
     "warning": { "fg": "yellow", "bold": true },
     "error": { "fg": "red", "bold": true },
     "info": { "fg": "cyan" },
+    "button": { "fg": "black", "bg": "cyan", "bold": true },
+    "buttonSecondary": { "fg": "white" },
     "muted": { "fg": "brightBlack" },
     "highlight": { "fg": "brightYellow", "bold": true },
     "kbd": { "fg": "brightWhite", "bold": true },

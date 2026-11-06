@@ -1,12 +1,14 @@
 package engine_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fogha/teml/hosts/go/engine"
 	"github.com/fogha/teml/hosts/go/protocol"
@@ -702,5 +704,30 @@ func TestDocumentMutationCommands(t *testing.T) {
 	}
 	if strings.Contains(buf.Text(), "Complete") {
 		t.Fatalf("remove text = %q", buf.Text())
+	}
+}
+
+func TestSilentEngineTimesOutAndClosesChild(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "silent-engine.sh")
+	contents := "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo silent; exit 0; fi\nsleep 0.5\n"
+	if err := os.WriteFile(script, []byte(contents), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	session, err := engine.Spawn(engine.SpawnOptions{
+		ResolveOptions: engine.ResolveOptions{ExplicitPath: script},
+		ViewPath:       testViewPath(t),
+		ReadTimeout:    50 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+
+	_, err = session.Next()
+	if !errors.Is(err, engine.ErrReadTimeout) {
+		t.Fatalf("expected read timeout, got %v", err)
+	}
+	if err := session.Close(); err != nil {
+		t.Fatalf("close after timeout: %v", err)
 	}
 }

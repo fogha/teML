@@ -456,3 +456,33 @@ test("an unrelated append preserves a radio group's pending selection", () => {
     value: "two",
   });
 });
+
+test("growing content above a visible focused field keeps it visible without stealing manual scroll", () => {
+  const diags = new Diagnostics();
+  const source =
+    ':::grid{id="history" columns="1"}\nHello\n:::\n\n::input{id="message" value="Draft"}';
+  const session = new InteractiveSession(normalize(parseTeml(source, diags), diags), {
+    diags,
+    layout: {
+      width: 40,
+      height: 6,
+      theme: loadTheme("mono"),
+      caps: { colors: "none", unicode: true, hyperlinks: false, width: 40, ambiguousWide: false },
+    },
+  });
+  session.start();
+  const replace = (text: string) =>
+    session.handle({
+      type: "replace",
+      target: "history",
+      markup: `:::grid{id="history" columns="1"}\n${text}\n:::`,
+    });
+  const events = replace(Array.from({ length: 20 }, (_, i) => `line ${i}`).join("\n\n"));
+  const focused = events.find((event) => event.type === "frame");
+  expect(focused && "plain" in focused ? focused.plain : "").toContain("Draft");
+  session.handle({ type: "scroll", rows: -100 });
+  const next = replace(Array.from({ length: 21 }, (_, i) => `line ${i}`).join("\n\n"));
+  const scrolled = next.find((event) => event.type === "frame");
+  expect(scrolled).toMatchObject({ viewport: { offset: 0 } });
+  expect(session.values().message).toBe("Draft");
+});

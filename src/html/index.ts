@@ -8,6 +8,7 @@ import { htmlToDocFromRoot } from "./map.js";
 import { loadProfile, type Profile } from "./profiles/loader.js";
 
 import type { SanitizeOpts } from "../core/href.js";
+import { isStackOverflow, parserOverflowFallback } from "../core/limits.js";
 
 export type HtmlToDocOptions = {
   profile?: string;
@@ -45,9 +46,14 @@ export function htmlToDoc(
   maybeDiags?: Diagnostics,
 ): TDoc {
   const { opts, diags } = resolveOptions(optsOrDiags, maybeDiags);
-  const document = parseHtml(source);
-  const useProfile = opts.profile !== "none";
-  const profile = useProfile ? loadProfile(opts.profile ?? "bootstrap") : undefined;
-  const root = extractContent(document, diags, { preserveClasses: useProfile });
-  return htmlToDocFromRoot(root, { profile, sanitize: opts.sanitize }, diags, document);
+  try {
+    const document = parseHtml(source);
+    const useProfile = opts.profile !== "none";
+    const profile = useProfile ? loadProfile(opts.profile ?? "bootstrap") : undefined;
+    const root = extractContent(document, diags, { preserveClasses: useProfile });
+    return htmlToDocFromRoot(root, { profile, sanitize: opts.sanitize }, diags, document);
+  } catch (error) {
+    if (!isStackOverflow(error)) throw error;
+    return parserOverflowFallback(source, diags);
+  }
 }

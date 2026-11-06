@@ -1,11 +1,13 @@
 <h2>Workspace profile</h2>
 <p>Choose how this CLI receives updates, then leave a note for collaborators.</p>
-<div data-teml="grid" data-id="status">
+<div data-teml="grid" data-columns="1" data-id="status">
   <div class="alert alert-info">Your settings stay in memory for this demo.</div>
 </div>
-<form id="profile">
-  <label for="name">Display name</label>
-  <input id="name" value="Ada" width="32" padding="1" margin="1" />
+<form id="profile" aria-label="Profile">
+  <div data-teml="row">
+    <label for="name">Display name</label>
+    <input id="name" value="Ada" required width="32" padding="1" margin="1" />
+  </div>
   <label for="stable">Stable · recommended</label>
   <input id="stable" type="radio" name="channel" value="stable" checked />
   <label for="preview">Preview</label>
@@ -16,6 +18,7 @@
   <textarea
     id="notes"
     rows="3"
+    maxlength="240"
     width="56"
     padding="1"
     margin="1"
@@ -25,6 +28,8 @@
   ></textarea>
   <label for="notify">Notify me when the channel updates</label>
   <input id="notify" type="checkbox" />
-  <button id="save" type="submit">Save profile</button>
+  <div data-teml="row" data-gap="2">
+    <button id="save" type="submit">Save profile</button>
+    <button id="cancel" type="button" data-variant="secondary">Cancel</button>
+  </div>
 </form>
-<button id="cancel">Cancel</button>

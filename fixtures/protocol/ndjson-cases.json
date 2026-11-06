@@ -1,0 +1,136 @@
+{
+	"cases": [
+		{
+			"name": "crlf-and-unicode-fragmentation",
+			"parts": [
+				{
+					"text": "{\"type\":\"change\",\"id\":\"name\",\"value\":\"é🙂\"}\r\n\r\n{\"type\":\"exit\"}\r\n",
+					"repeat": 1
+				}
+			],
+			"chunks": [
+				1,
+				2,
+				3,
+				5,
+				8,
+				13
+			],
+			"events": [
+				{
+					"type": "change",
+					"id": "name",
+					"value": "é🙂"
+				},
+				{
+					"type": "exit"
+				}
+			]
+		},
+		{
+			"name": "unterminated-final-event",
+			"parts": [
+				{
+					"text": "{\"type\":\"exit\"}",
+					"repeat": 1
+				}
+			],
+			"chunks": [
+				1,
+				2,
+				4,
+				8
+			],
+			"events": [
+				{
+					"type": "exit"
+				}
+			]
+		},
+		{
+			"name": "exact-byte-boundary-with-following-event",
+			"parts": [
+				{
+					"text": "{\"type\":\"exit\"}",
+					"repeat": 1
+				},
+				{
+					"text": " ",
+					"repeat": 8388593
+				},
+				{
+					"text": "\n{\"type\":\"exit\"}\n",
+					"repeat": 1
+				}
+			],
+			"chunks": [
+				4096,
+				1,
+				8192
+			],
+			"events": [
+				{
+					"type": "exit"
+				},
+				{
+					"type": "exit"
+				}
+			]
+		},
+		{
+			"name": "oversized-line-recovery",
+			"parts": [
+				{
+					"text": "{\"type\":\"char\",\"char\":\"",
+					"repeat": 1
+				},
+				{
+					"text": "x",
+					"repeat": 8388609
+				},
+				{
+					"text": "\"}\n{\"type\":\"exit\"}\n",
+					"repeat": 1
+				}
+			],
+			"chunks": [
+				4096,
+				1,
+				8192
+			],
+			"events": [
+				{
+					"type": "error",
+					"message": "NDJSON line exceeds the 8388608-byte limit"
+				},
+				{
+					"type": "exit"
+				}
+			]
+		},
+		{
+			"name": "oversized-unterminated-line",
+			"parts": [
+				{
+					"text": "{\"type\":\"char\",\"char\":\"",
+					"repeat": 1
+				},
+				{
+					"text": "x",
+					"repeat": 8388609
+				}
+			],
+			"chunks": [
+				4096,
+				1,
+				8192
+			],
+			"events": [
+				{
+					"type": "error",
+					"message": "NDJSON line exceeds the 8388608-byte limit"
+				}
+			]
+		}
+	]
+}

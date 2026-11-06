@@ -14,7 +14,9 @@ import {
   renderPlain,
 } from "../../../dist/index.js";
 import { runInteractiveApp } from "../../../dist/interactive/host.js";
-import { SYSTEM_PROMPT, deepSeekStream, mockStream } from "./stream.mjs";
+import { deepSeekStream, mockStream } from "./stream.mjs";
+
+import { createChatController } from "./controller.mjs";
 
 const VIEW = readFileSync(new URL("./app.html", import.meta.url), "utf8");
 
@@ -47,10 +49,6 @@ function parseArgs(argv) {
     }
   }
   return options;
-}
-
-function escapeHtml(value) {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function renderOnce(html, options) {
@@ -89,129 +87,17 @@ async function main() {
     return;
   }
 
-  const messages = [];
-  let busy = false;
-  let turnId = 0;
-  let activeController;
-
-  const appMarkup = () =>
-    VIEW.replaceAll('id="composer"', `id="composer-${turnId}"`)
-      .replaceAll('id="message"', `id="message-${turnId}"`)
-      .replaceAll('for="message"', `for="message-${turnId}"`);
-
-  const historyMarkup = () => {
-    const content = messages.length
-      ? messages
-          .map((message) => {
-            if (message.role === "user") {
-              return `<section><h3>You</h3><p>${escapeHtml(message.content)}</p></section>`;
-            }
-            const body = message.streaming
-              ? `<p>${escapeHtml(message.content).replace(/\n/g, "<br>")}</p>`
-              : message.content;
-            return `<section><h3>Assistant</h3>${body}</section>`;
-          })
-          .join("")
-      : '<p><span class="text-muted">Ask a question to begin. Your messages appear here.</span></p>';
-    return `<div data-teml="grid" data-id="history"><div class="card">${content}</div></div>`;
-  };
-
-  function paintHistory(ctx) {
-    ctx.replace("history", historyMarkup(), "html");
+  const controller = createChatController({ view: VIEW, stream });
+  try {
+    await runInteractiveApp(controller.markup(), {
+      format: "html",
+      theme: options.theme,
+      width: options.width,
+      handlers: controller.handlers,
+    });
+  } finally {
+    controller.dispose();
   }
-
-  function paintStatus(ctx, kind, text) {
-    ctx.replace(
-      "status",
-      `<div data-teml="grid" data-id="status"><div class="alert alert-${kind}">${escapeHtml(text)}</div></div>`,
-      "html",
-    );
-  }
-
-  async function runTurn(text, ctx) {
-    const id = ++turnId;
-    busy = true;
-    activeController = new AbortController();
-    messages.push({ role: "user", content: text });
-    const assistant = { role: "assistant", content: "", streaming: true };
-    messages.push(assistant);
-    ctx.render(appMarkup(), "html");
-    paintHistory(ctx);
-    paintStatus(ctx, "info", "Assistant is responding…");
-
-    let lastPaint = 0;
-    try {
-      const wireMessages = [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...messages.filter((message) => !message.streaming),
-      ];
-      for await (const delta of stream(wireMessages, activeController.signal)) {
-        if (id !== turnId) return;
-        assistant.content += delta;
-        const now = Date.now();
-        if (now - lastPaint >= 60) {
-          paintHistory(ctx);
-          lastPaint = now;
-        }
-      }
-      if (id !== turnId) return;
-      assistant.streaming = false;
-      paintHistory(ctx);
-      paintStatus(ctx, "success", "Response complete. Ask a follow-up or start a new chat.");
-    } catch (error) {
-      if (id !== turnId) return;
-      messages.pop();
-      paintHistory(ctx);
-      paintStatus(
-        ctx,
-        "danger",
-        `Could not get a response: ${error instanceof Error ? error.message : String(error)}. Check your connection or API configuration and try again.`,
-      );
-    } finally {
-      if (id === turnId) {
-        busy = false;
-        activeController = undefined;
-      }
-    }
-  }
-
-  function submitCurrent(ctx) {
-    if (busy) {
-      paintStatus(ctx, "warning", "Wait for the current response before sending another message.");
-      return;
-    }
-    const key = Object.keys(ctx.values()).find((id) => id.startsWith("message-"));
-    const text = key ? ctx.values()[key].trim() : "";
-    if (text) void runTurn(text, ctx);
-  }
-
-  await runInteractiveApp(appMarkup(), {
-    format: "html",
-    theme: options.theme,
-    width: options.width,
-    handlers: {
-      onSubmit(_form, _values, ctx) {
-        submitCurrent(ctx);
-      },
-      onKey(key, modifiers, ctx) {
-        if (key === "enter" && modifiers?.ctrl) submitCurrent(ctx);
-      },
-      onClick(id, _values, ctx) {
-        if (id !== "new") return;
-        turnId += 1;
-        activeController?.abort();
-        activeController = undefined;
-        busy = false;
-        messages.length = 0;
-        ctx.render(appMarkup(), "html");
-        paintStatus(ctx, "info", "New conversation ready.");
-      },
-      onError(message, ctx) {
-        if (message === "unknown mutation target 'status'") return;
-        paintStatus(ctx, "danger", message);
-      },
-    },
-  });
 }
 
 main().catch((error) => {

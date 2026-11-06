@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// examples/apps/settings-app.mjs — a small "nice CLI interface built from HTML"
+// examples/apps/settings/app.mjs — a small "nice CLI interface built from HTML"
 // reference app: a workspace-profile form driven by
 // interactive/host.ts's runInteractiveApp, with no NDJSON/subprocess in the
 // loop at all — this app talks to the InteractiveSession engine in-process.
@@ -7,14 +7,13 @@
 // It demonstrates:
 //   - authoring a screen entirely as semantic HTML, including a native radio
 //     group and textarea that TeML coalesces into composite widgets
-//   - live validation that re-renders the *same* screen with an inline
-//     error, preserving whatever the user already typed (ctx.render())
+//   - native required/maxLength validation with inline feedback that preserves edits
 //   - ending the interactive loop from a button handler (ctx.exit())
 //   - rendering a plain (non-interactive) TeML summary once the loop ends,
 //     reusing the exact same htmlToDoc -> layout -> render pipeline
 //
 // Usage:
-//   node examples/apps/settings-app.mjs
+//   node examples/apps/settings/app.mjs
 //   pnpm run demo:settings
 
 import { readFileSync } from "node:fs";
@@ -29,10 +28,10 @@ import {
   normalize,
   renderAnsi,
   renderPlain,
-} from "../../dist/index.js";
-import { runInteractiveApp } from "../../dist/interactive/host.js";
+} from "../../../dist/index.js";
+import { runInteractiveApp } from "../../../dist/interactive/host.js";
 
-const VIEW = readFileSync(new URL("./settings-app.html", import.meta.url), "utf8");
+const VIEW = readFileSync(new URL("./app.html", import.meta.url), "utf8");
 
 function escapeHtml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -40,12 +39,6 @@ function escapeHtml(s) {
 
 const FOOTER =
   "\x1b[2m(Tab focus · radio ←→ then Enter · textarea Enter newline/Ctrl+Enter next · Ctrl+C cancel)\x1b[0m";
-
-function validate(values) {
-  if (!values.name.trim()) return "Display name is required.";
-  if (values.notes.length > 240) return "Workspace note must be 240 characters or fewer.";
-  return null;
-}
 
 /** Render a one-shot (non-interactive) HTML fragment through the normal TeML pipeline. */
 function renderOnce(html, caps, theme) {
@@ -71,15 +64,6 @@ async function main() {
     footer: FOOTER,
     handlers: {
       onSubmit(_form, values, ctx) {
-        const error = validate(values);
-        if (error) {
-          ctx.replace(
-            "status",
-            `<div data-teml="grid" data-id="status"><div class="alert alert-danger">${escapeHtml(error)}</div></div>`,
-            "html",
-          );
-          return;
-        }
         outcome = { type: "saved", values };
         ctx.exit();
       },

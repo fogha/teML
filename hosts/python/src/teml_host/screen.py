@@ -17,6 +17,9 @@ from teml_host.types import (
 )
 
 
+MAX_PATCH_ROWS = 10_000
+
+
 class PreferredFrame(str, Enum):
     ANSI = "ansi"
     PLAIN = "plain"
@@ -106,6 +109,8 @@ class ScreenBuffer:
         self.last_seq = frame.seq
 
     def _staged_patch_rows(self, frame: PatchFrame) -> list[str]:
+        if frame.rows > MAX_PATCH_ROWS:
+            raise ValueError(f"patch frame exceeds the {MAX_PATCH_ROWS}-row limit")
         rows = list(self.rows)
         for patch in frame.patches:
             if patch.row < 0 or patch.row >= frame.rows:

@@ -68,6 +68,40 @@ func TestRejectsPatchFrameAtomically(t *testing.T) {
 	}
 }
 
+func TestPatchRowBudgetIsAtomic(t *testing.T) {
+	screen := NewBuffer(PreferredPlain)
+	if err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 1, FocusedID: nil,
+		Plain: strPtr("old"), ANSI: nil,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 2, FocusedID: nil, Rows: 10001,
+		Patches: []protocol.FramePatch{},
+	})
+	if err == nil || !strings.Contains(err.Error(), "10000-row limit") {
+		t.Fatalf("expected row-budget error, got %v", err)
+	}
+	if got := screen.Text(); got != "old" {
+		t.Fatalf("rejected frame changed rows: got %q", got)
+	}
+	if got := screen.LastSeq(); got != 1 {
+		t.Fatalf("rejected frame changed sequence: got %d", got)
+	}
+
+	if err := screen.Apply(protocol.SessionEvent{
+		Type: "frame", Seq: 2, FocusedID: nil, Rows: 10000,
+		Patches: []protocol.FramePatch{},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(screen.rows); got != 10000 {
+		t.Fatalf("accepted boundary has %d rows", got)
+	}
+}
+
 func TestRejectsInvalidViewportAtomically(t *testing.T) {
 	screen := NewBuffer(PreferredPlain)
 	if err := screen.Apply(protocol.SessionEvent{

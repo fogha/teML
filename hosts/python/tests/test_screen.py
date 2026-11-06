@@ -187,3 +187,18 @@ def test_accepts_full_resync_after_gap() -> None:
         FullFrame(seq=3, focused_id=None, plain=None, ansi="resynced\n")
     )
     assert screen.text() == "resynced"
+
+
+def test_patch_row_budget_rejects_excess_before_allocation() -> None:
+    screen = ScreenBuffer(PreferredFrame.PLAIN)
+    screen.apply(FullFrame(seq=1, focused_id=None, plain="old\n", ansi=None))
+
+    with pytest.raises(ValueError, match="10000-row limit"):
+        screen.apply(PatchFrame(seq=2, focused_id=None, rows=10_001, patches=()))
+
+    assert screen.text() == "old"
+    assert screen.last_seq == 1
+
+    screen.apply(PatchFrame(seq=2, focused_id=None, rows=10_000, patches=()))
+    assert screen.last_seq == 2
+    assert len(screen.rows) == 10_000

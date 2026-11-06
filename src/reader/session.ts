@@ -166,6 +166,7 @@ export class ReaderSession {
   private tocOffset = 0;
   private plainLines: string[];
   private documentLines: Line[];
+  private pendingHistoryIndex: number | null = null;
 
   constructor(options: ReaderSessionOptions) {
     this.detailed = options.detailed;
@@ -265,10 +266,13 @@ export class ReaderSession {
       this.model.history.push(historyEntry(this.model));
       this.model.historyIndex = this.model.history.length - 1;
     } else {
-      const saved = this.model.history[this.model.historyIndex];
+      const restoredIndex = this.pendingHistoryIndex ?? this.model.historyIndex;
+      const saved = this.model.history[restoredIndex];
+      this.model.historyIndex = restoredIndex;
       this.model.scrollRow = saved?.scrollRow ?? 0;
       this.model.focusedLinkId = saved?.focusedLinkId ?? null;
     }
+    this.pendingHistoryIndex = null;
     if (anchor) this.goToAnchor(anchor);
     this.clampScroll();
     return [this.frameEffect()];
@@ -502,7 +506,7 @@ export class ReaderSession {
     const targetIndex = this.model.historyIndex + direction;
     if (targetIndex < 0 || targetIndex >= this.model.history.length) return [];
     this.model.history[this.model.historyIndex] = historyEntry(this.model);
-    this.model.historyIndex = targetIndex;
+    this.pendingHistoryIndex = targetIndex;
     return [
       {
         type: "navigate",

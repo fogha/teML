@@ -12,6 +12,7 @@
 
 import type { Diagnostics, SanitizeOpts, TDoc } from "../core/index.js";
 import { sanitizeText } from "../core/index.js";
+import { sanitizeLabel } from "../core/sanitize.js";
 import { parseValidationRules, validateValue } from "../core/validate.js";
 import { documentCompilers } from "../document/frontends.js";
 import type { LayoutOpts } from "../layout/layout.js";
@@ -77,6 +78,7 @@ import type {
 } from "./protocol.js";
 import {
   checkMarkupBudget,
+  checkUpdatePropsBudget,
   ENGINE_CAPABILITIES,
   MAX_DOCUMENT_BLOCKS,
   MAX_MUTATION_TARGET_CHILDREN,
@@ -142,6 +144,7 @@ export class InteractiveSession {
   /** Cached full layout plus independently replaceable widget subtrees. */
   private layoutCache: InteractiveLayoutCache | undefined;
   private canvasRuntime: Map<string, CanvasSurface> | undefined;
+  private canvasDirty = true;
   private dirtyWidgetIds = new Set<string>();
   private scrollOffset = 0;
   private lastFrameOffset = 0;
@@ -338,7 +341,10 @@ export class InteractiveSession {
   }
 
   private canvases(): Map<string, CanvasSurface> {
-    this.canvasRuntime = reconcileCanvasSurfaces(this.doc, this.canvasRuntime);
+    if (this.canvasDirty || !this.canvasRuntime) {
+      this.canvasRuntime = reconcileCanvasSurfaces(this.doc, this.canvasRuntime, this.diags);
+      this.canvasDirty = false;
+    }
     return this.canvasRuntime;
   }
 
@@ -347,8 +353,11 @@ export class InteractiveSession {
     ops: Parameters<typeof applyCanvasOperations>[1],
   ): SessionEvent[] {
     const surface = this.canvases().get(id);
-    if (!surface) return [{ type: "error", message: `unknown canvas id '${id}'` }, this.frame()];
-    applyCanvasOperations(surface, ops);
+    if (!surface) {
+      return [{ type: "error", message: `unknown canvas id '${sanitizeLabel(id)}'` }, this.frame()];
+    }
+    const applied = applyCanvasOperations(surface, ops);
+    if (!applied.ok) return [{ type: "error", message: applied.error }, this.frame()];
     this.layoutCache = undefined;
     return [this.frame()];
   }
@@ -1033,11 +1042,13 @@ export class InteractiveSession {
   private handleUpdate(id: string, props: Record<string, string>): SessionEvent[] {
     const widget = this.updatables.find((candidate) => candidate.id === id);
     if (!widget) {
-      return [{ type: "error", message: `unknown update id '${id}'` }, this.frame()];
+      return [{ type: "error", message: `unknown update id '${sanitizeLabel(id)}'` }, this.frame()];
     }
+    const budget = checkUpdatePropsBudget(props);
+    if (!budget.ok) return [{ type: "error", message: budget.error }, this.frame()];
     const validated = validateUpdateProps(widget, props);
     if (!validated.ok) {
-      return [{ type: "error", message: validated.error }, this.frame()];
+      return [{ type: "error", message: sanitizeLabel(validated.error) }, this.frame()];
     }
     applyUpdateProps(widget, validated.sanitized);
     this.markWidgetDirty(id);
@@ -1055,7 +1066,7 @@ export class InteractiveSession {
       this.updatables.some((widget) => widget.id === target)
         ? `target '${target}' is not a mutation container`
         : `unknown mutation target '${target}'`);
-    return [{ type: "error", message }, this.frame()];
+    return [{ type: "error", message: sanitizeLabel(message) }, this.frame()];
   }
 
   private parsedMutationFragment(
@@ -1099,13 +1110,26 @@ export class InteractiveSession {
     }
   }
 
-  /** Refresh addressable indexes after structural surgery while carrying
-   * user-owned state for ids that survive (including ids recreated by a
-   * replacement fragment). */
-  private reconcileAfterMutation(
-    previousFocusables: FocusableWidget[],
-    previousUntouched: ReadonlySet<string>,
+  /** Commit one accepted document transition. Full renders reset editing defaults
+   * and scroll; mutations retain them. Only safe appends keep incremental layout. */
+  private transitionDocument(
+    doc: TDoc,
+    blockCount: number,
+    policy: { kind: "render" } | { kind: "mutation"; dirtyTarget?: string },
   ): void {
+    // Follow a visible focus target when content above it grows. If the user
+    // deliberately scrolled away, preserve that reading position instead.
+    const focusWasVisible = this.lastHits.some(
+      (hit) =>
+        hit.id === this.focusedId &&
+        hit.row >= this.lastFrameOffset &&
+        hit.row < this.lastFrameOffset + this.lastFrameRows,
+    );
+    const previousFocusables = this.focusables;
+    const previousUntouched = new Set(this.widgetState.untouchedDefault);
+    this.doc = doc;
+    this.documentBlockCount = blockCount;
+    this.canvasDirty = true;
     const previousRadioPending = new Map(this.widgetState.radioPending);
     const identity = collectInteractiveWidgets(this.doc, this.diags);
     const nextFocusables = identity.focusables;
@@ -1119,7 +1143,8 @@ export class InteractiveSession {
     if (this.focusedId == null || !nextFocusables.some((widget) => widget.id === this.focusedId)) {
       this.focusedId = nextFocusables[0]?.id ?? null;
     }
-    if (this.focusedId !== previousFocus) this.ensureFocusedVisible = true;
+    if (this.focusedId !== previousFocus || policy.kind === "render" || focusWasVisible)
+      this.ensureFocusedVisible = true;
 
     const survivingIds = new Set(nextFocusables.map((widget) => widget.id));
     this.widgetState.pruneTransient(survivingIds);
@@ -1130,7 +1155,8 @@ export class InteractiveSession {
       const previous = previousById.get(widget.id);
       const sameKind = previous?.name === widget.name;
       if (
-        (sameKind && previousUntouched.has(widget.id)) ||
+        (policy.kind === "render" && (widget.attrs.value ?? "") !== "") ||
+        (policy.kind === "mutation" && sameKind && previousUntouched.has(widget.id)) ||
         (!sameKind && (widget.attrs.value ?? "") !== "")
       ) {
         this.widgetState.untouchedDefault.add(widget.id);
@@ -1138,7 +1164,12 @@ export class InteractiveSession {
     }
     this.widgetState.radioPending.clear();
     for (const widget of nextFocusables) {
-      if (widget.name !== "radio" || previousById.get(widget.id)?.name !== "radio") continue;
+      if (
+        policy.kind === "render" ||
+        widget.name !== "radio" ||
+        previousById.get(widget.id)?.name !== "radio"
+      )
+        continue;
       const pending = previousRadioPending.get(widget.id);
       const optionCount = widget.options?.length ?? 0;
       if (pending !== undefined && optionCount > 0) {
@@ -1149,6 +1180,13 @@ export class InteractiveSession {
       }
     }
     this.initializeRadioPending(this.currentWidget());
+    if (policy.kind === "mutation" && policy.dirtyTarget) {
+      this.markWidgetDirty(policy.dirtyTarget);
+    } else {
+      this.layoutCache = undefined;
+      this.dirtyWidgetIds.clear();
+    }
+    if (policy.kind === "render") this.scrollOffset = 0;
   }
 
   private handleAppend(
@@ -1178,19 +1216,12 @@ export class InteractiveSession {
       );
     }
 
-    const previousFocusables = this.focusables;
-    const previousUntouched = new Set(this.widgetState.untouchedDefault);
     target.block.children = [...target.block.children, ...parsed.blocks];
-    this.documentBlockCount += appendedBlockCount;
-    this.reconcileAfterMutation(previousFocusables, previousUntouched);
-
     const forceFull = containsFootnoteContent(parsed.blocks);
-    if (forceFull) {
-      this.layoutCache = undefined;
-      this.dirtyWidgetIds.clear();
-    } else {
-      this.markWidgetDirty(targetId);
-    }
+    this.transitionDocument(this.doc, this.documentBlockCount + appendedBlockCount, {
+      kind: "mutation",
+      dirtyTarget: forceFull ? undefined : targetId,
+    });
     return [this.frame(forceFull)];
   }
 
@@ -1214,27 +1245,19 @@ export class InteractiveSession {
       );
     }
 
-    const previousFocusables = this.focusables;
-    const previousUntouched = new Set(this.widgetState.untouchedDefault);
     target.parent.splice(target.index, 1, ...parsed.blocks);
-    this.documentBlockCount = nextCount;
-    this.reconcileAfterMutation(previousFocusables, previousUntouched);
-    this.layoutCache = undefined;
-    this.dirtyWidgetIds.clear();
+    this.transitionDocument(this.doc, nextCount, { kind: "mutation" });
     return [this.frame(true)];
   }
 
   private handleRemove(targetId: string): SessionEvent[] {
     const target = this.mutationTarget(targetId);
     if (!target) return this.mutationError(targetId);
-    const previousFocusables = this.focusables;
-    const previousUntouched = new Set(this.widgetState.untouchedDefault);
     const removedBlockCount = countBlocks([target.block]);
     target.parent.splice(target.index, 1);
-    this.documentBlockCount -= removedBlockCount;
-    this.reconcileAfterMutation(previousFocusables, previousUntouched);
-    this.layoutCache = undefined;
-    this.dirtyWidgetIds.clear();
+    this.transitionDocument(this.doc, this.documentBlockCount - removedBlockCount, {
+      kind: "mutation",
+    });
     return [this.frame(true)];
   }
 
@@ -1261,32 +1284,7 @@ export class InteractiveSession {
         this.frame(true),
       ];
     }
-    const identity = collectInteractiveWidgets(newDoc, this.diags);
-    const newFocusables = identity.focusables;
-    this.carryWidgetValues(this.focusables, newFocusables);
-
-    this.doc = newDoc;
-    this.documentBlockCount = renderedBlockCount;
-    this.focusables = newFocusables;
-    this.updatables = identity.updatables;
-    this.mutationTargets = identity.mutationTargets;
-    const keepFocus = this.focusedId != null && newFocusables.some((w) => w.id === this.focusedId);
-    if (!keepFocus) this.focusedId = newFocusables[0]?.id ?? null;
-    this.layoutCache = undefined;
-    this.dirtyWidgetIds.clear();
-    this.scrollOffset = 0;
-    this.ensureFocusedVisible = true;
-
-    // Drop cursor positions for widgets that no longer exist; surviving ids
-    // keep their position, clamped lazily on next read by cursorFor.
-    const survivingIds = new Set(newFocusables.map((w) => w.id));
-    this.widgetState.pruneTransient(survivingIds);
-    this.widgetState.radioPending.clear();
-    this.initializeRadioPending(this.currentWidget());
-
-    // A render is a fresh document: every non-empty input value (whether
-    // freshly parsed or carried over above) is an untouched default again.
-    this.markDefaultsUntouched(newFocusables);
+    this.transitionDocument(newDoc, renderedBlockCount, { kind: "render" });
 
     // A swapped document invalidates the host's row state — re-sync in full.
     return [this.frame(true)];

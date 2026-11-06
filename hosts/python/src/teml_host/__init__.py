@@ -6,7 +6,7 @@ from teml_host.app import Context, Values, run, run_headless
 from teml_host.engine import EngineInfo, engine_invocation, is_javascript_entry, resolve_engine
 from teml_host.paint import paint
 from teml_host.screen import PreferredFrame, ScreenBuffer, ScrollRegion, Viewport
-from teml_host.session import Session, SessionError
+from teml_host.session import Session, SessionError, SessionTimeout
 from teml_host.terminal import (
     MouseGuard,
     PosixStdinEvents,
@@ -119,6 +119,7 @@ __all__ = [
     "ScrollRegionMeta",
     "Session",
     "SessionError",
+    "SessionTimeout",
     "SessionEvent",
     "SubmitEvent",
     "TermGuard",

@@ -174,6 +174,33 @@ describe("ReaderSession", () => {
     expect(reader.state().scrollRow).toBe(1);
   });
 
+  test("failed history navigation commits nothing until a retry succeeds", () => {
+    const reader = session();
+    reader.handle({ type: "key", key: "down" });
+    reader.setDocument(docPath("next.teml"), "Next", detailed(), "push");
+
+    expect(effectOf(reader.handle({ type: "char", char: "b" }), "navigate")?.path).toBe(
+      docPath("index.teml"),
+    );
+    expect(reader.state()).toMatchObject({
+      historyIndex: 1,
+      currentPath: docPath("next.teml"),
+    });
+    reader.report("cannot open target");
+    expect(reader.state().message).toBe("cannot open target");
+
+    reader.handle({ type: "char", char: "b" });
+    reader.setDocument(docPath("index.teml"), "Index", detailed(), "restore");
+    expect(reader.state()).toMatchObject({ historyIndex: 0, scrollRow: 1 });
+
+    reader.handle({ type: "char", char: "f" });
+    reader.report("forward target missing");
+    expect(reader.state()).toMatchObject({
+      historyIndex: 0,
+      currentPath: docPath("index.teml"),
+    });
+  });
+
   test("resize clamps state and emits a full-sized frame", () => {
     const reader = session();
     const effects = reader.handle({ type: "resize", cols: 10, rows: 2 });

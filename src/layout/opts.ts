@@ -36,7 +36,7 @@ export type ScrollRegionRuntime = {
 
 export type LayoutOpts = {
   width: number;
-  /** Shared defaults for button/input/textarea boxes; markup can override per field. */
+  /** Shared field spacing; width defaults apply to inputs/textareas. Buttons use intrinsic width unless explicitly sized. */
   fields?: FieldLayoutConfig;
   theme: Theme;
   caps: Capabilities;

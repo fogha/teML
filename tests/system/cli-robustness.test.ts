@@ -1,7 +1,7 @@
 // Regression tests for robustness defects found by the CLI sweep. These drive
 // the built CLI over real pipes, which is where all three were visible.
 import { spawn, spawnSync } from "node:child_process";
-import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "vitest";
@@ -76,4 +76,35 @@ test("render clamps an extreme --width to the terminal dimension limit", () => {
   expect(r.status).toBe(0);
   const widest = Math.max(...r.stdout.split("\n").map((line) => [...line].length));
   expect(widest).toBeLessThanOrEqual(10_000);
+});
+
+test("pathological documents degrade through the built CLI", () => {
+  withTempDir((dir) => {
+    const cases = [
+      {
+        name: "delimiters.md",
+        source: "prefix" + "*".repeat(3_400_000),
+        diagnostic: "implausibly long run of emphasis delimiters",
+        output: "prefix",
+      },
+      {
+        name: "nested.html",
+        source: "<div>".repeat(5_000) + "x" + "</div>".repeat(5_000),
+        diagnostic: "nests inline markup too deeply for the parser",
+        output: "<div><div>",
+      },
+    ];
+    for (const { name, source, diagnostic, output } of cases) {
+      const file = join(dir, name);
+      writeFileSync(file, source);
+      const result = spawnSync("node", [CLI, "view", file, "--no-color", "--width", "40"], {
+        encoding: "utf8",
+        timeout: 30_000,
+        maxBuffer: 16 * 1024 * 1024,
+      });
+      expect(result.status, name).toBe(0);
+      expect(result.stderr, name).toContain(diagnostic);
+      expect(result.stdout, name).toContain(output);
+    }
+  });
 });

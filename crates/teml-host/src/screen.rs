@@ -4,6 +4,8 @@
 use crate::protocol::{Frame, FrameFormat, ProtocolVersion, ScrollRegionMeta, ViewportMeta};
 use std::io;
 
+const MAX_PATCH_ROWS: u64 = 10000;
+
 /// Which rendered payload [`ScreenBuffer`] prefers when applying frames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PreferredFrame {
@@ -111,6 +113,11 @@ impl ScreenBuffer {
             let row_count = frame
                 .rows
                 .ok_or_else(|| invalid("patch frame needs a non-negative rows count"))?;
+            if row_count > MAX_PATCH_ROWS {
+                return Err(invalid(format!(
+                    "patch frame exceeds the {MAX_PATCH_ROWS}-row limit"
+                )));
+            }
             let row_count = usize_from(row_count);
 
             let mut staged = self.rows.clone();
@@ -393,6 +400,37 @@ mod tests {
         assert!(error.to_string().contains("outside"));
         assert_eq!(screen.text(), "old");
         assert_eq!(screen.last_seq(), 1);
+    }
+
+    #[test]
+    fn patch_row_budget_rejects_excess_before_allocation() {
+        let mut screen = ScreenBuffer::new(PreferredFrame::Plain);
+        screen.apply(&frame_full(1, "old\n")).expect("full");
+
+        let error = screen
+            .apply(&frame_from_json(json!({
+                "type": "frame",
+                "seq": 2,
+                "focusedId": "name",
+                "rows": 10001,
+                "patches": []
+            })))
+            .expect_err("row budget");
+        assert!(error.to_string().contains("10000-row limit"));
+        assert_eq!(screen.text(), "old");
+        assert_eq!(screen.last_seq(), 1);
+
+        screen
+            .apply(&frame_from_json(json!({
+                "type": "frame",
+                "seq": 2,
+                "focusedId": "name",
+                "rows": 10000,
+                "patches": []
+            })))
+            .expect("boundary");
+        assert_eq!(screen.rows.len(), 10000);
+        assert_eq!(screen.last_seq(), 2);
     }
 
     #[test]

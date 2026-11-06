@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// examples/bindings-demo.mjs — a small HTML-authored interface whose live
+// examples/apps/bindings/demo.mjs — a small HTML-authored interface whose live
 // values are host variables, reflected through id-keyed bindings (docs/architecture.md).
 //
 // Assigning a string to `state[id]` mutates a live ::metric/::progress widget
@@ -8,9 +8,9 @@
 // same event loop between input events.
 //
 // Usage:
-//   node examples/apps/bindings-demo.mjs
+//   node examples/apps/bindings/demo.mjs
 
-import { bindings, runInteractiveApp } from "../../dist/interactive/host.js";
+import { bindings, runInteractiveApp } from "../../../dist/interactive/host.js";
 
 const state = bindings();
 

@@ -176,6 +176,8 @@ One JSON object per line on stdin.
 
 The engine rejects a `char` payload larger than 64 KiB and a `render`,
 `replace`, or `append` markup payload larger than 4 MiB (measured as UTF-8).
+An `update` command's prop keys and values are independently limited to 64 KiB
+of UTF-8 data in total, on both the wire and direct in-process paths.
 An NDJSON line
 is capped at 8 MiB before JSON parsing; an oversized line emits one `error`,
 is discarded through its terminating newline, and the session then accepts
@@ -194,6 +196,13 @@ at most 10,000 operations. `fillRect` requires finite numeric coordinates and
 non-negative dimensions; fractional values are truncated and rectangles are
 clipped to the surface. `fillStyle` accepts only a `#RRGGBB` color. An invalid
 operation rejects the command before any drawing is applied.
+
+Across one document, at most 1,048,576 canvas pixels are allocated. Canvases
+beyond that aggregate budget render as placeholders and produce a
+`canvas-pixels-over-budget` diagnostic. Each command also has a preflight
+budget of 1,048,576 work units: `clear` costs the surface's pixel count, and
+`fillRect` costs its clipped area plus one unit per touched row. Exceeding the
+work budget rejects the whole batch before changing pixels or fill style.
 
 Canvas is a data-only pixel surface, not a browser scripting environment. It
 has no URL or image-fetching operation, executes no client-side JavaScript, and
@@ -1032,7 +1041,7 @@ checkboxes remain on `ctx.values()`. See [host-owned bindings](architecture.md#h
 readable/writable stream — raw mode and mouse tracking only engage when the
 stream looks like a real TTY (has a callable `setRawMode`), so the same
 function works against a `PassThrough` in tests. See
-`examples/apps/settings-app.mjs` (`pnpm run demo:settings`) for a complete
+`examples/apps/settings/app.mjs` (`pnpm run demo:settings`) for a complete
 HTML-authored workspace profile with native radios, a textarea, and validation,
 and
 `tests/system/interactive-journey.test.ts` for the integrated test-harness
@@ -1107,7 +1116,19 @@ language is specified in
 | JavaScript reference host (real TTY, mouse, keys)                     | `examples/interactive/interactive-host.mjs`                     |
 | Rust reference host + equivalence tests                               | `examples/rust-host/`                                           |
 | In-process Node host (`runInteractiveApp`)                            | `src/interactive/host.ts`                                       |
-| Example app built on `runInteractiveApp`                              | `examples/apps/settings-app.mjs`                                |
+| Example app built on `runInteractiveApp`                              | `examples/apps/settings/app.mjs`                                |
 | Rust handler driver (`run`, `App`, `Context`)                         | `crates/teml-host/src/app.rs`                                   |
 | Go handler driver (`Run`, `Handlers`, `Context`)                      | `hosts/go/app/app.go`                                           |
 | Python handler driver (`run`, `Context`)                              | `hosts/python/src/teml_host/app.py`                             |
+
+### Action layout
+
+Buttons have intrinsic width unless markup supplies `width`; app-level field width
+applies to text fields. `variant="secondary"` (HTML `data-variant="secondary"`)
+changes appearance, not focus or activation semantics. A `row` groups actions and
+wraps them at its available width. Keep submit and ordinary actions inside their
+owning form, using `type="submit"` and `type="button"` respectively in HTML.
+
+The default frame golden was regenerated for compact button geometry. Event types,
+sequencing, and protocol negotiation are unchanged; rendered button widths and fill
+are an intentional visual change.

@@ -72,8 +72,10 @@ input text leaves but is not a general deep-clone guarantee.
 The startup clone is document-sized; commands retain incremental layout.
 `carryWidgetValues` centralizes value carry-over across document replacement.
 `WidgetState` holds transient id-keyed editing state; shared viewport math lives
-in `src/layout/viewport.ts`. Document transitions must reconcile indexes, state,
-and cached geometry together. See maintenance for remaining reconciliation work.
+in `src/layout/viewport.ts`. `transitionDocument` commits indexes, state, and cache invalidation together.
+Full renders reset defaults/scroll; mutations preserve surviving state and safe
+appends invalidate only their containing layout block. Canvas surfaces are lazily
+reconciled after transitions and retain unchanged pixel buffers.
 
 Revisit a separate live-value store if undo/reset, structured widget values,
 or multiple consumers of original and live documents become requirements.

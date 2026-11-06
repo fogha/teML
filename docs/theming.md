@@ -40,6 +40,15 @@ Each theme JSON contains:
 
 Roles used by the layout engine include: `heading1`–`heading4`, `paragraph`, `link`, `code`, `border`, `muted`, `success`, `warning`, `error`, `info`, `highlight`, and container-specific chrome.
 
+Buttons use the optional `button` role for their solid default fill and the
+existing `focus` role when focused. Built-in dark/auto themes use cyan and light
+uses blue; mono uses weight only. Custom themes without `button` fall back to
+`focus` for the default solid treatment. Border glyphs remain neutral; only the
+button's interior and padding are filled, including spaces between label words.
+`variant="secondary"` uses `buttonSecondary` (a neutral foreground in built-in
+color themes); focused primary and secondary buttons both use `focus`. The
+textual focus marker remains visible in monochrome output.
+
 ## Custom roles from frontmatter
 
 Merge document-specific roles without editing the theme file:

@@ -25,6 +25,7 @@ export const DIRECTIVE_REGISTRY = {
     grid: {
       attrs: ["id", "columns", "gap", "width", "padding", "margin", "align", "frame", "title"],
     },
+    row: { attrs: ["id", "gap", "width", "padding", "margin", "align"] },
     details: { attrs: ["id", "summary", "open"] },
     figure: { attrs: ["id", "caption"] },
     radio: { attrs: ["id", "value"] },
@@ -39,7 +40,7 @@ export const DIRECTIVE_REGISTRY = {
     metric: { attrs: ["id", "label", "value", "role", "change"] },
     progress: { attrs: ["id", "label", "value", "max", "role"] },
     event: { attrs: ["time", "title", "detail", "role"] },
-    button: { attrs: ["id", "label", "submit", "width", "padding", "margin"] },
+    button: { attrs: ["id", "label", "submit", "variant", "width", "padding", "margin", "align"] },
     input: {
       attrs: [
         "id",
@@ -50,6 +51,7 @@ export const DIRECTIVE_REGISTRY = {
         "width",
         "padding",
         "margin",
+        "align",
         ...VALIDATION_ATTRS,
       ],
     },
@@ -66,6 +68,7 @@ export const DIRECTIVE_REGISTRY = {
         "width",
         "padding",
         "margin",
+        "align",
         ...TEXTAREA_VALIDATION_ATTRS,
       ],
     },
@@ -104,6 +107,7 @@ export const MUTATION_CONTAINERS = new Set([
   "card",
   ...ALERT_CONTAINERS,
   "grid",
+  "row",
   "details",
   "figure",
   "scroll",

@@ -127,7 +127,7 @@ console.log(`Saved ${values.channel}: ${values.notes}`);
 Inputs, textareas, radio groups, checkboxes, buttons, bounded scroll regions,
 validation rerenders, contextual keyboard focus, mouse
 clicks, and terminal cleanup are handled by TeML. See
-[`examples/apps/settings-app.mjs`](examples/apps/settings-app.mjs) for a complete app.
+[`examples/apps/settings/app.mjs`](examples/apps/settings/app.mjs) for a complete app.
 
 ## Explore the examples
 
