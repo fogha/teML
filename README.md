@@ -5,22 +5,27 @@
 Build readable terminal documents and interactive CLI interfaces from **TeML**,
 **Markdown**, or semantic **HTML**.
 
+- **Render a document:** print a file once with `teml view`.
+- **Browse documentation:** use `teml read` for full-screen search and navigation.
+- **Build an interactive app:** supply a view and event handlers through the Node,
+  Rust, Go, or Python host library. TeML handles layout, input, and terminal painting.
+
+This README describes the current source. Published releases may have fewer
+features; use [the source setup below](#explore-the-examples) to try the latest examples.
+
 ## Install
 
-Install the small prebuilt package attached to the latest GitHub Release—not the
-repository or its development dependencies:
+Requires **Node ≥ 20** and **pnpm ≥ 10**. Install the prebuilt package attached to
+the [latest GitHub Release](https://github.com/fogha/teML/releases/latest):
 
 ```bash
 pnpm add --global https://github.com/fogha/teML/releases/latest/download/teml.tgz
 teml --version
 ```
 
-Requires **Node ≥ 20**. Replace `latest` with a tag (for example
-`download/v0.2.1/teml.tgz`) to pin an exact build.
-
-> **Not on npm yet.** Registry publishing landed in v0.3.0 and runs on a release
-> tag, so `npm install --global teml` starts working with the v0.3.0 release. Until
-> then the Release tarball above is the supported install.
+To pin a release, use its full asset URL, for example
+`https://github.com/fogha/teML/releases/download/v0.2.1/teml.tgz`.
+These instructions use release assets and do not depend on npm registry publication.
 
 ### Host libraries
 
@@ -32,15 +37,15 @@ document works from any of them:
 go get github.com/fogha/teml/hosts/go            # Go — resolves from the repository
 ```
 
-The Rust and Python libraries are complete and tested in-repo but are not on
-crates.io or PyPI until the v0.3.0 release publishes them. Until then, depend on
-them from a checkout—see [`crates/teml-host`](crates/teml-host/README.md) and
-[`hosts/python`](hosts/python/README.md).
+For checkout-based Rust and Python installation, see the
+[Rust host guide](crates/teml-host/README.md) and
+[Python host guide](hosts/python/README.md). The
+[Go host guide](hosts/go/README.md) covers its API and engine discovery.
 
-Node programs need no extra package: `teml/interactive` exports
-`runInteractiveApp` for in-process use. A host library locates the engine
-installed above, so install `teml` too — see
-[docs/interactive-protocol.md](docs/interactive-protocol.md).
+Rust, Go, and Python hosts start a separate TeML engine: install the CLI above
+or point the host at a built checkout. Node apps instead use `teml/interactive`
+from their application's local dependency and run the engine in-process; they
+do not need a separate global CLI installation.
 
 ## Quick start
 
@@ -54,6 +59,11 @@ Run `teml --help` for an overview or `teml help <command>` for detailed
 behavior, options, keys, and examples. The complete reference is in
 [docs/cli.md](docs/cli.md).
 
+`view` prints output and exits; it does not activate buttons or text fields.
+`read` requires a real terminal. `teml run` is the NDJSON protocol endpoint for
+host programs, not a keyboard-driven app on its own. To try editable forms,
+run [one of the interactive examples](#explore-the-examples).
+
 ## Library API
 
 Install the same GitHub Release locally in your application:
@@ -62,7 +72,12 @@ Install the same GitHub Release locally in your application:
 pnpm add https://github.com/fogha/teML/releases/latest/download/teml.tgz
 ```
 
-```ts
+The snippets below use JavaScript modules. Save them as `.mjs` files and run
+them with `node`, or use a project with `"type": "module"`. Interactive snippets
+require a real terminal. For APIs not yet included in a release, build a checkout
+and install it into your application with `pnpm add /absolute/path/to/teML`.
+
+```js
 import { Diagnostics, parseTeml, serializeTeml } from "teml";
 
 const document = parseTeml("# Deploy report\n", new Diagnostics());
@@ -80,19 +95,27 @@ a subprocess — see
 lets the host reflect a variable change into a live `::metric`/`::progress`
 widget just by assigning to it:
 
-```ts
+```js
 import { bindings, runInteractiveApp } from "teml/interactive";
 
 const state = bindings();
-runInteractiveApp('::metric{id="cpu" value="0%"}', {
-  format: "teml",
-  state,
-  handlers: {
-    onClick(id, _values, ctx) {
-      if (id === "refresh") state.cpu = "99%"; // → update{id:"cpu", props:{value:"99%"}}
+await runInteractiveApp(
+  `::metric{id="cpu" value="0%"}
+
+::button{id="refresh" label="Refresh"}
+
+::button{id="quit" label="Quit"}`,
+  {
+    format: "teml",
+    state,
+    handlers: {
+      onClick(id, _values, ctx) {
+        if (id === "refresh") state.cpu = "99%"; // → update{id:"cpu", props:{value:"99%"}}
+        if (id === "quit") ctx.exit();
+      },
     },
   },
-});
+);
 ```
 
 ## Build a CLI interface with HTML
@@ -125,24 +148,49 @@ console.log(`Saved ${values.channel}: ${values.notes}`);
 ```
 
 Inputs, textareas, radio groups, checkboxes, buttons, bounded scroll regions,
-validation rerenders, contextual keyboard focus, mouse
-clicks, and terminal cleanup are handled by TeML. See
+inline validation, keyboard focus, mouse clicks, and terminal cleanup are handled
+by TeML. HTML is mapped to terminal widgets; browser CSS and scripts do not run.
+Save in this example returns the values to JavaScript; your code decides whether
+to write them to a file or service. See
 [`examples/apps/settings/app.mjs`](examples/apps/settings/app.mjs) for a complete app.
+
+Use Tab/Shift+Tab to move between controls, Space to select a radio option or
+toggle a checkbox, and Enter to activate a button. Enter adds a newline in a
+textarea; Ctrl+Enter advances focus. Ctrl+C exits and restores the terminal.
+While typing, input and textarea text stays plain with a caret and focus marker.
+An untouched default selected for replacement is highlighted until you type or
+collapse the selection with an arrow key. See [the theming guide](docs/theming.md)
+for button and selection styles.
 
 ## Explore the examples
 
-After `pnpm run build`:
+Examples live in the repository. With Node ≥ 20 and pnpm ≥ 10 installed:
 
 ```bash
-pnpm run demo:go-host       # a Go program driving a terminal form (also :python-host, :rust-host)
-pnpm run demo:chat --mock   # LLM replies rendered as cards, alerts, and metrics
-pnpm run demo:settings      # semantic HTML app with validation rerenders, in-process
-pnpm run demo:command-center # an existing HTML dashboard as a terminal document
-pnpm run demo:interactive   # widget mechanics: radio, textarea, bounded scroll
+git clone https://github.com/fogha/teML.git
+cd teML
+pnpm install
+pnpm run build
 ```
 
-The Go, Python, and Rust hosts all render the *same*
-[28-line HTML view](hosts/go/examples/incident-handoff/view.html) — a labelled
+Then choose a demo. Interactive demos require a real terminal:
+
+```bash
+pnpm run demo:settings      # editable profile with inline validation and Save/Cancel
+pnpm run demo:chat -- --mock # simulated streaming chat; no API key or network needed
+pnpm run demo:command-center # render a static TeML dashboard
+pnpm run demo:interactive   # widget mechanics: radio, textarea, bounded scroll
+pnpm run demo:snake-prototype # keyboard-controlled canvas game
+```
+
+For a pipe-friendly chat preview, run
+`pnpm run demo:chat -- --mock --once "Hello"`.
+The [example catalog](examples/README.md) lists every demo and its entry point.
+
+`pnpm run demo:go-host`, `pnpm run demo:python-host`, and
+`pnpm run demo:rust-host` require Go 1.23+, Python 3.11+, and stable Rust,
+respectively. These hosts all render the same
+[HTML view](hosts/go/examples/incident-handoff/view.html) — a labelled
 input, a radio group, a textarea, a bounded scroll region, a checkbox, and two
 buttons — with no UI code and no TeML-specific markup in any of the three. Each
 host only decides what happens when an event arrives. `demo:chat` needs no API
@@ -153,20 +201,21 @@ its key hints when a bounded scroll region has focus.
 
 ## Documentation
 
-| Doc                                                                                        | Contents                                                              |
-| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| [docs/spec.md](docs/spec.md)                                                               | Format specification (directives, security, conformance)              |
-| [docs/cli.md](docs/cli.md)                                                                 | CLI reference (commands, flags, exit codes)                           |
-| [docs/reader.md](docs/reader.md)                                                           | Full-screen Reader keymap, navigation security, and terminal recovery |
-| [docs/interactive-protocol.md](docs/interactive-protocol.md)                               | App-host commands, events, frame negotiation, and patches             |
-| [docs/architecture.md](docs/architecture.md)                                             | Engine boundaries, state ownership, bindings, and distribution        |
-| [docs/host-porting-playbook.md](docs/host-porting-playbook.md)                             | Contract and conformance steps for porting a host to a new language   |
-| [docs/maintenance.md](docs/maintenance.md)                                               | Open findings, refactoring priorities, and verification evidence       |
-| [docs/product.md](docs/product.md)                                                         | Product direction: release themes, non-goals, adoption metrics        |
-| [docs/theming.md](docs/theming.md)                                                         | Themes, roles, ASCII/color fallbacks                                  |
-| [docs/tutorial.md](docs/tutorial.md)                                                       | 5-minute first conversion walkthrough                                 |
-| [CONTRIBUTING.md](CONTRIBUTING.md)                                                         | Dev setup, testing, and PR expectations                               |
-| [CHANGELOG.md](CHANGELOG.md)                                                               | Release history                                                       |
+| Doc                                                            | Contents                                                              |
+| -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [docs/spec.md](docs/spec.md)                                   | Format specification (directives, security, conformance)              |
+| [docs/cli.md](docs/cli.md)                                     | CLI reference (commands, flags, exit codes)                           |
+| [docs/reader.md](docs/reader.md)                               | Full-screen Reader keymap, navigation security, and terminal recovery |
+| [docs/interactive-protocol.md](docs/interactive-protocol.md)   | App-host commands, events, frame negotiation, and patches             |
+| [docs/architecture.md](docs/architecture.md)                   | Engine boundaries, state ownership, bindings, and distribution        |
+| [docs/host-porting-playbook.md](docs/host-porting-playbook.md) | Contract and conformance steps for porting a host to a new language   |
+| [docs/maintenance.md](docs/maintenance.md)                     | Open findings, refactoring priorities, and verification evidence      |
+| [docs/product.md](docs/product.md)                             | Product direction: release themes, non-goals, adoption metrics        |
+| [docs/theming.md](docs/theming.md)                             | Themes, roles, ASCII/color fallbacks                                  |
+| [docs/tutorial.md](docs/tutorial.md)                           | 5-minute first conversion walkthrough                                 |
+| [examples/README.md](examples/README.md)                       | Demo commands, prerequisites, and app locations                       |
+| [CONTRIBUTING.md](CONTRIBUTING.md)                             | Dev setup, testing, and PR expectations                               |
+| [CHANGELOG.md](CHANGELOG.md)                                   | Release history                                                       |
 
 ## Pipeline
 
@@ -205,10 +254,15 @@ teml/
 ├── src/markdown/      Markdown interop
 ├── src/html/          HTML parse, extract, map, profiles
 ├── src/layout/        Width-aware layout (tables, cards, lists, …)
+├── src/interactive/   Session state, protocol, Node host, bindings
+├── src/reader/        Full-screen document navigation
 ├── src/render/        ansi (sole ESC emitter) + plain
 ├── src/terminal/      capabilities, themes (JSON)
 ├── src/cli/           Commander CLI
-├── fixtures/          ≥30 TeML, ≥20 HTML, ≥10 Markdown conformance corpus
+├── crates/teml-host/  Rust host library
+├── hosts/             Go and Python host libraries
+├── examples/          App demos, static markup, and reference hosts
+├── fixtures/          Markup, protocol, and fake-engine conformance inputs
 ├── tests/             snapshots, security, CLI subprocess, perf gates
 └── docs/              spec, CLI, theming, tutorial
 ```
