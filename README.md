@@ -13,6 +13,17 @@ Build readable terminal documents and interactive CLI interfaces from **TeML**,
 This README describes the current source. Published releases may have fewer
 features; use [the source setup below](#explore-the-examples) to try the latest examples.
 
+## Demo gallery
+
+Terminal captures rendered from the demos' actual ANSI output. Click an image
+for the full-size view. Run these commands after [building the checkout](#explore-the-examples).
+
+| Demo                                                                                                                                                                       | Preview                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Service dashboard** — metrics, progress bars, cards, and a service-health table. Sample data; the image shows the upper section.<br><br>`pnpm run demo:command-center`   | [<img src="docs/images/dashboard.png" width="480" alt="Service dashboard with four metrics, colored resource bars, two status cards, and a service-health table">](docs/images/dashboard.png) |
+| **Streaming chat** — rich responses, an editable composer, and compact Send/New chat actions. Captured with the local mock response.<br><br>`pnpm run demo:chat -- --mock` | [<img src="docs/images/chat.png" width="480" alt="Mock chat response with headings, a list, a code sample, and the message composer with Send and New chat buttons">](docs/images/chat.png)   |
+| **Snake** — a keyboard-controlled canvas game rendered with terminal half-blocks. Shown paused.<br><br>`pnpm run demo:snake-prototype`                                     | [<img src="docs/images/snake.png" width="480" alt="Paused Snake game with a green snake, red food, a checkerboard canvas, score, and keyboard hints">](docs/images/snake.png)                 |
+
 ## Install
 
 Requires **Node ≥ 20** and **pnpm ≥ 10**. Install the prebuilt package attached to
