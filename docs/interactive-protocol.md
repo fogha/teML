@@ -346,6 +346,11 @@ Unicode) at its exact position within the value — see
 `fixtures/teml/36-interactive-form.teml` / `tests/layout/interactive.test.ts`
 for what that looks like.
 
+During normal editing, input and textarea values remain unstyled, including
+the caret: focus does not highlight the entered text. The textual focus marker
+and caret indicate the active field. Selection of an untouched default is a
+separate state and retains its highlight until replaced or collapsed.
+
 For a textarea, wrapping derives a visual `(line,column)` from that canonical
 grapheme offset at the current width. Up/Down preserve a preferred terminal-cell
 column, and resize/reflow never rewrites the canonical cursor. By default,
@@ -689,7 +694,9 @@ The default frame is the backward-compatible v1 shape:
 ```
 
 `plain` is always ANSI-free. `ansi` respects the theme and capabilities teml
-started with. Negotiating a single format with `configure` or `--frames`
+started with, but may contain no escape sequences when no styling is needed.
+For example, a patch containing only an input's edited text can be identical
+in both formats. Negotiating a single format with `configure` or `--frames`
 turns the other field `null`.
 
 The initial frame, the `configure` acknowledgement, every successful

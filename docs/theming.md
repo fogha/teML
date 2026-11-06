@@ -49,6 +49,14 @@ button's interior and padding are filled, including spaces between label words.
 color themes); focused primary and secondary buttons both use `focus`. The
 textual focus marker remains visible in monochrome output.
 
+Focused inputs and textareas keep their text unstyled during normal editing:
+the caret (`▏`, or `|` in ASCII) and textual focus marker identify the active
+field. Focus alone does not apply background color, bold, or underline to the
+value. An untouched default selected for replacement still uses `focus` with
+no caret; typing or collapsing that selection restores plain editing text.
+Placeholders retain the `muted` role. Button, checkbox, and radio focus styling
+is unchanged.
+
 ## Custom roles from frontmatter
 
 Merge document-specific roles without editing the theme file:

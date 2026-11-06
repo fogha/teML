@@ -1,10 +1,10 @@
 // layout/interactive.ts — button/input/checkbox leaf layout (M-interactive step 3).
 //
-// Focus is carried two ways: a theme "focus" role (color/bold, lost on
-// --no-color) and a literal textual marker (▸ / >), which is the load-bearing
-// signal for the plain backend and for anyone grepping output. Neither
-// widget ever emits raw ANSI itself — resolveRole + the single ANSI emitter
-// still own that. The marker is prepended outside wrapSpans (like list
+// Focus always has a literal textual marker (▸ / >). Action and choice widgets
+// also use the theme "focus" role; text fields use it only for selected values,
+// keeping ordinary editing text plain with a caret. Widgets never emit raw ANSI
+// themselves — resolveRole + the single ANSI emitter own that.
+// The marker is prepended outside wrapSpans (like list
 // markers in layoutList) so the reserved gutter survives word-wrapping.
 
 import type { Block } from "../core/index.js";
@@ -272,7 +272,8 @@ export function layoutInput(
   const value = b.attrs.value ?? "";
   const placeholder = b.attrs.placeholder?.trim();
   const muted = resolveRole(theme, "muted", diags);
-  const fieldStyle = focused ? resolveRole(theme, "focus", diags) : {};
+  // Focus alone must not look like a text selection while editing.
+  const fieldStyle = focused && opts.selectionActive ? resolveRole(theme, "focus", diags) : {};
 
   const caret = caps.unicode ? "▏" : "|";
   const maskedInput = masked(b.attrs);
@@ -409,7 +410,8 @@ export function layoutTextarea(
   const maxOffset = Math.max(0, visual.length - rows);
   const offset = Math.max(0, Math.min(maxOffset, opts.textareaScrollOffsets?.get(id ?? "") ?? 0));
   const chars = graphemes(value);
-  const fieldStyle = focused ? resolveRole(opts.theme, "focus", opts.diags) : {};
+  const fieldStyle =
+    focused && opts.selectionActive ? resolveRole(opts.theme, "focus", opts.diags) : {};
   const muted = resolveRole(opts.theme, "muted", opts.diags);
   const genericMetadata = interactiveId
     ? { interactiveId, interactiveKind: "widget" as const }

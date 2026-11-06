@@ -811,8 +811,9 @@ test("patches mode: the configure ack is a full frame, then commands emit row pa
   expect(pf.rows).toBe(splitRows(ack.plain!).length);
   expect(pf.patches.length).toBeGreaterThan(0);
   for (const p of pf.patches) {
-    expect(p.plain).not.toBeNull();
-    expect(p.ansi).toContain("\x1b[");
+    expect(p.plain).toContain("A▏");
+    // An unstyled text-edit row is identical in both negotiated formats.
+    expect(p.ansi).toBe(p.plain);
   }
   // Patch frames omit the full-frame payload keys entirely.
   expect("plain" in pf).toBe(false);
@@ -825,7 +826,7 @@ test("patches mode: patches carry only the negotiated format", () => {
   s.handle({ type: "configure", frames: "ansi", mode: "patches" });
   const pf = patchFrameOf(s.handle({ type: "char", char: "A" }));
   for (const p of pf.patches) {
-    expect(p.ansi).toContain("\x1b[");
+    expect(p.ansi).toContain("A▏");
     expect(p.plain).toBeNull();
   }
 });

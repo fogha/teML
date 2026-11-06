@@ -118,6 +118,26 @@ test("selectionActive renders the whole value as one highlighted span with no ca
   expect(out).not.toContain("▏");
 });
 
+test.each(["input", "textarea"])("%s only highlights selected text, not typing focus", (name) => {
+  const d = doc([{ type: "leaf", name, attrs: { id: "text", value: "Hello world" } }]);
+  for (const themeName of ["dark", "light", "auto", "mono"]) {
+    const theme = loadTheme(themeName);
+    const lines = layoutDocument(d, opts({ theme, focusedId: "text", cursorPos: 5 }));
+    expect(renderPlain(lines)).toContain("Hello▏ world");
+    expect(renderPlain(lines)).toContain("▸");
+    for (const span of lines.flat()) {
+      expect(span.style.bg).toBeUndefined();
+      expect(span.style.bold).toBeUndefined();
+      expect(span.style.underline).toBeUndefined();
+    }
+
+    const selected = layoutDocument(d, opts({ theme, focusedId: "text", selectionActive: true }));
+    expect(renderPlain(selected)).not.toContain("▏");
+    const value = selected.flat().find((span) => span.text.includes("Hello"));
+    expect(value?.style).toMatchObject(theme.roles.focus!);
+  }
+});
+
 test("selectionActive is ignored when the input isn't the focused one", () => {
   const d = doc([{ type: "leaf", name: "input", attrs: { id: "name", value: "Ada" } }]);
   const out = renderPlain(layoutDocument(d, opts({ focusedId: "other", selectionActive: true })));

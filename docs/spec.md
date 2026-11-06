@@ -282,9 +282,11 @@ Duplicate ids across focusable, updatable, and mutation-addressable nodes keep
 the first occurrence in document order; later nodes lose their id and become
 inert for targeting.
 Mutable attributes are allowlisted per directive — structural attrs are never
-updated generically. `teml run` never emits raw ANSI itself — focus is
-rendered via the theme's `focus` role plus a fixed-width textual marker
-(`▸`/`>`), preserving the single-emitter rule.
+updated generically. Widget layout never emits raw ANSI itself; the ANSI
+renderer owns terminal styling. A fixed-width textual marker (`▸`/`>`) identifies
+focus. Buttons, checkboxes, and radio options also use the theme's `focus` role.
+Inputs and textareas keep ordinary editing text unstyled and show a caret;
+only a value selected for replacement uses the `focus` role, with no caret.
 
 A radio group is one tab stop; arrow keys move a pending marker and
 Space/Enter confirms it. A textarea keeps a grapheme cursor across reflow and
